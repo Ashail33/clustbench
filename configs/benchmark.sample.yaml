@@ -1,0 +1,43 @@
+datasets:
+  - id: blobs
+    n_samples: [5000]
+    n_features: [8]
+    k_targets: [5]
+    compactness: [0.5, 1.0]
+
+algorithms:
+  - name: kmeans
+    kind: python
+    entry: kmeans
+    params:
+      max_iter: 300
+  - name: minibatch_kmeans
+    kind: python
+    entry: minibatch_kmeans
+    params:
+      batch_size: 500
+      max_iter: 100
+  - name: dbscan
+    kind: python
+    entry: dbscan
+    params:
+      eps: 0.5
+      min_samples: 5
+  - name: birch
+    kind: python
+    entry: birch_algo
+    params:
+      threshold: 1.5
+  - name: clarans
+    kind: python
+    entry: clarans
+    params:
+      numlocal: 2
+      maxneigh: 50
+  - name: consensus
+    kind: python
+    entry: consensus
+    params:
+      base: [kmeans, minibatch_kmeans, birch_algo]
+
+seeds: [1]
