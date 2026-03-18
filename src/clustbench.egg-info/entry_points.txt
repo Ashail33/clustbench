@@ -1,0 +1,2 @@
+[console_scripts]
+clustbench = clustbench.cli.run:main
