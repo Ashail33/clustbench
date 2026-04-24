@@ -4,8 +4,8 @@ import numpy as np
 from collections import Counter
 from scipy.optimize import linear_sum_assignment
 
-from .base import Algorithm, AlgoResult, register
-from . import base as base_algos
+from .algorithms.base import Algorithm, AlgoResult, register
+from .algorithms import base as base_algos
 
 def _align_labels(ref: np.ndarray, lab: np.ndarray) -> np.ndarray:
     u_ref = np.unique(ref[ref != -1])

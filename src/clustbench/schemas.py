@@ -27,6 +27,29 @@ class MetricBundle(BaseModel):
     separation: float | None = None
 
 
+class StepRecord(BaseModel):
+    """One row of a trajectory table.
+
+    Carries the run identifiers so trajectories from many runs can be
+    concatenated into a single table and queried by (run_id, algo, seed, …).
+    """
+
+    run_id: str
+    algo: str
+    dataset_id: str
+    n_samples: int
+    n_features: int
+    k_target: int | None = None
+    compactness: float
+    seed: int
+    step_idx: int
+    cost: float
+    delta_cost: float | None = None
+    accepted: bool = True
+    action: Dict[str, Any] = Field(default_factory=dict)
+    state: Dict[str, Any] = Field(default_factory=dict)
+
+
 class Record(BaseModel):
     algo: str
     dataset_id: str
@@ -42,6 +65,8 @@ class Record(BaseModel):
     read_bytes: int | None = None
     write_bytes: int | None = None
     n_clusters_found: int | None = None
+    n_steps: int | None = None
     metrics: MetricBundle
     extra: Dict[str, Any] = Field(default_factory=dict)
     labels_path: str
+    trajectory_path: str | None = None

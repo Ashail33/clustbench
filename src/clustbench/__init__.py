@@ -3,4 +3,4 @@
 This package exposes dataset generators, metrics functions, algorithm registry, benchmarking harness, and CLI entry points.
 """
 
-from . import datasets, metrics, benchmark, algorithms
+from . import datasets, metrics, algorithms, consensus, benchmark  # noqa: F401

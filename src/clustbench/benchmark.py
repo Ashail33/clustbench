@@ -1,16 +1,18 @@
 from __future__ import annotations
 import time
+import uuid
 import psutil
 import json
 import pathlib
 import numpy as np
 import pandas as pd
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 from .datasets import DATASETS, DataSpec
 from .metrics import bundle_scores
-from .schemas import Record
+from .schemas import Record, StepRecord
 from .algorithms import base as base_algos
+from .algorithms.base import Step
 from .runners.external_runner import run_external
 from scipy.stats import friedmanchisquare
 
@@ -70,6 +72,7 @@ def run_task(
     artifacts = outdir / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
     records = []
+    task_suffix = f"{dataset_id}_n{n}_d{d}_k{k}_c{compactness}_s{seed}"
     for cfg in algos:
         if cfg.kind == "python":
             cls = base_algos.ALGO_REGISTRY[cfg.entry.lower()]
@@ -78,7 +81,7 @@ def run_task(
             def _inner():
                 res = algo.fit_predict(X, k=k)
                 labels = res.labels
-                npy_path = artifacts / f"labels_{cfg.name}.npy"
+                npy_path = artifacts / f"labels_{cfg.name}__{task_suffix}.npy"
                 np.save(npy_path, labels)
                 m = bundle_scores(X, labels, y_true=y)
                 return {
@@ -86,6 +89,7 @@ def run_task(
                     "metrics": m,
                     "extra": res.extra,
                     "labels_path": str(npy_path),
+                    "trajectory": res.trajectory,
                 }
 
             payload = measure_resources(_inner)
@@ -100,9 +104,41 @@ def run_task(
                     "metrics": m,
                     "extra": out.get("extra", {}),
                     "labels_path": out["labels_path"],
+                    "trajectory": None,
                 }
 
             payload = measure_resources(_inner_ext)
+
+        trajectory: Optional[List[Step]] = payload.get("trajectory")
+        run_id = uuid.uuid4().hex
+        trajectory_path: Optional[str] = None
+        n_steps: Optional[int] = None
+        if trajectory:
+            traj_rows = [
+                StepRecord(
+                    run_id=run_id,
+                    algo=cfg.name,
+                    **task_stub,
+                    step_idx=s.step_idx,
+                    cost=s.cost,
+                    delta_cost=s.delta_cost,
+                    accepted=s.accepted,
+                    action=s.action,
+                    state=s.state,
+                ).model_dump()
+                for s in trajectory
+            ]
+            traj_df = pd.DataFrame(traj_rows)
+            traj_stem = f"trajectory_{cfg.name}__{task_suffix}"
+            traj_out = artifacts / f"{traj_stem}.parquet"
+            try:
+                traj_df.to_parquet(traj_out)
+            except Exception:
+                traj_out = artifacts / f"{traj_stem}.csv"
+                traj_df.to_csv(traj_out, index=False)
+            trajectory_path = str(traj_out)
+            n_steps = len(trajectory)
+
         rec = Record(
             algo=cfg.name,
             **task_stub,
@@ -113,11 +149,13 @@ def run_task(
             read_bytes=payload.get("read_bytes"),
             write_bytes=payload.get("write_bytes"),
             n_clusters_found=payload["n_clusters_found"],
+            n_steps=n_steps,
             metrics=payload["metrics"],
             extra=payload["extra"],
             labels_path=payload["labels_path"],
+            trajectory_path=trajectory_path,
         )
-        json_path = artifacts / f"metrics_{cfg.name}.json"
+        json_path = artifacts / f"metrics_{cfg.name}__{task_suffix}.json"
         json_path.write_text(json.dumps(rec.model_dump(), indent=2, default=float))
         records.append(rec.model_dump())
     return records

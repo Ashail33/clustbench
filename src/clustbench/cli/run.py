@@ -87,3 +87,7 @@ def main() -> None:
             summary[metric] = {"error": str(e)}
     (outdir / "summary.json").write_text(json.dumps(summary, indent=2))
     print(f"Wrote results to {outdir}")
+
+
+if __name__ == "__main__":
+    main()
