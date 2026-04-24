@@ -1,0 +1,33 @@
+datasets:
+  - id: blobs
+    n_samples: [500, 2000]
+    n_features: [8]
+    k_targets: [3, 5]
+    compactness: [0.5, 1.0]
+
+algorithms:
+  - name: kmeans
+    kind: python
+    entry: kmeans
+    params:
+      max_iter: 100
+      n_init: 3
+  - name: minibatch_kmeans
+    kind: python
+    entry: minibatch_kmeans
+    params:
+      batch_size: 200
+      max_iter: 100
+  - name: birch
+    kind: python
+    entry: birch_algo
+    params:
+      threshold: 1.0
+  - name: clarans
+    kind: python
+    entry: clarans
+    params:
+      numlocal: 2
+      maxneigh: 40
+
+seeds: [1, 2, 3]

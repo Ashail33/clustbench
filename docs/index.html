@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Clustbench dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1116;
+    --panel: #171a21;
+    --border: #262a33;
+    --fg: #e6e8ee;
+    --muted: #8a93a4;
+    --accent: #4c8bf5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.45;
+  }
+  header {
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { margin: 0 0 4px; font-size: 22px; }
+  header p  { margin: 0; color: var(--muted); font-size: 14px; }
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 32px 64px;
+    display: grid;
+    gap: 24px;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+  }
+  .panel h2 { margin: 0 0 12px; font-size: 16px; }
+  .panel p.hint { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 800px) { .row { grid-template-columns: 1fr; } }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+  .controls label {
+    display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted);
+  }
+  .controls select, .controls input[type=number] {
+    background: #0b0d11;
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 8px;
+    min-width: 120px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; }
+  td.num { font-variant-numeric: tabular-nums; text-align: right; }
+  canvas { max-width: 100%; }
+  .stats { display: flex; gap: 24px; flex-wrap: wrap; }
+  .stat { min-width: 120px; }
+  .stat .label { color: var(--muted); font-size: 12px; }
+  .stat .value { font-size: 22px; font-variant-numeric: tabular-nums; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Clustbench dashboard</h1>
+  <p id="subtitle">Loading…</p>
+</header>
+<main>
+  <section class="panel" id="overview-panel">
+    <h2>Overview</h2>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Algorithm comparison</h2>
+    <p class="hint">Mean across all tasks in the current run. Bars are colored by algorithm.</p>
+    <div class="row">
+      <canvas id="chart-ari"></canvas>
+      <canvas id="chart-nmi"></canvas>
+    </div>
+    <div class="row">
+      <canvas id="chart-time"></canvas>
+      <canvas id="chart-silhouette"></canvas>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Per-task leaderboard</h2>
+    <p class="hint">Filter to narrow the table. ARI=1 means labels perfectly match ground truth.</p>
+    <div class="controls">
+      <label>Dataset
+        <select id="filter-dataset"><option value="">all</option></select>
+      </label>
+      <label>k_target
+        <select id="filter-k"><option value="">all</option></select>
+      </label>
+      <label>n_samples
+        <select id="filter-n"><option value="">all</option></select>
+      </label>
+      <label>compactness
+        <select id="filter-c"><option value="">all</option></select>
+      </label>
+    </div>
+    <div style="overflow-x:auto">
+      <table id="leaderboard">
+        <thead>
+          <tr>
+            <th>algo</th><th>dataset</th><th class="num">n</th><th class="num">d</th>
+            <th class="num">k</th><th class="num">compactness</th><th class="num">seed</th>
+            <th class="num">ari</th><th class="num">nmi</th><th class="num">silhouette</th>
+            <th class="num">wall_s</th><th class="num">steps</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Trajectory viewer</h2>
+    <p class="hint">
+      Cost over optimization steps for iterative algorithms. Each curve is one
+      (algorithm, task) run. This is the raw state-action data — the step_idx
+      is the action index, cost is the scalar objective, and each point has
+      <code>delta_cost</code> attached as a reward signal for downstream RL /
+      latent-space models.
+    </p>
+    <div class="controls">
+      <label>Algo
+        <select id="traj-algo"><option value="">all</option></select>
+      </label>
+      <label>Dataset
+        <select id="traj-dataset"><option value="">all</option></select>
+      </label>
+      <label>k_target
+        <select id="traj-k"><option value="">all</option></select>
+      </label>
+      <label>compactness
+        <select id="traj-c"><option value="">all</option></select>
+      </label>
+      <label>Max curves
+        <input type="number" id="traj-limit" value="20" min="1" max="200" />
+      </label>
+    </div>
+    <canvas id="chart-trajectory" height="120"></canvas>
+  </section>
+
+  <footer style="color:var(--muted); font-size:12px; padding-top:16px">
+    Built from
+    <a href="data/results.json">results.json</a> +
+    <a href="data/trajectories.json">trajectories.json</a>
+    (produced by <code>scripts/build_site.py</code>).
+  </footer>
+</main>
+
+<script>
+const PALETTE = [
+  "#4c8bf5", "#e67e22", "#27ae60", "#e74c3c",
+  "#9b59b6", "#f1c40f", "#1abc9c", "#95a5a6",
+];
+const colorFor = (() => {
+  const map = new Map();
+  return (key) => {
+    if (!map.has(key)) map.set(key, PALETTE[map.size % PALETTE.length]);
+    return map.get(key);
+  };
+})();
+
+Chart.defaults.color = "#c5cad6";
+Chart.defaults.borderColor = "#262a33";
+
+async function load() {
+  const [results, trajectories, manifest] = await Promise.all([
+    fetch("data/results.json").then(r => r.json()),
+    fetch("data/trajectories.json").then(r => r.json()),
+    fetch("data/manifest.json").then(r => r.json()).catch(() => ({})),
+  ]);
+  render(results, trajectories, manifest);
+}
+
+function mean(xs) {
+  const vs = xs.filter(x => x != null && Number.isFinite(x));
+  return vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : null;
+}
+
+function groupBy(rows, key) {
+  const m = new Map();
+  for (const r of rows) {
+    const k = r[key];
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push(r);
+  }
+  return m;
+}
+
+function barChart(ctx, labels, values, title) {
+  return new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: title,
+        data: values,
+        backgroundColor: labels.map(l => colorFor(l)),
+      }],
+    },
+    options: {
+      plugins: { title: { display: true, text: title }, legend: { display: false } },
+      scales: { y: { beginAtZero: true } },
+      responsive: true,
+    },
+  });
+}
+
+function render(results, trajectories, manifest) {
+  document.getElementById("subtitle").textContent =
+    `${results.length} result rows · ${trajectories.length} trajectories · generated ${manifest.generated_at || "?"}`;
+
+  // Overview stats
+  const algos = [...new Set(results.map(r => r.algo))];
+  const tasks = new Set(results.map(r => `${r.dataset_id}|${r.n_samples}|${r.n_features}|${r.k_target}|${r.compactness}|${r.seed}`));
+  const stats = document.getElementById("stats");
+  const addStat = (label, value) => {
+    const d = document.createElement("div");
+    d.className = "stat";
+    d.innerHTML = `<div class="label">${label}</div><div class="value">${value}</div>`;
+    stats.appendChild(d);
+  };
+  addStat("algorithms", algos.length);
+  addStat("tasks", tasks.size);
+  addStat("runs", results.length);
+  addStat("avg ARI", (mean(results.map(r => r.ari)) ?? 0).toFixed(3));
+  addStat("avg wall (s)", (mean(results.map(r => r.wall_time_s)) ?? 0).toFixed(3));
+
+  // Algo comparison bars
+  const byAlgo = groupBy(results, "algo");
+  const algoLabels = [...byAlgo.keys()];
+  const metricBar = (id, metric, title) => {
+    const values = algoLabels.map(a => mean(byAlgo.get(a).map(r => r[metric])) ?? 0);
+    barChart(document.getElementById(id), algoLabels, values, title);
+  };
+  metricBar("chart-ari", "ari", "mean ARI (higher is better)");
+  metricBar("chart-nmi", "nmi", "mean NMI (higher is better)");
+  metricBar("chart-time", "wall_time_s", "mean wall time, s (lower is better)");
+  metricBar("chart-silhouette", "silhouette", "mean silhouette (higher is better)");
+
+  // Leaderboard
+  const dsSet = [...new Set(results.map(r => r.dataset_id))];
+  const kSet = [...new Set(results.map(r => r.k_target))].sort((a,b)=>a-b);
+  const nSet = [...new Set(results.map(r => r.n_samples))].sort((a,b)=>a-b);
+  const cSet = [...new Set(results.map(r => r.compactness))].sort((a,b)=>a-b);
+  const fillOptions = (id, vals) => {
+    const sel = document.getElementById(id);
+    for (const v of vals) {
+      const o = document.createElement("option");
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    }
+  };
+  fillOptions("filter-dataset", dsSet);
+  fillOptions("filter-k", kSet);
+  fillOptions("filter-n", nSet);
+  fillOptions("filter-c", cSet);
+
+  const tbody = document.querySelector("#leaderboard tbody");
+  const fmt = (v, d=3) => v == null ? "" : Number(v).toFixed(d);
+  function renderTable() {
+    const ds = document.getElementById("filter-dataset").value;
+    const k = document.getElementById("filter-k").value;
+    const n = document.getElementById("filter-n").value;
+    const c = document.getElementById("filter-c").value;
+    const rows = results
+      .filter(r => !ds || r.dataset_id === ds)
+      .filter(r => !k  || String(r.k_target) === k)
+      .filter(r => !n  || String(r.n_samples) === n)
+      .filter(r => !c  || String(r.compactness) === c)
+      .sort((a, b) => (b.ari ?? -1) - (a.ari ?? -1))
+      .slice(0, 200);
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td>${r.algo}</td>
+        <td>${r.dataset_id}</td>
+        <td class="num">${r.n_samples}</td>
+        <td class="num">${r.n_features}</td>
+        <td class="num">${r.k_target}</td>
+        <td class="num">${fmt(r.compactness,1)}</td>
+        <td class="num">${r.seed}</td>
+        <td class="num">${fmt(r.ari)}</td>
+        <td class="num">${fmt(r.nmi)}</td>
+        <td class="num">${fmt(r.silhouette)}</td>
+        <td class="num">${fmt(r.wall_time_s)}</td>
+        <td class="num">${r.n_steps ?? ""}</td>
+      </tr>`).join("");
+  }
+  ["filter-dataset","filter-k","filter-n","filter-c"].forEach(id =>
+    document.getElementById(id).addEventListener("change", renderTable));
+  renderTable();
+
+  // Trajectory viewer
+  const tAlgoSet = [...new Set(trajectories.map(t => t.algo))];
+  const tDsSet = [...new Set(trajectories.map(t => t.dataset_id))];
+  const tKSet = [...new Set(trajectories.map(t => t.k_target))].sort((a,b)=>a-b);
+  const tCSet = [...new Set(trajectories.map(t => t.compactness))].sort((a,b)=>a-b);
+  fillOptions("traj-algo", tAlgoSet);
+  fillOptions("traj-dataset", tDsSet);
+  fillOptions("traj-k", tKSet);
+  fillOptions("traj-c", tCSet);
+
+  let trajChart = null;
+  function renderTrajectory() {
+    const a = document.getElementById("traj-algo").value;
+    const ds = document.getElementById("traj-dataset").value;
+    const k = document.getElementById("traj-k").value;
+    const c = document.getElementById("traj-c").value;
+    const limit = Math.max(1, Math.min(200, Number(document.getElementById("traj-limit").value) || 20));
+    const curves = trajectories
+      .filter(t => !a  || t.algo === a)
+      .filter(t => !ds || t.dataset_id === ds)
+      .filter(t => !k  || String(t.k_target) === k)
+      .filter(t => !c  || String(t.compactness) === c)
+      .slice(0, limit);
+
+    const datasets = curves.map(t => ({
+      label: `${t.algo} · ${t.dataset_id} n=${t.n_samples} k=${t.k_target} c=${t.compactness} s=${t.seed}`,
+      data: t.steps.map(s => ({ x: s.step_idx, y: s.cost })),
+      borderColor: colorFor(t.algo),
+      backgroundColor: colorFor(t.algo) + "33",
+      pointRadius: 2,
+      tension: 0.15,
+    }));
+
+    if (trajChart) trajChart.destroy();
+    trajChart = new Chart(document.getElementById("chart-trajectory"), {
+      type: "line",
+      data: { datasets },
+      options: {
+        parsing: false,
+        plugins: { legend: { display: datasets.length <= 10, labels: { boxWidth: 8 } } },
+        scales: {
+          x: { type: "linear", title: { display: true, text: "step_idx" } },
+          y: { title: { display: true, text: "cost (inertia / assignment cost)" } },
+        },
+        responsive: true,
+      },
+    });
+  }
+  ["traj-algo","traj-dataset","traj-k","traj-c","traj-limit"].forEach(id =>
+    document.getElementById(id).addEventListener("change", renderTrajectory));
+  renderTrajectory();
+}
+
+load().catch(err => {
+  document.getElementById("subtitle").textContent = "Failed to load data: " + err.message;
+  console.error(err);
+});
+</script>
+</body>
+</html>
