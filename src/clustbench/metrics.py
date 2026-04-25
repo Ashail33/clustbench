@@ -67,11 +67,14 @@ def bundle_scores(X, labels, y_true=None):
         "dunn": dunn_index(X, labels),
     }
     if y_true is not None:
+        silhouette_kwargs = {}
+        if X.shape[0] > 5000:
+            silhouette_kwargs = {"sample_size": 5000, "random_state": 42}
         out.update(
             {
                 "ari": adjusted_rand_score(y_true, labels),
                 "nmi": normalized_mutual_info_score(y_true, labels),
-                "silhouette": silhouette_score(X, labels)
+                "silhouette": silhouette_score(X, labels, **silhouette_kwargs)
                 if len(set(labels)) > 1
                 else float("nan"),
             }

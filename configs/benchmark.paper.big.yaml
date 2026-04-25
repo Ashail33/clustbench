@@ -1,0 +1,53 @@
+# Focused large-sample sweep for local stress testing.
+#
+# This keeps the four paper taxonomy algorithms and pushes sample size
+# up to the full paper's largest setting without expanding every other
+# dimension of the 3,240-run grid.
+
+datasets:
+  - id: mdcgen
+    n_samples: [10000, 50000, 100000]
+    n_features: [10]
+    k_targets: [5]
+    compactness: [1.0]
+    outliers: [0, 500]
+    noise: [0]
+    density: [1.0]
+
+algorithms:
+  - name: parallel_kmeans
+    kind: python
+    entry: parallel_kmeans
+    params:
+      max_iter: 100
+      n_init: 3
+      n_workers: 1
+  - name: minibatch_kmeans
+    kind: python
+    entry: minibatch_kmeans
+    params:
+      batch_size: 1000
+      max_iter: 100
+  - name: pwcc
+    kind: python
+    entry: pwcc
+    params:
+      base: [kmeans, minibatch_kmeans, birch_algo]
+      base_params:
+        kmeans:
+          record_trajectory: false
+          max_iter: 100
+          n_init: 3
+        minibatch_kmeans:
+          batch_size: 1000
+          max_iter: 100
+        birch_algo:
+          threshold: 1.0
+  - name: s5c
+    kind: python
+    entry: s5c
+    params:
+      sample_size: 1000
+      n_nonzero_coefs: 5
+
+seeds: [1]

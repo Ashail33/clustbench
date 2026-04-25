@@ -4,9 +4,11 @@
       {
         "id": "mdcgen",
         "n_samples": [
-          500
+          500,
+          1000
         ],
         "n_features": [
+          2,
           10
         ],
         "k_targets": [
@@ -18,28 +20,14 @@
         ],
         "outliers": [
           0,
-          100
-        ],
-        "noise": [
-          0
-        ],
-        "density": [
-          1.0
-        ]
-      },
-      {
-        "id": "anisotropic",
-        "n_samples": [
           500
         ],
-        "n_features": [
+        "noise": [
+          0,
           10
         ],
-        "k_targets": [
-          3,
-          5
-        ],
-        "compactness": [
+        "density": [
+          0.01,
           1.0
         ]
       }
@@ -50,8 +38,8 @@
         "kind": "python",
         "entry": "parallel_kmeans",
         "params": {
-          "max_iter": 50,
-          "n_init": 2,
+          "max_iter": 100,
+          "n_init": 3,
           "n_workers": 1
         }
       },
@@ -60,7 +48,7 @@
         "kind": "python",
         "entry": "minibatch_kmeans",
         "params": {
-          "batch_size": 100,
+          "batch_size": 500,
           "max_iter": 100
         }
       },
@@ -73,7 +61,21 @@
             "kmeans",
             "minibatch_kmeans",
             "birch_algo"
-          ]
+          ],
+          "base_params": {
+            "kmeans": {
+              "record_trajectory": false,
+              "max_iter": 100,
+              "n_init": 3
+            },
+            "minibatch_kmeans": {
+              "batch_size": 500,
+              "max_iter": 100
+            },
+            "birch_algo": {
+              "threshold": 1.0
+            }
+          }
         }
       },
       {
@@ -81,7 +83,7 @@
         "kind": "python",
         "entry": "s5c",
         "params": {
-          "sample_size": 200,
+          "sample_size": 1000,
           "n_nonzero_coefs": 5
         }
       },
@@ -129,7 +131,21 @@
             "kmeans",
             "minibatch_kmeans",
             "birch_algo"
-          ]
+          ],
+          "base_params": {
+            "kmeans": {
+              "record_trajectory": false,
+              "max_iter": 100,
+              "n_init": 3
+            },
+            "minibatch_kmeans": {
+              "batch_size": 500,
+              "max_iter": 100
+            },
+            "birch_algo": {
+              "threshold": 1.0
+            }
+          }
         }
       },
       {
@@ -176,13 +192,12 @@
       }
     ],
     "seeds": [
-      1,
-      2
+      1
     ]
   },
-  "generated_at": "2026-04-25 15:19:03",
+  "generated_at": "2026-04-25 23:33:49",
   "env": {
-    "python": "3.11.15",
-    "platform": "Linux-6.18.5-x86_64-with-glibc2.39"
+    "python": "3.10.6",
+    "platform": "Windows-10-10.0.26200-SP0"
   }
 }

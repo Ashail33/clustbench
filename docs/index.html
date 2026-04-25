@@ -61,6 +61,18 @@
   th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
   th { color: var(--muted); font-weight: 500; }
   td.num { font-variant-numeric: tabular-nums; text-align: right; }
+  tr.best-row td { background: rgba(76, 139, 245, 0.10); }
+  .rank-badge {
+    display: inline-flex;
+    min-width: 28px;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 7px;
+    font-variant-numeric: tabular-nums;
+  }
+  .rank-badge.first { border-color: var(--accent); color: #ffffff; background: rgba(76, 139, 245, 0.28); }
+  .rank-note { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
   canvas { max-width: 100%; }
   .stats { display: flex; gap: 24px; flex-wrap: wrap; }
   .stat { min-width: 120px; }
@@ -137,16 +149,16 @@
   </section>
 
   <section class="panel">
-    <h2>Paper tables (Maharaj 2024, Tables 4.1 & 4.2)</h2>
+    <h2>Dynamic rank tests</h2>
     <p class="hint">
-      Average per-algorithm rank across all tasks (lower is better) and the
-      Friedman χ² test per metric. Both produced by <code>summary.json</code>
-      and matching the layout in the paper.
+      Average per-algorithm rank and Friedman χ² are computed in the browser
+      from the loaded result rows. Add a new algorithm to the benchmark output,
+      rebuild <code>results.json</code>, and this table recomputes automatically.
     </p>
     <div class="row">
       <div>
         <h3 style="font-size:14px;margin:0 0 8px;color:var(--muted)">
-          Table 4.1 · Average ranks
+          Average ranks
         </h3>
         <div style="overflow-x:auto">
           <table id="table-ranks">
@@ -156,7 +168,7 @@
       </div>
       <div>
         <h3 style="font-size:14px;margin:0 0 8px;color:var(--muted)">
-          Table 4.2 · Friedman test per metric
+          Friedman test per metric
         </h3>
         <div style="overflow-x:auto">
           <table id="table-friedman">
@@ -167,10 +179,56 @@
                 <th class="num">p-value</th>
                 <th class="num">k</th>
                 <th class="num">n_tasks</th>
+                <th>significant</th>
               </tr>
             </thead>
             <tbody></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:18px">
+      <h3 style="font-size:14px;margin:0 0 8px;color:var(--muted)">
+        Which algorithm wins, and when?
+      </h3>
+      <div class="controls">
+        <label>Metric
+          <select id="rank-metric"></select>
+        </label>
+        <label>Condition
+          <select id="rank-condition"></select>
+        </label>
+      </div>
+      <div class="row">
+        <div style="overflow-x:auto">
+          <table id="table-rank-order">
+            <thead>
+              <tr>
+                <th class="num">#</th>
+                <th>algorithm</th>
+                <th class="num">avg rank</th>
+                <th class="num">wins</th>
+                <th class="num">mean metric</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <p class="rank-note">Lower average rank is better. Wins count task cells where the algorithm ranked first.</p>
+        </div>
+        <div style="overflow-x:auto">
+          <table id="table-rank-when">
+            <thead>
+              <tr>
+                <th>condition value</th>
+                <th>best</th>
+                <th class="num">best rank</th>
+                <th>runner-up</th>
+                <th class="num">tasks</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <p class="rank-note">Each row recomputes ranks using only tasks matching that condition value.</p>
         </div>
       </div>
     </div>
@@ -273,6 +331,214 @@ function groupBy(rows, key) {
   return m;
 }
 
+function taskKey(r) {
+  return [
+    r.dataset_id,
+    r.n_samples,
+    r.n_features,
+    r.k_target,
+    r.compactness,
+    r.outliers,
+    r.noise,
+    r.density,
+    r.seed,
+  ].join("|");
+}
+
+const RANK_METRICS = [
+  ["ari", true],
+  ["nmi", true],
+  ["silhouette", true],
+  ["davies_bouldin", false],
+  ["wall_time_s", false],
+  ["rss_delta_mb", false],
+];
+const RANK_METRIC_LABELS = {
+  ari: "ARI (higher is better)",
+  nmi: "NMI (higher is better)",
+  silhouette: "Silhouette (higher is better)",
+  davies_bouldin: "Davies-Bouldin (lower is better)",
+  wall_time_s: "Wall time, s (lower is better)",
+  rss_delta_mb: "RSS delta, MB (lower is better)",
+};
+const CONDITION_FIELDS = [
+  "n_samples",
+  "n_features",
+  "k_target",
+  "outliers",
+  "noise",
+  "density",
+];
+
+function rankItems(items, metric, higher) {
+  const sorted = items
+    .filter(x => x.value != null && Number.isFinite(Number(x.value)))
+    .sort((a, b) => higher ? Number(b.value) - Number(a.value) : Number(a.value) - Number(b.value));
+  const ranks = new Map();
+  let i = 0;
+  while (i < sorted.length) {
+    let j = i + 1;
+    while (j < sorted.length && Number(sorted[j].value) === Number(sorted[i].value)) j++;
+    const avgRank = (i + 1 + j) / 2;
+    for (let p = i; p < j; p++) ranks.set(sorted[p].algo, avgRank);
+    i = j;
+  }
+  return ranks;
+}
+
+function logGamma(z) {
+  const coeffs = [
+    676.5203681218851,
+    -1259.1392167224028,
+    771.32342877765313,
+    -176.61502916214059,
+    12.507343278686905,
+    -0.13857109526572012,
+    9.9843695780195716e-6,
+    1.5056327351493116e-7,
+  ];
+  if (z < 0.5) return Math.log(Math.PI) - Math.log(Math.sin(Math.PI * z)) - logGamma(1 - z);
+  z -= 1;
+  let x = 0.99999999999980993;
+  for (let i = 0; i < coeffs.length; i++) x += coeffs[i] / (z + i + 1);
+  const t = z + coeffs.length - 0.5;
+  return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+}
+
+function regularizedGammaP(a, x) {
+  if (x <= 0) return 0;
+  let sum = 1 / a;
+  let del = sum;
+  let ap = a;
+  for (let n = 1; n <= 100; n++) {
+    ap += 1;
+    del *= x / ap;
+    sum += del;
+    if (Math.abs(del) < Math.abs(sum) * 1e-12) break;
+  }
+  return sum * Math.exp(-x + a * Math.log(x) - logGamma(a));
+}
+
+function regularizedGammaQ(a, x) {
+  if (x <= 0) return 1;
+  if (x < a + 1) return 1 - regularizedGammaP(a, x);
+  const fpmin = 1e-300;
+  let b = x + 1 - a;
+  let c = 1 / fpmin;
+  let d = 1 / Math.max(b, fpmin);
+  let h = d;
+  for (let i = 1; i <= 100; i++) {
+    const an = -i * (i - a);
+    b += 2;
+    d = an * d + b;
+    if (Math.abs(d) < fpmin) d = fpmin;
+    c = b + an / c;
+    if (Math.abs(c) < fpmin) c = fpmin;
+    d = 1 / d;
+    const del = d * c;
+    h *= del;
+    if (Math.abs(del - 1) < 1e-12) break;
+  }
+  return Math.exp(-x + a * Math.log(x) - logGamma(a)) * h;
+}
+
+function chiSquareSurvival(x, df) {
+  if (!Number.isFinite(x) || df <= 0) return null;
+  return Math.max(0, Math.min(1, regularizedGammaQ(df / 2, x / 2)));
+}
+
+function computeRankTests(results) {
+  const algos = [...new Set(results.map(r => r.algo))].sort();
+  const byTask = new Map();
+  for (const r of results) {
+    const key = taskKey(r);
+    if (!byTask.has(key)) byTask.set(key, []);
+    byTask.get(key).push(r);
+  }
+
+  const out = {};
+  for (const [metric, higher] of RANK_METRICS) {
+    const rankRows = [];
+    const ranksByAlgo = new Map(algos.map(a => [a, []]));
+    for (const rows of byTask.values()) {
+      const byAlgo = new Map(rows.map(r => [r.algo, r]));
+      const complete = algos.every(a => {
+        const v = byAlgo.get(a)?.[metric];
+        return v != null && Number.isFinite(Number(v));
+      });
+      if (!complete) continue;
+      const ranks = rankItems(algos.map(a => ({ algo: a, value: byAlgo.get(a)[metric] })), metric, higher);
+      for (const a of algos) ranksByAlgo.get(a).push(ranks.get(a));
+      rankRows.push(ranks);
+    }
+
+    const averageRanks = algos.map(algo => ({
+      algo,
+      rank: mean(ranksByAlgo.get(algo)),
+    })).filter(r => r.rank != null).sort((a, b) => a.rank - b.rank);
+
+    let friedman = { error: "not enough complete tasks" };
+    const n = rankRows.length;
+    const k = algos.length;
+    if (n > 0 && k > 1) {
+      const avg = new Map(averageRanks.map(r => [r.algo, r.rank]));
+      const center = (k + 1) / 2;
+      const sumSq = algos.reduce((acc, a) => acc + Math.pow((avg.get(a) ?? center) - center, 2), 0);
+      const statistic = (12 * n / (k * (k + 1))) * sumSq;
+      friedman = {
+        statistic,
+        p_value: chiSquareSurvival(statistic, k - 1),
+        k,
+        n_tasks: n,
+      };
+    }
+    out[metric] = { average_ranks: averageRanks, friedman };
+  }
+  return out;
+}
+
+function computeDetailedRanks(rows, metric, higher) {
+  const algos = [...new Set(rows.map(r => r.algo))].sort();
+  const byTask = new Map();
+  for (const r of rows) {
+    const key = taskKey(r);
+    if (!byTask.has(key)) byTask.set(key, []);
+    byTask.get(key).push(r);
+  }
+  const ranksByAlgo = new Map(algos.map(a => [a, []]));
+  const valuesByAlgo = new Map(algos.map(a => [a, []]));
+  const winsByAlgo = new Map(algos.map(a => [a, 0]));
+  let completeTasks = 0;
+
+  for (const taskRows of byTask.values()) {
+    const byAlgo = new Map(taskRows.map(r => [r.algo, r]));
+    const complete = algos.every(a => {
+      const v = byAlgo.get(a)?.[metric];
+      return v != null && Number.isFinite(Number(v));
+    });
+    if (!complete) continue;
+    completeTasks += 1;
+    const items = algos.map(a => ({ algo: a, value: Number(byAlgo.get(a)[metric]) }));
+    const ranks = rankItems(items, metric, higher);
+    let bestRank = Infinity;
+    for (const a of algos) bestRank = Math.min(bestRank, ranks.get(a));
+    for (const item of items) {
+      ranksByAlgo.get(item.algo).push(ranks.get(item.algo));
+      valuesByAlgo.get(item.algo).push(item.value);
+      if (ranks.get(item.algo) === bestRank) winsByAlgo.set(item.algo, winsByAlgo.get(item.algo) + 1);
+    }
+  }
+
+  const ordering = algos.map(algo => ({
+    algo,
+    rank: mean(ranksByAlgo.get(algo)),
+    wins: winsByAlgo.get(algo),
+    meanMetric: mean(valuesByAlgo.get(algo)),
+  })).filter(r => r.rank != null).sort((a, b) => a.rank - b.rank || b.wins - a.wins);
+
+  return { ordering, nTasks: completeTasks };
+}
+
 function barChart(ctx, labels, values, title) {
   return new Chart(ctx, {
     type: "bar",
@@ -298,7 +564,7 @@ function render(results, trajectories, manifest, summary) {
 
   // Overview stats
   const algos = [...new Set(results.map(r => r.algo))];
-  const tasks = new Set(results.map(r => `${r.dataset_id}|${r.n_samples}|${r.n_features}|${r.k_target}|${r.compactness}|${r.seed}`));
+  const tasks = new Set(results.map(taskKey));
   const stats = document.getElementById("stats");
   const addStat = (label, value) => {
     const d = document.createElement("div");
@@ -391,25 +657,35 @@ function render(results, trajectories, manifest, summary) {
     document.getElementById(id).addEventListener("change", renderTable));
   renderTable();
 
-  // Paper Table 4.1: per-metric average ranks (cols), per-algo rows.
+  // Dynamic rank tests: computed from currently loaded result rows.
+  const dynamicSummary = computeRankTests(results);
+
+  // Per-metric average ranks (cols), per-algo rows.
   (function renderRanks() {
-    const summaryObj = summary || {};
+    const summaryObj = dynamicSummary;
     const metrics = Object.keys(summaryObj);
     const algos = new Set();
     for (const m of metrics) {
       const ranks = (summaryObj[m] && summaryObj[m].average_ranks) || [];
       for (const r of ranks) algos.add(r.algo);
     }
-    const algosSorted = [...algos].sort();
+    const algosSorted = [...algos].sort((a, b) => {
+      const avgRank = (algo) => mean(metrics.map(m => {
+        const ranks = (summaryObj[m].average_ranks) || [];
+        const r = ranks.find(x => x.algo === algo);
+        return r ? r.rank : null;
+      })) ?? Infinity;
+      return avgRank(a) - avgRank(b);
+    });
     const thead = document.querySelector("#table-ranks thead");
     const tbody = document.querySelector("#table-ranks tbody");
     if (!metrics.length) {
       thead.innerHTML = "<tr><th>algo</th></tr>";
-      tbody.innerHTML = `<tr><td>summary.json missing — run the benchmark to generate it.</td></tr>`;
+      tbody.innerHTML = `<tr><td>No rankable metrics found in results.json.</td></tr>`;
       return;
     }
-    thead.innerHTML = "<tr><th>algo</th>" + metrics.map(m => `<th class="num">${m}</th>`).join("") + '<th class="num">mean</th></tr>';
-    tbody.innerHTML = algosSorted.map(a => {
+    thead.innerHTML = "<tr><th class=\"num\">#</th><th>algo</th>" + metrics.map(m => `<th class="num">${m}</th>`).join("") + '<th class="num">mean</th></tr>';
+    tbody.innerHTML = algosSorted.map((a, idx) => {
       const cells = metrics.map(m => {
         const ranks = (summaryObj[m].average_ranks) || [];
         const r = ranks.find(x => x.algo === a);
@@ -420,29 +696,91 @@ function render(results, trajectories, manifest, summary) {
         const r = ranks.find(x => x.algo === a);
         return r ? r.rank : null;
       }));
-      return `<tr><td>${a}</td>${cells.join("")}<td class="num"><b>${fmt(meanRank, 2)}</b></td></tr>`;
+      return `<tr class="${idx === 0 ? "best-row" : ""}"><td class="num"><span class="rank-badge ${idx === 0 ? "first" : ""}">${idx + 1}</span></td><td>${a}</td>${cells.join("")}<td class="num"><b>${fmt(meanRank, 2)}</b></td></tr>`;
     }).join("");
   })();
 
-  // Paper Table 4.2: Friedman test per metric.
+  // Friedman test per metric.
   (function renderFriedman() {
-    const summaryObj = summary || {};
+    const summaryObj = dynamicSummary;
     const metrics = Object.keys(summaryObj);
     const tbody = document.querySelector("#table-friedman tbody");
     tbody.innerHTML = metrics.map(m => {
       const fr = summaryObj[m] && summaryObj[m].friedman;
       if (!fr || fr.error) {
-        return `<tr><td>${m}</td><td colspan="4" class="num">${fr && fr.error ? fr.error : ""}</td></tr>`;
+        return `<tr><td>${m}</td><td colspan="5" class="num">${fr && fr.error ? fr.error : ""}</td></tr>`;
       }
-      const sig = fr.p_value != null && fr.p_value < 0.05 ? " ✓" : "";
+      const sig = fr.p_value != null && fr.p_value < 0.05;
       return `<tr>
         <td>${m}</td>
         <td class="num">${fmt(fr.statistic, 2)}</td>
-        <td class="num">${fr.p_value != null ? fr.p_value.toExponential(2) + sig : ""}</td>
+        <td class="num">${fr.p_value != null ? fr.p_value.toExponential(2) : ""}</td>
         <td class="num">${fr.k ?? ""}</td>
         <td class="num">${fr.n_tasks ?? ""}</td>
+        <td>${sig ? "yes" : "no"}</td>
       </tr>`;
     }).join("");
+  })();
+
+  (function setupRankDecisionView() {
+    const metricSel = document.getElementById("rank-metric");
+    const conditionSel = document.getElementById("rank-condition");
+    const orderBody = document.querySelector("#table-rank-order tbody");
+    const whenBody = document.querySelector("#table-rank-when tbody");
+
+    for (const [metric] of RANK_METRICS) {
+      const o = document.createElement("option");
+      o.value = metric;
+      o.textContent = RANK_METRIC_LABELS[metric] || metric;
+      metricSel.appendChild(o);
+    }
+    for (const field of CONDITION_FIELDS) {
+      const o = document.createElement("option");
+      o.value = field;
+      o.textContent = field;
+      conditionSel.appendChild(o);
+    }
+    metricSel.value = "ari";
+    conditionSel.value = "n_samples";
+
+    function renderDecisionRanks() {
+      const metric = metricSel.value;
+      const higher = RANK_METRICS.find(([m]) => m === metric)?.[1] ?? true;
+      const condition = conditionSel.value;
+      const detailed = computeDetailedRanks(results, metric, higher);
+
+      orderBody.innerHTML = detailed.ordering.map((r, idx) => `
+        <tr class="${idx === 0 ? "best-row" : ""}">
+          <td class="num"><span class="rank-badge ${idx === 0 ? "first" : ""}">${idx + 1}</span></td>
+          <td>${r.algo}</td>
+          <td class="num"><b>${fmt(r.rank, 2)}</b></td>
+          <td class="num">${r.wins}</td>
+          <td class="num">${fmt(r.meanMetric, 4)}</td>
+        </tr>`).join("");
+
+      const vals = [...new Set(results.map(r => r[condition]).filter(v => v != null))]
+        .sort((a, b) => Number(a) - Number(b));
+      whenBody.innerHTML = vals.map(v => {
+        const subset = results.filter(r => String(r[condition]) === String(v));
+        const ranked = computeDetailedRanks(subset, metric, higher);
+        const best = ranked.ordering[0];
+        const second = ranked.ordering[1];
+        if (!best) {
+          return `<tr><td>${v}</td><td colspan="4">No complete comparable tasks</td></tr>`;
+        }
+        return `<tr>
+          <td>${v}</td>
+          <td><b>${best.algo}</b></td>
+          <td class="num">${fmt(best.rank, 2)}</td>
+          <td>${second ? `${second.algo} (${fmt(second.rank, 2)})` : ""}</td>
+          <td class="num">${ranked.nTasks}</td>
+        </tr>`;
+      }).join("");
+    }
+
+    metricSel.addEventListener("change", renderDecisionRanks);
+    conditionSel.addEventListener("change", renderDecisionRanks);
+    renderDecisionRanks();
   })();
 
   // Parametric metric-vs-property chart (paper Figs 4.1-4.35).

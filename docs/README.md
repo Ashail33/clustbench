@@ -9,6 +9,10 @@ GitHub Pages from this `docs/` folder at
 - **Overview** — counts of algorithms, tasks, and runs; mean ARI and wall time.
 - **Algorithm comparison** — bar charts of mean ARI, NMI, silhouette, and wall time per algorithm.
 - **Per-task leaderboard** — filterable table of every (algo, task) run.
+- **Dynamic rank tests** — average ranks and Friedman χ² tests computed in
+  the browser from `results.json`, so newly added algorithm IDs are included
+  automatically after rebuilding the dashboard data. The decision table also
+  shows the overall algorithm order and the best algorithm by factor level.
 - **Trajectory viewer** — cost vs. step for iterative algorithms (kmeans, clarans).
   This is the raw state-action data: each point has `step_idx` (action index),
   `cost` (scalar objective), and `delta_cost` (reward signal) that a downstream

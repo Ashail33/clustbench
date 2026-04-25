@@ -25,8 +25,10 @@ and ``extra`` so the caller can load the labels.
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import subprocess
+import sys
 import tempfile
 from typing import Any, Dict, Optional
 
@@ -79,9 +81,13 @@ def run_external(
             "labels_path": str(labels_path),
         }
 
+        cmd = [entry]
+        if os.name == "nt" and pathlib.Path(entry).suffix.lower() == ".py":
+            cmd = [sys.executable, entry]
+
         try:
             proc = subprocess.run(
-                [entry],
+                cmd,
                 input=json.dumps(payload),
                 capture_output=True,
                 text=True,
