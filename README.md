@@ -177,6 +177,11 @@ documented in `src/clustbench/runners/external_runner.py`.
 | `parallel_kmeans` | python (custom) | yes         | Zhao 2009 MapReduce-style: per-iteration map/reduce via multiprocessing   |
 | `pwcc`            | python (meta) | yes           | Alguliyev purity-weighted consensus; one step per base + final vote       |
 | `s5c`             | python (custom) | yes         | Matsushima selective-sampling sparse subspace clustering (OMP + spectral) |
+| `gmm`             | python (sklearn wrapper) | no | Gaussian-mixture EM                                                       |
+| `agglomerative`   | python (sklearn wrapper) | no | hierarchical, Ward linkage by default                                     |
+| `spectral`        | python (sklearn wrapper) | no | spectral clustering on a kNN affinity                                     |
+| `meanshift`       | python (sklearn wrapper) | no | non-parametric in `k`; bandwidth auto-estimated                           |
+| `optics`          | python (sklearn wrapper) | no | density-based, ignores `k`                                                |
 
 To add one of your own, see `src/clustbench/algorithms/base.py` —
 subclass `Algorithm`, decorate with `@register`, return an `AlgoResult`
@@ -189,6 +194,9 @@ subclass `Algorithm`, decorate with `@register`, return an `AlgoResult`
 | `blobs`  | `sklearn.datasets.make_blobs`                       | n, d, k, compactness                                 |
 | `mixed`  | `sklearn.datasets.make_classification`              | n, d, k, compactness                                 |
 | `mdcgen` | MDCGen-style Gaussian mixture (Lopez et al., reproduced) | n, d, k, compactness, **outliers**, **noise**, **density** |
+| `moons`  | `sklearn.datasets.make_moons` (non-convex) | n, compactness (drives noise) |
+| `circles`| `sklearn.datasets.make_circles` (concentric) | n, compactness (drives noise) |
+| `anisotropic` | sheared blobs | n, d, k, compactness |
 
 Add more in `src/clustbench/datasets.py` and register them in `DATASETS`.
 

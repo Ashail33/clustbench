@@ -1,8 +1,8 @@
-# Downsampled version of benchmark.paper.yaml — chosen to populate the
-# dashboard end-to-end in under a couple of minutes on a single laptop.
-# Keeps the four algorithm categories from Maharaj (2024) and the same
-# property knobs (outliers, noise, density), but at smaller sample sizes
-# and with fewer grid points.
+# Downsampled paper-style sweep that backs the live dashboard.
+# Same shape as benchmark.paper.yaml (the full Maharaj 2024 grid) but
+# tuned to complete in a few minutes locally / in CI. Mixes the four
+# paper algorithms (one per taxonomy category) with five additional
+# sklearn algorithms so the comparison surface is wider than the paper's.
 
 datasets:
   - id: mdcgen
@@ -13,21 +13,22 @@ datasets:
     outliers: [0, 100]
     noise: [0, 50]
     density: [0.5, 1.0]
+  - id: anisotropic
+    n_samples: [1000]
+    n_features: [10]
+    k_targets: [3, 5]
+    compactness: [1.0]
 
 algorithms:
+  # Paper-taxonomy quartet
   - name: parallel_kmeans
     kind: python
     entry: parallel_kmeans
-    params:
-      max_iter: 50
-      n_init: 2
-      n_workers: 1   # CI / local; bump to None to use all cores
+    params: {max_iter: 50, n_init: 2, n_workers: 1}
   - name: minibatch_kmeans
     kind: python
     entry: minibatch_kmeans
-    params:
-      batch_size: 200
-      max_iter: 100
+    params: {batch_size: 200, max_iter: 100}
   - name: pwcc
     kind: python
     entry: pwcc
@@ -36,8 +37,27 @@ algorithms:
   - name: s5c
     kind: python
     entry: s5c
-    params:
-      sample_size: 300
-      n_nonzero_coefs: 5
+    params: {sample_size: 300, n_nonzero_coefs: 5}
+  # Extras
+  - name: gmm
+    kind: python
+    entry: gmm
+    params: {max_iter: 100, n_init: 1}
+  - name: agglomerative
+    kind: python
+    entry: agglomerative
+    params: {linkage: ward}
+  - name: spectral
+    kind: python
+    entry: spectral
+    params: {n_neighbors: 10}
+  - name: meanshift
+    kind: python
+    entry: meanshift
+    params: {bin_seeding: true}
+  - name: birch_algo
+    kind: python
+    entry: birch_algo
+    params: {threshold: 1.0}
 
 seeds: [1, 2]

@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from sklearn.datasets import make_blobs, make_classification
+from sklearn.datasets import make_blobs, make_circles, make_classification, make_moons
 
 
 @dataclass
@@ -134,4 +134,51 @@ def gen_mdcgen(spec: DataSpec):
     return X[perm].astype(np.float32), y[perm]
 
 
-DATASETS = {"blobs": gen_blobs, "mixed": gen_mixed, "mdcgen": gen_mdcgen}
+def gen_moons(spec: DataSpec):
+    """Two interleaving half-moons. Non-convex; trips up centroid-based methods."""
+    X, y = make_moons(n_samples=spec.n_samples, noise=0.1 * float(spec.compactness), random_state=spec.seed)
+    if spec.n_features > 2:
+        rng = np.random.default_rng(spec.seed)
+        pad = rng.normal(scale=0.05 * float(spec.compactness), size=(X.shape[0], spec.n_features - 2))
+        X = np.hstack([X, pad])
+    return X.astype(np.float32), y.astype(np.int64)
+
+
+def gen_circles(spec: DataSpec):
+    """Concentric circles. ``compactness`` controls noise; ``centers`` is forced to 2."""
+    X, y = make_circles(
+        n_samples=spec.n_samples,
+        noise=0.05 * float(spec.compactness),
+        factor=0.5,
+        random_state=spec.seed,
+    )
+    if spec.n_features > 2:
+        rng = np.random.default_rng(spec.seed)
+        pad = rng.normal(scale=0.05 * float(spec.compactness), size=(X.shape[0], spec.n_features - 2))
+        X = np.hstack([X, pad])
+    return X.astype(np.float32), y.astype(np.int64)
+
+
+def gen_anisotropic(spec: DataSpec):
+    """Sheared blobs. Tests robustness to non-spherical cluster shape."""
+    X, y = make_blobs(
+        n_samples=spec.n_samples,
+        n_features=spec.n_features,
+        centers=spec.centers,
+        cluster_std=spec.compactness,
+        random_state=spec.seed,
+    )
+    rng = np.random.default_rng(spec.seed)
+    transform = rng.normal(size=(spec.n_features, spec.n_features))
+    transform = transform / np.linalg.norm(transform, axis=0, keepdims=True)
+    return (X @ transform).astype(np.float32), y.astype(np.int64)
+
+
+DATASETS = {
+    "blobs": gen_blobs,
+    "mixed": gen_mixed,
+    "mdcgen": gen_mdcgen,
+    "moons": gen_moons,
+    "circles": gen_circles,
+    "anisotropic": gen_anisotropic,
+}

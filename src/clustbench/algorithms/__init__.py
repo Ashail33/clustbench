@@ -13,3 +13,4 @@ from . import clarans  # noqa: F401
 from . import parallel_kmeans  # noqa: F401
 from . import pwcc  # noqa: F401
 from . import s5c  # noqa: F401
+from . import sklearn_extras  # noqa: F401

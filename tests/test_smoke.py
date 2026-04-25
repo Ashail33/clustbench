@@ -30,6 +30,11 @@ EXPECTED_ALGOS = {
     "parallel_kmeans",
     "pwcc",
     "s5c",
+    "gmm",
+    "agglomerative",
+    "spectral",
+    "meanshift",
+    "optics",
 }
 
 
@@ -55,6 +60,47 @@ def test_mdcgen_injects_outliers_and_noise():
     assert X.shape == (330, 4)
     assert int((y == -1).sum()) == 30
     assert set(int(v) for v in y) == {-1, 0, 1, 2}
+
+
+def test_extra_algorithms_run():
+    """The five sklearn extras run on a tiny dataset and produce k clusters."""
+    from clustbench.datasets import gen_blobs, DataSpec
+    from clustbench.algorithms.sklearn_extras import (
+        Gmm,
+        Agglomerative,
+        Spectral,
+        Meanshift,
+        Optics,
+    )
+
+    X, _ = gen_blobs(DataSpec(n_samples=200, n_features=4, centers=3, compactness=0.5, seed=1))
+    for cls in (Gmm, Agglomerative, Spectral):
+        res = cls().fit_predict(X, k=3)
+        assert res.labels.shape == (200,)
+        # Each algo should split into ~3 clusters (some may merge under noise).
+        assert 1 <= len(set(int(l) for l in res.labels)) <= 4
+    # MeanShift / OPTICS are non-parametric in k; just check they return integer labels.
+    for cls in (Meanshift, Optics):
+        res = cls().fit_predict(X, k=None)
+        assert res.labels.shape == (200,)
+
+
+def test_new_dataset_generators():
+    from clustbench.datasets import DATASETS, DataSpec
+
+    for name, expected_k in [("moons", 2), ("circles", 2), ("anisotropic", 3)]:
+        gen = DATASETS[name]
+        X, y = gen(
+            DataSpec(
+                n_samples=200,
+                n_features=4 if name == "anisotropic" else 3,
+                centers=expected_k,
+                compactness=1.0,
+                seed=1,
+            )
+        )
+        assert X.shape[0] == 200
+        assert len(set(int(v) for v in y)) == expected_k
 
 
 def test_paper_algorithms_run():
