@@ -117,6 +117,10 @@ def build(run_dir: pathlib.Path, out_dir: pathlib.Path) -> None:
     manifest = json.loads((run_dir / "manifest.json").read_text())
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
+    summary_src = run_dir / "summary.json"
+    if summary_src.exists():
+        (out_dir / "summary.json").write_text(summary_src.read_text())
+
     print(f"Wrote {len(results)} results and {len(trajectories)} trajectories to {out_dir}")
 
 

@@ -137,6 +137,65 @@
   </section>
 
   <section class="panel">
+    <h2>Paper tables (Maharaj 2024, Tables 4.1 & 4.2)</h2>
+    <p class="hint">
+      Average per-algorithm rank across all tasks (lower is better) and the
+      Friedman χ² test per metric. Both produced by <code>summary.json</code>
+      and matching the layout in the paper.
+    </p>
+    <div class="row">
+      <div>
+        <h3 style="font-size:14px;margin:0 0 8px;color:var(--muted)">
+          Table 4.1 · Average ranks
+        </h3>
+        <div style="overflow-x:auto">
+          <table id="table-ranks">
+            <thead></thead><tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h3 style="font-size:14px;margin:0 0 8px;color:var(--muted)">
+          Table 4.2 · Friedman test per metric
+        </h3>
+        <div style="overflow-x:auto">
+          <table id="table-friedman">
+            <thead>
+              <tr>
+                <th>metric</th>
+                <th class="num">χ²</th>
+                <th class="num">p-value</th>
+                <th class="num">k</th>
+                <th class="num">n_tasks</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Metric vs dataset property (paper Figs 4.1-4.35)</h2>
+    <p class="hint">
+      Pick a metric and a dataset property. One line per algorithm shows how the
+      metric varies with the property when the rest of the grid is averaged
+      out. This subsumes the 35 fixed line plots in the paper into one
+      parametric chart.
+    </p>
+    <div class="controls">
+      <label>Metric
+        <select id="param-metric"></select>
+      </label>
+      <label>Property
+        <select id="param-property"></select>
+      </label>
+    </div>
+    <canvas id="chart-param" height="100"></canvas>
+  </section>
+
+  <section class="panel">
     <h2>Trajectory viewer</h2>
     <p class="hint">
       Cost over optimization steps for iterative algorithms. Each curve is one
@@ -190,12 +249,13 @@ Chart.defaults.color = "#c5cad6";
 Chart.defaults.borderColor = "#262a33";
 
 async function load() {
-  const [results, trajectories, manifest] = await Promise.all([
+  const [results, trajectories, manifest, summary] = await Promise.all([
     fetch("data/results.json").then(r => r.json()),
     fetch("data/trajectories.json").then(r => r.json()),
     fetch("data/manifest.json").then(r => r.json()).catch(() => ({})),
+    fetch("data/summary.json").then(r => r.json()).catch(() => ({})),
   ]);
-  render(results, trajectories, manifest);
+  render(results, trajectories, manifest, summary);
 }
 
 function mean(xs) {
@@ -232,7 +292,7 @@ function barChart(ctx, labels, values, title) {
   });
 }
 
-function render(results, trajectories, manifest) {
+function render(results, trajectories, manifest, summary) {
   document.getElementById("subtitle").textContent =
     `${results.length} result rows · ${trajectories.length} trajectories · generated ${manifest.generated_at || "?"}`;
 
@@ -330,6 +390,131 @@ function render(results, trajectories, manifest) {
   ["filter-dataset","filter-k","filter-n","filter-c","filter-o","filter-z","filter-g"].forEach(id =>
     document.getElementById(id).addEventListener("change", renderTable));
   renderTable();
+
+  // Paper Table 4.1: per-metric average ranks (cols), per-algo rows.
+  (function renderRanks() {
+    const summaryObj = summary || {};
+    const metrics = Object.keys(summaryObj);
+    const algos = new Set();
+    for (const m of metrics) {
+      const ranks = (summaryObj[m] && summaryObj[m].average_ranks) || [];
+      for (const r of ranks) algos.add(r.algo);
+    }
+    const algosSorted = [...algos].sort();
+    const thead = document.querySelector("#table-ranks thead");
+    const tbody = document.querySelector("#table-ranks tbody");
+    if (!metrics.length) {
+      thead.innerHTML = "<tr><th>algo</th></tr>";
+      tbody.innerHTML = `<tr><td>summary.json missing — run the benchmark to generate it.</td></tr>`;
+      return;
+    }
+    thead.innerHTML = "<tr><th>algo</th>" + metrics.map(m => `<th class="num">${m}</th>`).join("") + '<th class="num">mean</th></tr>';
+    tbody.innerHTML = algosSorted.map(a => {
+      const cells = metrics.map(m => {
+        const ranks = (summaryObj[m].average_ranks) || [];
+        const r = ranks.find(x => x.algo === a);
+        return `<td class="num">${r ? fmt(r.rank, 2) : ""}</td>`;
+      });
+      const meanRank = mean(metrics.map(m => {
+        const ranks = (summaryObj[m].average_ranks) || [];
+        const r = ranks.find(x => x.algo === a);
+        return r ? r.rank : null;
+      }));
+      return `<tr><td>${a}</td>${cells.join("")}<td class="num"><b>${fmt(meanRank, 2)}</b></td></tr>`;
+    }).join("");
+  })();
+
+  // Paper Table 4.2: Friedman test per metric.
+  (function renderFriedman() {
+    const summaryObj = summary || {};
+    const metrics = Object.keys(summaryObj);
+    const tbody = document.querySelector("#table-friedman tbody");
+    tbody.innerHTML = metrics.map(m => {
+      const fr = summaryObj[m] && summaryObj[m].friedman;
+      if (!fr || fr.error) {
+        return `<tr><td>${m}</td><td colspan="4" class="num">${fr && fr.error ? fr.error : ""}</td></tr>`;
+      }
+      const sig = fr.p_value != null && fr.p_value < 0.05 ? " ✓" : "";
+      return `<tr>
+        <td>${m}</td>
+        <td class="num">${fmt(fr.statistic, 2)}</td>
+        <td class="num">${fr.p_value != null ? fr.p_value.toExponential(2) + sig : ""}</td>
+        <td class="num">${fr.k ?? ""}</td>
+        <td class="num">${fr.n_tasks ?? ""}</td>
+      </tr>`;
+    }).join("");
+  })();
+
+  // Parametric metric-vs-property chart (paper Figs 4.1-4.35).
+  const NUMERIC_PROPERTIES = ["n_samples", "n_features", "k_target", "compactness", "outliers", "noise", "density"];
+  const METRICS_FOR_PARAM = [
+    ["ari", "ARI (higher better)"],
+    ["nmi", "NMI (higher better)"],
+    ["silhouette", "Silhouette (higher better)"],
+    ["davies_bouldin", "Davies-Bouldin (lower better)"],
+    ["dunn", "Dunn (higher better)"],
+    ["wall_time_s", "Wall time, s (lower better)"],
+    ["rss_delta_mb", "RSS delta, MB (lower better)"],
+    ["cpu_user_s", "CPU user time, s"],
+  ];
+  (function setupParametric() {
+    const metricSel = document.getElementById("param-metric");
+    METRICS_FOR_PARAM.forEach(([k, label]) => {
+      const o = document.createElement("option"); o.value = k; o.textContent = label; metricSel.appendChild(o);
+    });
+    const propSel = document.getElementById("param-property");
+    NUMERIC_PROPERTIES.forEach(p => {
+      const o = document.createElement("option"); o.value = p; o.textContent = p; propSel.appendChild(o);
+    });
+    metricSel.value = "ari"; propSel.value = "n_samples";
+
+    let paramChart = null;
+    function renderParam() {
+      const metric = metricSel.value;
+      const prop = propSel.value;
+      // Group by (algo, property value) -> mean(metric)
+      const series = new Map(); // algo -> Map<propVal, [vals]>
+      for (const r of results) {
+        if (r[metric] == null || r[prop] == null) continue;
+        if (!series.has(r.algo)) series.set(r.algo, new Map());
+        const m = series.get(r.algo);
+        if (!m.has(r[prop])) m.set(r[prop], []);
+        m.get(r[prop]).push(Number(r[metric]));
+      }
+      const datasets = [...series.entries()].map(([algo, m]) => {
+        const points = [...m.entries()]
+          .map(([x, vs]) => ({ x: Number(x), y: mean(vs) }))
+          .filter(p => p.y != null && Number.isFinite(p.x))
+          .sort((a, b) => a.x - b.x);
+        return {
+          label: algo,
+          data: points,
+          borderColor: colorFor(algo),
+          backgroundColor: colorFor(algo) + "33",
+          pointRadius: 4,
+          tension: 0.2,
+        };
+      }).filter(d => d.data.length > 0);
+
+      if (paramChart) paramChart.destroy();
+      paramChart = new Chart(document.getElementById("chart-param"), {
+        type: "line",
+        data: { datasets },
+        options: {
+          parsing: false,
+          plugins: { legend: { display: true, labels: { boxWidth: 8 } } },
+          scales: {
+            x: { type: "linear", title: { display: true, text: prop } },
+            y: { title: { display: true, text: metric } },
+          },
+          responsive: true,
+        },
+      });
+    }
+    metricSel.addEventListener("change", renderParam);
+    propSel.addEventListener("change", renderParam);
+    renderParam();
+  })();
 
   // Trajectory viewer
   const tAlgoSet = [...new Set(trajectories.map(t => t.algo))];
