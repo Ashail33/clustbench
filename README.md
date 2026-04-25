@@ -111,7 +111,7 @@ pip install -e '.[test]'
 clustbench --config configs/benchmark.sample.yaml --out runs/demo
 
 # Larger sweep that populates the dashboard
-clustbench --config configs/benchmark.dashboard.yaml --out runs/dashboard
+clustbench --config configs/benchmark.paper.demo.yaml --out runs/dashboard
 python scripts/build_site.py --run runs/dashboard --out docs/data
 ```
 
@@ -261,7 +261,9 @@ clustbench/
 ├── pyproject.toml
 ├── configs/
 │   ├── benchmark.sample.yaml       <- minimal smoke config
-│   └── benchmark.dashboard.yaml    <- 24-task grid that backs the dashboard
+│   ├── benchmark.dashboard.yaml    <- minimal 4-algorithm smoke config
+│   ├── benchmark.paper.yaml        <- full Maharaj 2024 grid
+│   └── benchmark.paper.demo.yaml   <- 14-algo subset that backs the live dashboard
 ├── docs/
 │   ├── index.html                  <- static dashboard
 │   ├── data/                       <- JSON the dashboard fetches

@@ -33,7 +33,7 @@ jobs:
         run: pip install -e .
 
       - name: Run benchmark
-        run: clustbench --config configs/benchmark.dashboard.yaml --out runs/dashboard
+        run: clustbench --config configs/benchmark.paper.demo.yaml --out runs/dashboard
 
       - name: Build dashboard JSON
         run: python scripts/build_site.py --run runs/dashboard --out docs/data

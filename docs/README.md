@@ -18,13 +18,13 @@ GitHub Pages from this `docs/` folder at
 
 ```bash
 # 1. Run a benchmark
-clustbench --config configs/benchmark.dashboard.yaml --out runs/dashboard
+clustbench --config configs/benchmark.paper.demo.yaml --out runs/dashboard
 
 # 2. Convert parquet -> browser JSON
 python scripts/build_site.py --run runs/dashboard --out docs/data
 
 # 3. Commit + push; GitHub Pages serves from docs/ on master
-git add docs/data configs/benchmark.dashboard.yaml
+git add docs/data configs/benchmark.paper.demo.yaml
 git commit -m "Refresh dashboard data"
 git push
 ```

@@ -1,26 +1,30 @@
-# Downsampled paper-style sweep that backs the live dashboard.
-# Same shape as benchmark.paper.yaml (the full Maharaj 2024 grid) but
-# tuned to complete in a few minutes locally / in CI. Mixes the four
-# paper algorithms (one per taxonomy category) with five additional
-# sklearn algorithms so the comparison surface is wider than the paper's.
+# Canonical config the GitHub Pages workflow runs on every push.
+#
+# Includes all 14 registered algorithms — the four paper-taxonomy ones
+# plus every classic baseline and sklearn extra — and the same dataset
+# properties Maharaj (2024) varied (outliers, noise, density). Sized for
+# a CI run of ~6-8 minutes on an ubuntu-latest GitHub-hosted runner.
+#
+# For bigger sweeps, use configs/benchmark.paper.yaml (the full grid)
+# locally and push the regenerated docs/data/.
 
 datasets:
   - id: mdcgen
-    n_samples: [1000, 5000]
+    n_samples: [500]
     n_features: [10]
     k_targets: [3, 5]
     compactness: [1.0]
     outliers: [0, 100]
-    noise: [0, 50]
-    density: [0.5, 1.0]
+    noise: [0]
+    density: [1.0]
   - id: anisotropic
-    n_samples: [1000]
+    n_samples: [500]
     n_features: [10]
     k_targets: [3, 5]
     compactness: [1.0]
 
 algorithms:
-  # Paper-taxonomy quartet
+  # Paper-taxonomy quartet (one per category)
   - name: parallel_kmeans
     kind: python
     entry: parallel_kmeans
@@ -28,7 +32,7 @@ algorithms:
   - name: minibatch_kmeans
     kind: python
     entry: minibatch_kmeans
-    params: {batch_size: 200, max_iter: 100}
+    params: {batch_size: 100, max_iter: 100}
   - name: pwcc
     kind: python
     entry: pwcc
@@ -37,8 +41,32 @@ algorithms:
   - name: s5c
     kind: python
     entry: s5c
-    params: {sample_size: 300, n_nonzero_coefs: 5}
-  # Extras
+    params: {sample_size: 200, n_nonzero_coefs: 5}
+
+  # Classic baselines
+  - name: kmeans
+    kind: python
+    entry: kmeans
+    params: {max_iter: 100, n_init: 3}
+  - name: dbscan
+    kind: python
+    entry: dbscan
+    params: {eps: 0.8, min_samples: 5}
+  - name: birch_algo
+    kind: python
+    entry: birch_algo
+    params: {threshold: 1.0}
+  - name: clarans
+    kind: python
+    entry: clarans
+    params: {numlocal: 2, maxneigh: 30}
+  - name: consensus
+    kind: python
+    entry: consensus
+    params:
+      base: [kmeans, minibatch_kmeans, birch_algo]
+
+  # sklearn extras
   - name: gmm
     kind: python
     entry: gmm
@@ -55,9 +83,9 @@ algorithms:
     kind: python
     entry: meanshift
     params: {bin_seeding: true}
-  - name: birch_algo
+  - name: optics
     kind: python
-    entry: birch_algo
-    params: {threshold: 1.0}
+    entry: optics
+    params: {min_samples: 5, xi: 0.05}
 
 seeds: [1, 2]

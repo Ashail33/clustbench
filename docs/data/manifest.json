@@ -4,8 +4,7 @@
       {
         "id": "mdcgen",
         "n_samples": [
-          1000,
-          5000
+          500
         ],
         "n_features": [
           10
@@ -22,18 +21,16 @@
           100
         ],
         "noise": [
-          0,
-          50
+          0
         ],
         "density": [
-          0.5,
           1.0
         ]
       },
       {
         "id": "anisotropic",
         "n_samples": [
-          1000
+          500
         ],
         "n_features": [
           10
@@ -63,7 +60,7 @@
         "kind": "python",
         "entry": "minibatch_kmeans",
         "params": {
-          "batch_size": 200,
+          "batch_size": 100,
           "max_iter": 100
         }
       },
@@ -84,8 +81,55 @@
         "kind": "python",
         "entry": "s5c",
         "params": {
-          "sample_size": 300,
+          "sample_size": 200,
           "n_nonzero_coefs": 5
+        }
+      },
+      {
+        "name": "kmeans",
+        "kind": "python",
+        "entry": "kmeans",
+        "params": {
+          "max_iter": 100,
+          "n_init": 3
+        }
+      },
+      {
+        "name": "dbscan",
+        "kind": "python",
+        "entry": "dbscan",
+        "params": {
+          "eps": 0.8,
+          "min_samples": 5
+        }
+      },
+      {
+        "name": "birch_algo",
+        "kind": "python",
+        "entry": "birch_algo",
+        "params": {
+          "threshold": 1.0
+        }
+      },
+      {
+        "name": "clarans",
+        "kind": "python",
+        "entry": "clarans",
+        "params": {
+          "numlocal": 2,
+          "maxneigh": 30
+        }
+      },
+      {
+        "name": "consensus",
+        "kind": "python",
+        "entry": "consensus",
+        "params": {
+          "base": [
+            "kmeans",
+            "minibatch_kmeans",
+            "birch_algo"
+          ]
         }
       },
       {
@@ -122,11 +166,12 @@
         }
       },
       {
-        "name": "birch_algo",
+        "name": "optics",
         "kind": "python",
-        "entry": "birch_algo",
+        "entry": "optics",
         "params": {
-          "threshold": 1.0
+          "min_samples": 5,
+          "xi": 0.05
         }
       }
     ],
@@ -135,7 +180,7 @@
       2
     ]
   },
-  "generated_at": "2026-04-25 11:54:46",
+  "generated_at": "2026-04-25 15:19:03",
   "env": {
     "python": "3.11.15",
     "platform": "Linux-6.18.5-x86_64-with-glibc2.39"
