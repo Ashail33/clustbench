@@ -69,19 +69,37 @@ enough to plug any iterative algorithm into.
 
 ## Paper
 
-The trajectory layer is the experimental scaffolding for an in-progress
-paper by Ashail Maharaj. The manuscript will live at `paper/` once
-it's added to the repo (PDF + source). Until then, the short version
-is what's in [Why this exists](#why-this-exists) and
-[The trajectory / state-action layer](#the-trajectory--state-action-layer)
-above.
+**Maharaj, A. (2024). *Review of Big Data Clustering Methods*.** MEng
+(Structured, Industrial Engineering) research assignment, Faculty of
+Engineering, Stellenbosch University. Supervisor: Prof. A.P. Engelbrecht.
 
-<!-- When adding the paper:
-     - drop the PDF at paper/clustbench.pdf
-     - drop the source (TeX or markdown) at paper/clustbench.tex / paper/clustbench.md
-     - update this section with a one-paragraph abstract and a link to the PDF
--->
+PDF: [`paper/clustering-review-maharaj-2024.pdf`](paper/clustering-review-maharaj-2024.pdf)
 
+> In an era defined by the challenges of processing vast and complex
+> datasets, the study delves into the evolving landscape of big data
+> clustering. It introduces a novel taxonomy categorizing clustering
+> models into four distinct groups, offering a roadmap for understanding
+> their scalability and efficiency in the face of increasing data volume
+> and complexity. […] Insights from this research highlighted the
+> scalability and efficiency of models like parallel k-means and
+> mini-batch k-means, both theoretically and empirically, marking them
+> as exemplary for large-scale applications. Conversely, it unveiled
+> the computational constraints of models like selective sampling-based
+> scalable sparse subspace clustering (S⁵C) and purity-weighted
+> consensus clustering (PWCC), showing their limitations in scaling to
+> big data. […] It lays the foundation for a centralized database for
+> clustering research, aiming to fill existing knowledge gaps and
+> facilitate optimal model discovery tailored to specific needs and
+> infrastructural capabilities.
+>
+> — Abstract
+
+The paper's stated final contribution — *"a centralized database for
+clustering research [...] to facilitate optimal model discovery"* — is
+what this codebase makes operational. The trajectory layer extends that
+contribution: rather than only comparing final outputs, clustbench now
+captures the *process* each algorithm takes to reach those outputs, so
+the next generation of meta-algorithms can learn from the search itself.
 
 ## Quick start
 
