@@ -1,0 +1,43 @@
+# Downsampled version of benchmark.paper.yaml — chosen to populate the
+# dashboard end-to-end in under a couple of minutes on a single laptop.
+# Keeps the four algorithm categories from Maharaj (2024) and the same
+# property knobs (outliers, noise, density), but at smaller sample sizes
+# and with fewer grid points.
+
+datasets:
+  - id: mdcgen
+    n_samples: [1000, 5000]
+    n_features: [10]
+    k_targets: [3, 5]
+    compactness: [1.0]
+    outliers: [0, 100]
+    noise: [0, 50]
+    density: [0.5, 1.0]
+
+algorithms:
+  - name: parallel_kmeans
+    kind: python
+    entry: parallel_kmeans
+    params:
+      max_iter: 50
+      n_init: 2
+      n_workers: 1   # CI / local; bump to None to use all cores
+  - name: minibatch_kmeans
+    kind: python
+    entry: minibatch_kmeans
+    params:
+      batch_size: 200
+      max_iter: 100
+  - name: pwcc
+    kind: python
+    entry: pwcc
+    params:
+      base: [kmeans, minibatch_kmeans, birch_algo]
+  - name: s5c
+    kind: python
+    entry: s5c
+    params:
+      sample_size: 300
+      n_nonzero_coefs: 5
+
+seeds: [1, 2]

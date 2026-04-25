@@ -20,11 +20,61 @@ import pytest
 from clustbench.algorithms.base import ALGO_REGISTRY
 
 
-EXPECTED_ALGOS = {"kmeans", "minibatch_kmeans", "dbscan", "birch_algo", "clarans", "consensus"}
+EXPECTED_ALGOS = {
+    "kmeans",
+    "minibatch_kmeans",
+    "dbscan",
+    "birch_algo",
+    "clarans",
+    "consensus",
+    "parallel_kmeans",
+    "pwcc",
+    "s5c",
+}
 
 
 def test_registry_contains_all_algos():
     assert EXPECTED_ALGOS.issubset(ALGO_REGISTRY.keys())
+
+
+def test_mdcgen_injects_outliers_and_noise():
+    from clustbench.datasets import gen_mdcgen, DataSpec
+
+    spec = DataSpec(
+        n_samples=300,
+        n_features=4,
+        centers=3,
+        compactness=0.5,
+        seed=1,
+        outliers=20,
+        noise=10,
+        density=0.5,
+    )
+    X, y = gen_mdcgen(spec)
+    # 300 cluster points + 10 noise + 20 outliers
+    assert X.shape == (330, 4)
+    assert int((y == -1).sum()) == 30
+    assert set(int(v) for v in y) == {-1, 0, 1, 2}
+
+
+def test_paper_algorithms_run():
+    """Parallel k-means, PWCC, and S5C all run on a tiny MDCGen dataset
+    and emit a non-empty trajectory."""
+    from clustbench.datasets import gen_mdcgen, DataSpec
+    from clustbench.algorithms.parallel_kmeans import Parallel_kmeans
+    from clustbench.algorithms.pwcc import Pwcc
+    from clustbench.algorithms.s5c import S5c
+
+    X, _ = gen_mdcgen(DataSpec(n_samples=300, n_features=4, centers=3, compactness=0.5, seed=1))
+
+    pk = Parallel_kmeans(n_workers=1, n_init=1, max_iter=20).fit_predict(X, k=3)
+    assert pk.labels.shape == (300,) and pk.trajectory and len(pk.trajectory) >= 1
+
+    pw = Pwcc(base=["kmeans", "minibatch_kmeans"]).fit_predict(X, k=3)
+    assert pw.labels.shape == (300,) and pw.trajectory and len(pw.trajectory) >= 2
+
+    s5 = S5c(sample_size=120, n_nonzero_coefs=3).fit_predict(X, k=3)
+    assert s5.labels.shape == (300,) and s5.trajectory and len(s5.trajectory) == 4
 
 
 def test_cli_end_to_end(tmp_path):

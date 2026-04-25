@@ -1,0 +1,42 @@
+# Full grid from Maharaj (2024), "Review of Big Data Clustering Methods".
+# 2 outliers x 3 noise x 3 clusters x 5 sizes x 3 features x 3 density = 810 datasets,
+# x 4 algos = 3240 runs. The paper itself hit Colab Pro+ resource limits at this
+# scale (esp. for S5C and PWCC). Use benchmark.paper.demo.yaml for a runnable
+# subset; this file is the full reference grid.
+
+datasets:
+  - id: mdcgen
+    n_samples: [1000, 5000, 10000, 50000, 100000]
+    n_features: [2, 10, 50]
+    k_targets: [3, 5, 10]
+    compactness: [1.0]
+    outliers: [0, 500]
+    noise: [0, 10, 100]
+    density: [0.01, 0.5, 1.0]
+
+algorithms:
+  - name: parallel_kmeans
+    kind: python
+    entry: parallel_kmeans
+    params:
+      max_iter: 100
+      n_init: 3
+  - name: minibatch_kmeans
+    kind: python
+    entry: minibatch_kmeans
+    params:
+      batch_size: 500
+      max_iter: 100
+  - name: pwcc
+    kind: python
+    entry: pwcc
+    params:
+      base: [kmeans, minibatch_kmeans, birch_algo]
+  - name: s5c
+    kind: python
+    entry: s5c
+    params:
+      sample_size: 1000
+      n_nonzero_coefs: 5
+
+seeds: [1, 2, 3]

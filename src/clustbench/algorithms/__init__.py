@@ -10,3 +10,6 @@ from . import minibatch_kmeans  # noqa: F401
 from . import dbscan  # noqa: F401
 from . import birch  # noqa: F401
 from . import clarans  # noqa: F401
+from . import parallel_kmeans  # noqa: F401
+from . import pwcc  # noqa: F401
+from . import s5c  # noqa: F401
