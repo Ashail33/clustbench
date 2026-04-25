@@ -29,6 +29,22 @@
           0.5,
           1.0
         ]
+      },
+      {
+        "id": "anisotropic",
+        "n_samples": [
+          1000
+        ],
+        "n_features": [
+          10
+        ],
+        "k_targets": [
+          3,
+          5
+        ],
+        "compactness": [
+          1.0
+        ]
       }
     ],
     "algorithms": [
@@ -71,6 +87,47 @@
           "sample_size": 300,
           "n_nonzero_coefs": 5
         }
+      },
+      {
+        "name": "gmm",
+        "kind": "python",
+        "entry": "gmm",
+        "params": {
+          "max_iter": 100,
+          "n_init": 1
+        }
+      },
+      {
+        "name": "agglomerative",
+        "kind": "python",
+        "entry": "agglomerative",
+        "params": {
+          "linkage": "ward"
+        }
+      },
+      {
+        "name": "spectral",
+        "kind": "python",
+        "entry": "spectral",
+        "params": {
+          "n_neighbors": 10
+        }
+      },
+      {
+        "name": "meanshift",
+        "kind": "python",
+        "entry": "meanshift",
+        "params": {
+          "bin_seeding": true
+        }
+      },
+      {
+        "name": "birch_algo",
+        "kind": "python",
+        "entry": "birch_algo",
+        "params": {
+          "threshold": 1.0
+        }
       }
     ],
     "seeds": [
@@ -78,7 +135,7 @@
       2
     ]
   },
-  "generated_at": "2026-04-25 10:29:49",
+  "generated_at": "2026-04-25 11:54:46",
   "env": {
     "python": "3.11.15",
     "platform": "Linux-6.18.5-x86_64-with-glibc2.39"

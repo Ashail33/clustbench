@@ -182,14 +182,17 @@ def run_task(
 
 
 def average_ranks(df: pd.DataFrame, metric: str, higher=True) -> pd.DataFrame:
-    keys = [
+    keys = [c for c in [
         "dataset_id",
         "n_samples",
         "n_features",
         "k_target",
         "compactness",
+        "outliers",
+        "noise",
+        "density",
         "seed",
-    ]
+    ] if c in df.columns]
     tasks = df[keys].drop_duplicates()
     ranks: List[Dict[str, Any]] = []
     for _, t in tasks.iterrows():
@@ -208,14 +211,17 @@ def average_ranks(df: pd.DataFrame, metric: str, higher=True) -> pd.DataFrame:
 
 
 def friedman(df: pd.DataFrame, metric: str, higher=True):
-    keys = [
+    keys = [c for c in [
         "dataset_id",
         "n_samples",
         "n_features",
         "k_target",
         "compactness",
+        "outliers",
+        "noise",
+        "density",
         "seed",
-    ]
+    ] if c in df.columns]
     algos = sorted(df["algo"].unique())
     tasks = df[keys].drop_duplicates().reset_index(drop=True)
     M: List[List[float]] = []

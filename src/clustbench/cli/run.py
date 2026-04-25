@@ -70,11 +70,19 @@ def main() -> None:
                                             )
                                         )
 
-    # Flatten metrics dict so metrics appear top‑level in the DataFrame
+    # Flatten metrics dict so metrics appear top‑level in the DataFrame.
+    # Metric names that collide with task-identity columns (notably
+    # `compactness`) get a `metric_` prefix so the experiment setting wins.
+    PROTECTED = {"compactness", "outliers", "noise", "density", "seed", "k_target"}
+
     def flatten(r: dict) -> dict:
         m = r["metrics"]
         base = {k: v for k, v in r.items() if k != "metrics"}
-        base.update(m)
+        for k, v in m.items():
+            if k in PROTECTED and k in base:
+                base[f"metric_{k}"] = v
+            else:
+                base[k] = v
         return base
 
     flat_rows = [flatten(r) for r in rows]
