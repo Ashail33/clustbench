@@ -109,13 +109,24 @@
       <label>compactness
         <select id="filter-c"><option value="">all</option></select>
       </label>
+      <label>outliers
+        <select id="filter-o"><option value="">all</option></select>
+      </label>
+      <label>noise
+        <select id="filter-z"><option value="">all</option></select>
+      </label>
+      <label>density
+        <select id="filter-g"><option value="">all</option></select>
+      </label>
     </div>
     <div style="overflow-x:auto">
       <table id="leaderboard">
         <thead>
           <tr>
             <th>algo</th><th>dataset</th><th class="num">n</th><th class="num">d</th>
-            <th class="num">k</th><th class="num">compactness</th><th class="num">seed</th>
+            <th class="num">k</th><th class="num">compactness</th>
+            <th class="num">outl.</th><th class="num">noise</th><th class="num">dens.</th>
+            <th class="num">seed</th>
             <th class="num">ari</th><th class="num">nmi</th><th class="num">silhouette</th>
             <th class="num">wall_s</th><th class="num">steps</th>
           </tr>
@@ -266,10 +277,16 @@ function render(results, trajectories, manifest) {
       sel.appendChild(o);
     }
   };
+  const oSet = [...new Set(results.map(r => r.outliers).filter(v => v != null))].sort((a,b)=>a-b);
+  const zSet = [...new Set(results.map(r => r.noise).filter(v => v != null))].sort((a,b)=>a-b);
+  const gSet = [...new Set(results.map(r => r.density).filter(v => v != null))].sort((a,b)=>a-b);
   fillOptions("filter-dataset", dsSet);
   fillOptions("filter-k", kSet);
   fillOptions("filter-n", nSet);
   fillOptions("filter-c", cSet);
+  fillOptions("filter-o", oSet);
+  fillOptions("filter-z", zSet);
+  fillOptions("filter-g", gSet);
 
   const tbody = document.querySelector("#leaderboard tbody");
   const fmt = (v, d=3) => v == null ? "" : Number(v).toFixed(d);
@@ -278,11 +295,17 @@ function render(results, trajectories, manifest) {
     const k = document.getElementById("filter-k").value;
     const n = document.getElementById("filter-n").value;
     const c = document.getElementById("filter-c").value;
+    const o = document.getElementById("filter-o").value;
+    const z = document.getElementById("filter-z").value;
+    const g = document.getElementById("filter-g").value;
     const rows = results
       .filter(r => !ds || r.dataset_id === ds)
       .filter(r => !k  || String(r.k_target) === k)
       .filter(r => !n  || String(r.n_samples) === n)
       .filter(r => !c  || String(r.compactness) === c)
+      .filter(r => !o  || String(r.outliers) === o)
+      .filter(r => !z  || String(r.noise) === z)
+      .filter(r => !g  || String(r.density) === g)
       .sort((a, b) => (b.ari ?? -1) - (a.ari ?? -1))
       .slice(0, 200);
     tbody.innerHTML = rows.map(r => `
@@ -293,6 +316,9 @@ function render(results, trajectories, manifest) {
         <td class="num">${r.n_features}</td>
         <td class="num">${r.k_target}</td>
         <td class="num">${fmt(r.compactness,1)}</td>
+        <td class="num">${r.outliers ?? ""}</td>
+        <td class="num">${r.noise ?? ""}</td>
+        <td class="num">${r.density != null ? fmt(r.density, 2) : ""}</td>
         <td class="num">${r.seed}</td>
         <td class="num">${fmt(r.ari)}</td>
         <td class="num">${fmt(r.nmi)}</td>
@@ -301,7 +327,7 @@ function render(results, trajectories, manifest) {
         <td class="num">${r.n_steps ?? ""}</td>
       </tr>`).join("");
   }
-  ["filter-dataset","filter-k","filter-n","filter-c"].forEach(id =>
+  ["filter-dataset","filter-k","filter-n","filter-c","filter-o","filter-z","filter-g"].forEach(id =>
     document.getElementById(id).addEventListener("change", renderTable));
   renderTable();
 

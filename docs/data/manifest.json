@@ -2,19 +2,30 @@
   "config": {
     "datasets": [
       {
-        "id": "blobs",
+        "id": "mdcgen",
         "n_samples": [
-          500,
-          2000
+          1000,
+          5000
         ],
         "n_features": [
-          8
+          10
         ],
         "k_targets": [
           3,
           5
         ],
         "compactness": [
+          1.0
+        ],
+        "outliers": [
+          0,
+          100
+        ],
+        "noise": [
+          0,
+          50
+        ],
+        "density": [
           0.5,
           1.0
         ]
@@ -22,12 +33,13 @@
     ],
     "algorithms": [
       {
-        "name": "kmeans",
+        "name": "parallel_kmeans",
         "kind": "python",
-        "entry": "kmeans",
+        "entry": "parallel_kmeans",
         "params": {
-          "max_iter": 100,
-          "n_init": 3
+          "max_iter": 50,
+          "n_init": 2,
+          "n_workers": 1
         }
       },
       {
@@ -40,30 +52,33 @@
         }
       },
       {
-        "name": "birch",
+        "name": "pwcc",
         "kind": "python",
-        "entry": "birch_algo",
+        "entry": "pwcc",
         "params": {
-          "threshold": 1.0
+          "base": [
+            "kmeans",
+            "minibatch_kmeans",
+            "birch_algo"
+          ]
         }
       },
       {
-        "name": "clarans",
+        "name": "s5c",
         "kind": "python",
-        "entry": "clarans",
+        "entry": "s5c",
         "params": {
-          "numlocal": 2,
-          "maxneigh": 40
+          "sample_size": 300,
+          "n_nonzero_coefs": 5
         }
       }
     ],
     "seeds": [
       1,
-      2,
-      3
+      2
     ]
   },
-  "generated_at": "2026-04-24 23:14:29",
+  "generated_at": "2026-04-25 10:29:49",
   "env": {
     "python": "3.11.15",
     "platform": "Linux-6.18.5-x86_64-with-glibc2.39"

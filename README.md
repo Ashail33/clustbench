@@ -166,14 +166,17 @@ documented in `src/clustbench/runners/external_runner.py`.
 
 ## Algorithms
 
-| name              | kind         | trajectory     | notes                                           |
-| ----------------- | ------------ | -------------- | ----------------------------------------------- |
-| `kmeans`          | python       | yes            | manual EM loop captures centroids per iteration |
-| `minibatch_kmeans`| python (sklearn wrapper) | no | fast baseline                                   |
-| `dbscan`          | python (sklearn wrapper) | no | density-based, ignores `k`                      |
-| `birch_algo`      | python (sklearn wrapper) | no | hierarchical                                    |
-| `clarans`         | python (custom) | yes         | k-medoids with random local search              |
-| `consensus`       | python (meta)| no             | majority vote over a list of base algorithms    |
+| name              | kind         | trajectory     | notes                                                                     |
+| ----------------- | ------------ | -------------- | ------------------------------------------------------------------------- |
+| `kmeans`          | python       | yes            | manual EM loop captures centroids per iteration                           |
+| `minibatch_kmeans`| python (sklearn wrapper) | no | fast baseline                                                             |
+| `dbscan`          | python (sklearn wrapper) | no | density-based, ignores `k`                                                |
+| `birch_algo`      | python (sklearn wrapper) | no | hierarchical                                                              |
+| `clarans`         | python (custom) | yes         | k-medoids with random local search                                        |
+| `consensus`       | python (meta)| no             | majority vote over a list of base algorithms                              |
+| `parallel_kmeans` | python (custom) | yes         | Zhao 2009 MapReduce-style: per-iteration map/reduce via multiprocessing   |
+| `pwcc`            | python (meta) | yes           | Alguliyev purity-weighted consensus; one step per base + final vote       |
+| `s5c`             | python (custom) | yes         | Matsushima selective-sampling sparse subspace clustering (OMP + spectral) |
 
 To add one of your own, see `src/clustbench/algorithms/base.py` —
 subclass `Algorithm`, decorate with `@register`, return an `AlgoResult`
@@ -181,12 +184,33 @@ subclass `Algorithm`, decorate with `@register`, return an `AlgoResult`
 
 ## Datasets
 
-| id      | generator                     |
-| ------- | ----------------------------- |
-| `blobs` | `sklearn.datasets.make_blobs`        |
-| `mixed` | `sklearn.datasets.make_classification` |
+| id       | generator                                           | knobs                                                |
+| -------- | --------------------------------------------------- | ---------------------------------------------------- |
+| `blobs`  | `sklearn.datasets.make_blobs`                       | n, d, k, compactness                                 |
+| `mixed`  | `sklearn.datasets.make_classification`              | n, d, k, compactness                                 |
+| `mdcgen` | MDCGen-style Gaussian mixture (Lopez et al., reproduced) | n, d, k, compactness, **outliers**, **noise**, **density** |
 
 Add more in `src/clustbench/datasets.py` and register them in `DATASETS`.
+
+### Recreating the paper experiments
+
+`configs/benchmark.paper.yaml` is the full grid from Maharaj (2024)
+(2 outliers × 3 noise × 3 clusters × 5 sizes × 3 features × 3 density
+× 3 seeds × 4 algorithms — the same shape that hit Colab Pro+ limits in
+the paper). `configs/benchmark.paper.demo.yaml` is a downsampled version
+that fits the same shape into a couple of minutes:
+
+```bash
+clustbench --config configs/benchmark.paper.demo.yaml --out runs/paper_demo
+python scripts/build_site.py --run runs/paper_demo --out docs/data
+```
+
+The four paper algorithms (one per taxonomy category) are now
+in-tree: `parallel_kmeans` (parallel/distributed), `minibatch_kmeans`
+(incremental), `pwcc` (ensemble), and `s5c` (sampling/partitioning).
+All except minibatch emit trajectories, so the dashboard's trajectory
+panel turns into a side-by-side view of how each category's search
+process actually unfolds.
 
 ## Metrics
 

@@ -30,6 +30,9 @@ RESULT_COLS = [
     "n_features",
     "k_target",
     "seed",
+    "outliers",
+    "noise",
+    "density",
     "ari",
     "nmi",
     "silhouette",
@@ -37,12 +40,16 @@ RESULT_COLS = [
     "dunn",
     "wall_time_s",
     "rss_delta_mb",
+    "cpu_user_s",
+    "cpu_system_s",
     "n_clusters_found",
     "n_steps",
 ]
 
 
 def _clean(v):
+    if v is None:
+        return None
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
         return None
     return v
@@ -52,29 +59,16 @@ def build(run_dir: pathlib.Path, out_dir: pathlib.Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     df = pd.read_parquet(run_dir / "results.parquet")
-    df = df.rename(columns={"compactness": "compactness_metric"})
-    # Recover the configured compactness from the trajectory filename suffix
-    # so the dashboard can slice by experiment setting instead of the output
-    # metric of the same name.
-    def _cfg_compactness(row):
-        if pd.isna(row.get("trajectory_path")):
-            lp = row.get("labels_path")
-            if lp:
-                import re
-                m = re.search(r"_c([0-9.]+)_s", lp)
-                if m:
-                    return float(m.group(1))
-            return None
-        import re
-        m = re.search(r"_c([0-9.]+)_s", row["trajectory_path"])
-        return float(m.group(1)) if m else None
-
-    df["compactness_cfg"] = df.apply(_cfg_compactness, axis=1)
+    # The Record's top-level `compactness` is the experiment setting; the
+    # metric bundle's `compactness` would have shadowed it if we hadn't
+    # been careful — kept the experiment-setting value first.
+    if "compactness" in df.columns and df["compactness"].dtype == object:
+        df["compactness"] = pd.to_numeric(df["compactness"], errors="coerce")
 
     results = []
     for _, row in df.iterrows():
         rec = {c: _clean(row.get(c)) for c in RESULT_COLS if c in df.columns}
-        rec["compactness"] = _clean(row.get("compactness_cfg"))
+        rec["compactness"] = _clean(row.get("compactness"))
         results.append(rec)
     (out_dir / "results.json").write_text(json.dumps(results, indent=2, default=str))
 
@@ -84,12 +78,14 @@ def build(run_dir: pathlib.Path, out_dir: pathlib.Path) -> None:
         if not tp or pd.isna(tp):
             continue
         traj_path = pathlib.Path(tp)
-        if not traj_path.is_absolute():
-            traj_path = run_dir.parent / traj_path if not traj_path.exists() else traj_path
         if not traj_path.exists():
-            # Try resolving relative to cwd
-            traj_path = pathlib.Path(tp)
-        traj_df = pd.read_parquet(traj_path)
+            traj_path = run_dir / "artifacts" / traj_path.name
+        if not traj_path.exists():
+            continue
+        if traj_path.suffix == ".csv":
+            traj_df = pd.read_csv(traj_path)
+        else:
+            traj_df = pd.read_parquet(traj_path)
         steps = [
             {
                 "step_idx": int(s["step_idx"]),
@@ -106,7 +102,10 @@ def build(run_dir: pathlib.Path, out_dir: pathlib.Path) -> None:
                 "n_samples": int(row["n_samples"]),
                 "n_features": int(row["n_features"]),
                 "k_target": int(row["k_target"]),
-                "compactness": _clean(row.get("compactness_cfg")),
+                "compactness": _clean(row.get("compactness")),
+                "outliers": _clean(row.get("outliers")),
+                "noise": _clean(row.get("noise")),
+                "density": _clean(row.get("density")),
                 "seed": int(row["seed"]),
                 "n_steps": len(steps),
                 "final_cost": steps[-1]["cost"] if steps else None,
