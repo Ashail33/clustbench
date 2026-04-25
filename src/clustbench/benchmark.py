@@ -58,9 +58,23 @@ def run_task(
     seed: int,
     algos: List[AlgoCfg],
     outdir: pathlib.Path,
+    outliers: int = 0,
+    noise: int = 0,
+    density: float = 1.0,
 ):
     gen = DATASETS[dataset_id]
-    X, y = gen(DataSpec(n, d, k, compactness, seed))
+    X, y = gen(
+        DataSpec(
+            n_samples=n,
+            n_features=d,
+            centers=k,
+            compactness=compactness,
+            seed=seed,
+            outliers=outliers,
+            noise=noise,
+            density=density,
+        )
+    )
     task_stub = dict(
         dataset_id=dataset_id,
         n_samples=n,
@@ -68,11 +82,17 @@ def run_task(
         k_target=k,
         compactness=compactness,
         seed=seed,
+        outliers=outliers,
+        noise=noise,
+        density=density,
     )
     artifacts = outdir / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
     records = []
-    task_suffix = f"{dataset_id}_n{n}_d{d}_k{k}_c{compactness}_s{seed}"
+    task_suffix = (
+        f"{dataset_id}_n{n}_d{d}_k{k}_c{compactness}"
+        f"_o{outliers}_z{noise}_g{density}_s{seed}"
+    )
     for cfg in algos:
         if cfg.kind == "python":
             cls = base_algos.ALGO_REGISTRY[cfg.entry.lower()]

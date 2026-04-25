@@ -42,6 +42,9 @@ class StepRecord(BaseModel):
     k_target: int | None = None
     compactness: float
     seed: int
+    outliers: int | None = None
+    noise: int | None = None
+    density: float | None = None
     step_idx: int
     cost: float
     delta_cost: float | None = None
@@ -58,6 +61,9 @@ class Record(BaseModel):
     k_target: int | None = None
     compactness: float
     seed: int
+    outliers: int | None = None
+    noise: int | None = None
+    density: float | None = None
     wall_time_s: float
     rss_delta_mb: float
     cpu_user_s: float

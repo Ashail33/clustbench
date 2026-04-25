@@ -43,12 +43,32 @@ def main() -> None:
     rows: List[dict] = []
     for ds in cfg["datasets"]:
         dataset_id = ds["id"]
+        outliers_grid = ds.get("outliers", [0])
+        noise_grid = ds.get("noise", [0])
+        density_grid = ds.get("density", [1.0])
         for n in ds["n_samples"]:
             for d in ds["n_features"]:
                 for k in ds["k_targets"]:
                     for c in ds["compactness"]:
-                        for seed in cfg.get("seeds", [42]):
-                            rows.extend(run_task(dataset_id, n, d, k, c, seed, algos, outdir))
+                        for o in outliers_grid:
+                            for z in noise_grid:
+                                for g in density_grid:
+                                    for seed in cfg.get("seeds", [42]):
+                                        rows.extend(
+                                            run_task(
+                                                dataset_id,
+                                                n,
+                                                d,
+                                                k,
+                                                c,
+                                                seed,
+                                                algos,
+                                                outdir,
+                                                outliers=int(o),
+                                                noise=int(z),
+                                                density=float(g),
+                                            )
+                                        )
 
     # Flatten metrics dict so metrics appear top‑level in the DataFrame
     def flatten(r: dict) -> dict:
