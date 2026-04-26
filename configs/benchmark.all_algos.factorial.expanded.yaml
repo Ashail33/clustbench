@@ -1,0 +1,92 @@
+# Supplemental all-algorithm factorial focused on larger n, d, and k.
+#
+# This extends benchmark.all_algos.factorial.yaml upward on the three
+# scale factors requested for the paper exploration:
+# - n_samples: 1500, 2000
+# - n_features: 25, 50
+# - k_targets: 7, 10
+#
+# Other factors are kept narrower to make the all-14-algorithm run
+# feasible locally, especially for OPTICS, spectral, agglomerative, and
+# mean-shift. Merge this run with all_algos_factorial to analyze the
+# original and expanded design together.
+
+datasets:
+  - id: mdcgen
+    n_samples: [1500, 2000]
+    n_features: [25, 50]
+    k_targets: [7, 10]
+    compactness: [1.0]
+    outliers: [0, 500]
+    noise: [0, 10]
+    density: [1.0]
+
+algorithms:
+  - name: parallel_kmeans
+    kind: python
+    entry: parallel_kmeans
+    params: {max_iter: 100, n_init: 3, n_workers: 1}
+  - name: minibatch_kmeans
+    kind: python
+    entry: minibatch_kmeans
+    params: {batch_size: 500, max_iter: 100}
+  - name: pwcc
+    kind: python
+    entry: pwcc
+    params:
+      base: [kmeans, minibatch_kmeans, birch_algo]
+      base_params:
+        kmeans: {record_trajectory: false, max_iter: 100, n_init: 3}
+        minibatch_kmeans: {batch_size: 500, max_iter: 100}
+        birch_algo: {threshold: 1.0}
+  - name: s5c
+    kind: python
+    entry: s5c
+    params: {sample_size: 1000, n_nonzero_coefs: 5}
+  - name: kmeans
+    kind: python
+    entry: kmeans
+    params: {max_iter: 100, n_init: 3}
+  - name: dbscan
+    kind: python
+    entry: dbscan
+    params: {eps: 0.8, min_samples: 5}
+  - name: birch_algo
+    kind: python
+    entry: birch_algo
+    params: {threshold: 1.0}
+  - name: clarans
+    kind: python
+    entry: clarans
+    params: {numlocal: 2, maxneigh: 30}
+  - name: consensus
+    kind: python
+    entry: consensus
+    params:
+      base: [kmeans, minibatch_kmeans, birch_algo]
+      base_params:
+        kmeans: {record_trajectory: false, max_iter: 100, n_init: 3}
+        minibatch_kmeans: {batch_size: 500, max_iter: 100}
+        birch_algo: {threshold: 1.0}
+  - name: gmm
+    kind: python
+    entry: gmm
+    params: {max_iter: 100, n_init: 1, reg_covar: 0.001}
+  - name: agglomerative
+    kind: python
+    entry: agglomerative
+    params: {linkage: ward}
+  - name: spectral
+    kind: python
+    entry: spectral
+    params: {n_neighbors: 10}
+  - name: meanshift
+    kind: python
+    entry: meanshift
+    params: {bin_seeding: true}
+  - name: optics
+    kind: python
+    entry: optics
+    params: {min_samples: 5, xi: 0.05}
+
+seeds: [1]

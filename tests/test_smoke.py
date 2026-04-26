@@ -35,6 +35,7 @@ EXPECTED_ALGOS = {
     "spectral",
     "meanshift",
     "optics",
+    "chameleon",
 }
 
 
@@ -121,6 +122,17 @@ def test_paper_algorithms_run():
 
     s5 = S5c(sample_size=120, n_nonzero_coefs=3).fit_predict(X, k=3)
     assert s5.labels.shape == (300,) and s5.trajectory and len(s5.trajectory) == 4
+
+
+def test_chameleon_runs():
+    from clustbench.datasets import gen_blobs, DataSpec
+    from clustbench.algorithms.chameleon import Chameleon
+
+    X, _ = gen_blobs(DataSpec(n_samples=300, n_features=6, centers=4, compactness=0.7, seed=1))
+    res = Chameleon(n_neighbors=10, overcluster_factor=4, max_partitions=30).fit_predict(X, k=4)
+    assert res.labels.shape == (300,)
+    assert 1 <= len(set(int(v) for v in res.labels)) <= 4
+    assert res.trajectory and len(res.trajectory) >= 2
 
 
 def test_cli_end_to_end(tmp_path):

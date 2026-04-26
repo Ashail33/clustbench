@@ -25,6 +25,7 @@ class Gmm(Algorithm):
         max_iter: int = 100,
         n_init: int = 1,
         covariance_type: str = "full",
+        reg_covar: float = 1e-6,
         random_state: int = 42,
         **kwargs: Any,
     ) -> None:
@@ -32,6 +33,7 @@ class Gmm(Algorithm):
         self.max_iter = max_iter
         self.n_init = n_init
         self.covariance_type = covariance_type
+        self.reg_covar = reg_covar
         self.random_state = random_state
 
     def fit_predict(self, X: np.ndarray, k: Optional[int] = None) -> AlgoResult:
@@ -41,6 +43,7 @@ class Gmm(Algorithm):
         gm = GaussianMixture(
             n_components=k,
             covariance_type=self.covariance_type,
+            reg_covar=self.reg_covar,
             max_iter=self.max_iter,
             n_init=self.n_init,
             random_state=self.random_state,

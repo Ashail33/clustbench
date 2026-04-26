@@ -1,0 +1,38 @@
+# Larger-data sweep with scalable baselines plus CHAMELEON-style clustering.
+#
+# This intentionally excludes the slowest all-purpose methods such as OPTICS,
+# spectral, mean-shift, and agglomerative so the run can push sample count.
+
+datasets:
+  - id: mdcgen
+    n_samples: [5000, 10000]
+    n_features: [25, 50]
+    k_targets: [10, 15]
+    compactness: [1.0]
+    outliers: [500]
+    noise: [10]
+    density: [1.0]
+
+algorithms:
+  - name: chameleon
+    kind: python
+    entry: chameleon
+    params: {n_neighbors: 20, overcluster_factor: 8, max_partitions: 160}
+  - name: parallel_kmeans
+    kind: python
+    entry: parallel_kmeans
+    params: {max_iter: 100, n_init: 3, n_workers: 1}
+  - name: minibatch_kmeans
+    kind: python
+    entry: minibatch_kmeans
+    params: {batch_size: 1000, max_iter: 100}
+  - name: birch_algo
+    kind: python
+    entry: birch_algo
+    params: {threshold: 1.0}
+  - name: gmm
+    kind: python
+    entry: gmm
+    params: {max_iter: 100, n_init: 1, reg_covar: 0.001}
+
+seeds: [1]
