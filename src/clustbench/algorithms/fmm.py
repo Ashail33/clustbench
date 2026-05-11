@@ -308,6 +308,39 @@ class Fmm(Algorithm):
             "n_scales": int(self.n_scales),
         }
 
+    def _init_alpha(
+        self,
+        X: np.ndarray,
+        k: int,
+        phi: np.ndarray,
+        rng: np.random.Generator,
+    ) -> Tuple[np.ndarray, dict, dict]:
+        """Warm-start alpha from a k-means partition of ``X``.
+
+        Returns ``(alpha, action, state)`` where ``action`` and ``state``
+        describe the init for the trajectory.
+        """
+        eps = 1e-12
+        m2 = phi.shape[1]
+        km = KMeans(
+            n_clusters=k, n_init=3, random_state=self.random_state, max_iter=100
+        ).fit(X)
+        init_labels = km.labels_
+        alpha = np.zeros((k, m2))
+        global_mean = phi.mean(axis=0)
+        phi_std = phi.std(axis=0) + eps
+        init_strength = 1.0 / np.sqrt(m2)
+        for j in range(k):
+            members = phi[init_labels == j]
+            if members.size:
+                alpha[j] = init_strength * (members.mean(axis=0) - global_mean) / phi_std
+        alpha = alpha + rng.normal(scale=1e-3, size=alpha.shape)
+        return (
+            alpha,
+            {"type": "kmeans_init", "n_clusters": int(k)},
+            {"init_inertia": float(km.inertia_), "cost": float(km.inertia_)},
+        )
+
     def _fit_one(
         self,
         X: np.ndarray,
@@ -332,33 +365,21 @@ class Fmm(Algorithm):
             )
         )
 
-        # --- k-means warm start for alpha_k.
-        # n_init=3 is a compromise: n_init=5 dominated the fit time on
-        # small datasets, n_init=1 occasionally lands the warm start
-        # in a bad pocket from which EM can't recover. n_init=3 closes
-        # the quality gap while still cutting warm-start time ~40%.
-        km = KMeans(
-            n_clusters=k, n_init=3, random_state=self.random_state, max_iter=100
-        ).fit(X)
-        init_labels = km.labels_
-        alpha = np.zeros((k, m2))
-        global_mean = phi.mean(axis=0)
-        phi_std = phi.std(axis=0) + eps
-        init_strength = 1.0 / np.sqrt(m2)
-        for j in range(k):
-            members = phi[init_labels == j]
-            if members.size:
-                alpha[j] = init_strength * (members.mean(axis=0) - global_mean) / phi_std
-        alpha = alpha + rng.normal(scale=1e-3, size=alpha.shape)
+        # --- Warm-start alpha. The default is a k-means partition of
+        # ``X``; subclasses can override ``_init_alpha`` with something
+        # cheaper when the basis is informative enough (e.g. LMM uses
+        # k-means++ on the eigenvector basis only, skipping the
+        # Lloyd loop).
+        alpha, init_action, init_state = self._init_alpha(X, k, phi, rng)
         pi = np.ones(k) / k
         tau = np.full(k, self.tau_init if self.learn_bandwidth else 0.0)
         trajectory.append(
             Step(
                 step_idx=1,
-                cost=float(km.inertia_),
+                cost=float(init_state.get("cost", 0.0)),
                 accepted=True,
-                action={"type": "kmeans_init", "n_clusters": int(k)},
-                state={"init_inertia": float(km.inertia_)},
+                action=init_action,
+                state=init_state,
             )
         )
 
