@@ -207,6 +207,21 @@ def test_fmm_auto_k_via_bic():
     assert best["k"] == res.extra["k_search_best_k"]
 
 
+def test_consensus_with_fmm():
+    """Consensus can mix FMM with centroid- and density-based algorithms."""
+    from clustbench.datasets import gen_blobs, DataSpec
+    from clustbench.consensus import Consensus
+
+    X, y = gen_blobs(DataSpec(n_samples=300, n_features=4, centers=3, compactness=0.5, seed=1))
+    res = Consensus(
+        base=["kmeans", "gmm", "fmm"],
+        base_params={"fmm": {"n_frequencies": 24, "max_iter": 8}},
+    ).fit_predict(X, k=3)
+    assert res.labels.shape == (300,)
+    assert 1 <= len(set(int(v) for v in res.labels)) <= 3
+    assert "fmm" in res.extra["bases"]
+
+
 def test_fmm_heat_kernel_learns_tau():
     """Per-cluster heat-kernel bandwidth ``tau`` is learned during EM."""
     from clustbench.datasets import gen_blobs, DataSpec
