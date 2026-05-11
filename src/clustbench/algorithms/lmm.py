@@ -84,7 +84,12 @@ class Lmm(Fmm):
         # ``n_frequencies`` in the Fmm parent is reused as the basis
         # dimensionality so feature_dim / param-count plumbing works.
         kwargs.setdefault("n_scales", 1)
-        kwargs.setdefault("learn_bandwidth", True)
+        # Disabled by default for LMM: the basis is already eigenvalue-
+        # weighted, so per-cluster heat-kernel scaling is redundant. The
+        # tau line search is ~30% of LMM's fit time with no observed
+        # quality benefit (identical ARI across the benchmark with
+        # ``learn_bandwidth=True``).
+        kwargs.setdefault("learn_bandwidth", False)
         kwargs.setdefault("tau_init", 0.0)
         # ``n_frequencies`` is set per-fit (in ``_build_basis``) because
         # "auto" depends on ``k``; the constructor seeds a safe default.
@@ -105,43 +110,58 @@ class Lmm(Fmm):
         return max(int(kk), 2)
 
     def _init_alpha(self, X, k, phi, rng):
-        """Cheap k-means warm start *in the eigenvector basis* rather than X.
+        """Hand-rolled k-means++ + a few Lloyd iterations on ``phi``.
 
-        ``phi`` has shape ``(n, k)`` for LMM (the bottom-k Laplacian
-        eigenvectors are already cluster-aligned), so a single-init
-        k-means with a short Lloyd budget converges to the right
-        partition almost immediately — a fraction of the cost of the
-        default FMM warm start which runs k-means on the full ``X``.
-
-        On the benchmark this drops LMM mean fit time from 136 ms to
-        ~60 ms while preserving the quality the FMM warm start gives.
+        ``phi`` has shape ``(n, k)`` for LMM and is already
+        cluster-aligned (the bottom-k Laplacian eigenvectors are
+        approximate cluster indicators), so the partition converges in
+        a handful of Lloyd sweeps. Hand-rolling avoids sklearn's
+        ~10 ms of dispatch / validation overhead per ``KMeans().fit``,
+        which matters at our scale where the whole LMM fit is ~25-40 ms.
         """
-        from sklearn.cluster import KMeans as _KMeans
-
         eps = 1e-12
         n, m2 = phi.shape
-        km = _KMeans(
-            n_clusters=k,
-            n_init=1,
-            init="k-means++",
-            max_iter=20,
-            random_state=self.random_state,
-        ).fit(phi)
-        init_labels = km.labels_
+
+        # k-means++ seeding on phi.
+        centers_idx = [int(rng.integers(n))]
+        d2 = np.full(n, np.inf)
+        for _ in range(k - 1):
+            diff = phi - phi[centers_idx[-1]]
+            d2 = np.minimum(d2, np.einsum("nm,nm->n", diff, diff))
+            total = d2.sum()
+            if total <= 0:
+                centers_idx.append(int(rng.integers(n)))
+            else:
+                centers_idx.append(int(rng.choice(n, p=d2 / total)))
+        centers = phi[np.asarray(centers_idx)].copy()                  # (k, m2)
+
+        # Up to 10 Lloyd sweeps; usually converges in 3-5.
+        labels = np.zeros(n, dtype=np.int64)
+        for _ in range(10):
+            # ||phi - centers||^2 = ||phi||^2 - 2 phi.centers^T + ||centers||^2
+            phi_sq = np.einsum("nm,nm->n", phi, phi)
+            c_sq = np.einsum("km,km->k", centers, centers)
+            D = phi_sq[:, None] - 2.0 * phi @ centers.T + c_sq[None, :]  # (n, k)
+            new_labels = D.argmin(axis=1)
+            if np.array_equal(new_labels, labels):
+                break
+            labels = new_labels
+            new_centers = centers.copy()
+            for j in range(k):
+                mask = labels == j
+                if mask.any():
+                    new_centers[j] = phi[mask].mean(axis=0)
+            centers = new_centers
 
         global_mean = phi.mean(axis=0)
         phi_std = phi.std(axis=0) + eps
         init_strength = 1.0 / np.sqrt(m2)
-        alpha = np.zeros((k, m2))
-        for j in range(k):
-            members = phi[init_labels == j]
-            if members.size:
-                alpha[j] = init_strength * (members.mean(axis=0) - global_mean) / phi_std
+        alpha = init_strength * (centers - global_mean) / phi_std
         alpha = alpha + rng.normal(scale=1e-3, size=alpha.shape)
         return (
             alpha,
             {"type": "kmeans_on_eigenvectors", "n_clusters": int(k)},
-            {"init_inertia": float(km.inertia_), "cost": float(km.inertia_)},
+            {"cost": float(D[np.arange(n), labels].sum())},
         )
 
     def _resolve_n_neighbors(self, n: int) -> int:
