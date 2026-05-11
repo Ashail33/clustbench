@@ -74,10 +74,10 @@ class Amm(Fmm):
         self,
         n_components: int = 8,
         hidden_sizes: tuple[int, ...] = (128,),
-        ae_max_iter: int = 200,
+        ae_max_iter: int = 100,
         ae_alpha: float = 1e-4,
         ae_activation: str = "tanh",
-        ae_solver: str = "lbfgs",
+        ae_solver: str = "adam",
         ae_random_state: int = 42,
         **kwargs: Any,
     ) -> None:
