@@ -49,8 +49,13 @@ class Lmm(Fmm):
         indicators in the ideal-graph case. Extra eigenvectors past
         that just give EM room to overfit. Override with an int if you
         want explicit control.
-    n_neighbors : int
-        k for the k-NN graph that defines the Laplacian.
+    n_neighbors : int or "auto"
+        k for the k-NN graph that defines the Laplacian. ``"auto"`` uses
+        ``max(10, ⌊4·√(log2(n))⌋)`` — a gentle scaling that keeps the
+        neighbourhood ~10 for moderate ``n`` and grows slowly with
+        dataset size. Empirically the sweet spot: too few breaks
+        within-cluster connectivity, too many lets the graph bridge
+        clusters.
     affinity : {"binary", "heat"}
         Edge weighting:
           * ``"binary"`` — connect each point to its ``n_neighbors``
@@ -71,7 +76,7 @@ class Lmm(Fmm):
     def __init__(
         self,
         n_eigvecs: Any = "auto",
-        n_neighbors: int = 10,
+        n_neighbors: Any = "auto",
         affinity: str = "binary",
         row_normalize: bool = True,
         **kwargs: Any,
@@ -87,7 +92,7 @@ class Lmm(Fmm):
         super().__init__(n_frequencies=seed_dim, **kwargs)
         self.name = "lmm"
         self.n_eigvecs = n_eigvecs
-        self.n_neighbors = int(n_neighbors)
+        self.n_neighbors = n_neighbors
         self.affinity = affinity
         self.row_normalize = row_normalize
         self._k_hint: int | None = None
@@ -99,11 +104,18 @@ class Lmm(Fmm):
         kk = k if k is not None else (self._k_hint or 2)
         return max(int(kk), 2)
 
+    def _resolve_n_neighbors(self, n: int) -> int:
+        if isinstance(self.n_neighbors, int):
+            return max(1, min(self.n_neighbors, n - 1))
+        # "auto" — gentle scaling that keeps nn near 10 for moderate n.
+        auto = int(4 * np.sqrt(np.log2(max(n, 2))))
+        return max(10, min(auto, n - 1))
+
     def _basis_action(self) -> dict:
         return {
             "type": "laplacian_basis",
             "n_eigvecs": int(self.n_frequencies),
-            "n_neighbors": int(self.n_neighbors),
+            "n_neighbors": self.n_neighbors,
             "affinity": str(self.affinity),
             "row_normalize": bool(self.row_normalize),
         }
@@ -112,7 +124,11 @@ class Lmm(Fmm):
         # Stash k so ``_build_basis`` can size the basis to it.
         self._k_hint = k
         self.n_frequencies = self._resolve_n_eigvecs(k)
-        return super().fit_predict(X, k=k)
+        result = super().fit_predict(X, k=k)
+        if result.extra is not None:
+            result.extra["n_neighbors_used"] = self._resolve_n_neighbors(X.shape[0])
+            result.extra["n_eigvecs_used"] = self.n_frequencies
+        return result
 
     def _build_basis(
         self, X: np.ndarray, rng: np.random.Generator
@@ -123,7 +139,7 @@ class Lmm(Fmm):
         """
         n = X.shape[0]
         m_eig = int(self.n_frequencies)
-        k_nn = max(1, min(self.n_neighbors, n - 1))
+        k_nn = self._resolve_n_neighbors(n)
 
         if self.affinity == "heat":
             knn = kneighbors_graph(X, n_neighbors=k_nn, mode="distance", include_self=False)
