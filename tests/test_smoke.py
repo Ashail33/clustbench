@@ -186,20 +186,42 @@ def test_fmm_runs():
 
 
 def test_fmm_auto_k_via_bic():
-    """k_search picks the lowest-BIC k when k is not supplied."""
+    """k_search picks the lowest-mean-BIC k when k is not supplied, averaging
+    across multiple Fourier bases."""
     from clustbench.datasets import gen_blobs, DataSpec
     from clustbench.algorithms.fmm import Fmm
 
     X, _ = gen_blobs(DataSpec(n_samples=300, n_features=4, centers=3, compactness=0.5, seed=1))
-    fmm = Fmm(n_frequencies=24, n_scales=2, max_iter=8, k_search=(2, 5))
+    fmm = Fmm(
+        n_frequencies=24, n_scales=2, max_iter=8,
+        k_search=(2, 5), n_basis_samples=2,
+    )
     res = fmm.fit_predict(X, k=None)
     assert "k_search_best_k" in res.extra
     assert 2 <= res.extra["k_search_best_k"] <= 5
     profile = res.extra["k_search_bic_profile"]
     assert [p["k"] for p in profile] == [2, 3, 4, 5]
-    # Best BIC in the profile matches the chosen k.
-    best = min(profile, key=lambda p: p["bic"])
+    # Each profile entry has the per-basis breakdown and the mean.
+    assert all(len(p["bic_per_basis"]) == 2 for p in profile)
+    best = min(profile, key=lambda p: p["bic_mean"])
     assert best["k"] == res.extra["k_search_best_k"]
+
+
+def test_fmm_heat_kernel_learns_tau():
+    """Per-cluster heat-kernel bandwidth ``tau`` is learned during EM."""
+    from clustbench.datasets import gen_blobs, DataSpec
+    from clustbench.algorithms.fmm import Fmm
+
+    X, _ = gen_blobs(DataSpec(n_samples=300, n_features=4, centers=3, compactness=0.5, seed=1))
+    res = Fmm(
+        n_frequencies=24, n_scales=3, max_iter=10,
+        learn_bandwidth=True, tau_init=0.1, tau_step=0.5,
+    ).fit_predict(X, k=3)
+    assert res.extra["learn_bandwidth"] is True
+    # tau is bounded and finite.
+    assert 0.0 <= res.extra["tau_min"] <= res.extra["tau_mean"] <= res.extra["tau_max"] < 1e4
+    # tau should be reflected in the parameter count for BIC.
+    assert res.extra["n_params"] == 3 * (2 * 24) + 3 + 2
 
 
 def test_cli_end_to_end(tmp_path):
