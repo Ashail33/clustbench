@@ -162,21 +162,44 @@ def test_mri_runs():
 
 
 def test_fmm_runs():
-    """Fourier mixture model produces k clusters and a per-iteration trajectory."""
+    """Fourier mixture model produces k clusters with monotone EM and reports BIC."""
     from clustbench.datasets import gen_blobs, DataSpec
     from clustbench.algorithms.fmm import Fmm
 
-    X, y = gen_blobs(DataSpec(n_samples=300, n_features=4, centers=3, compactness=0.5, seed=1))
-    res = Fmm(n_frequencies=24, max_iter=15, n_inner_iter=3).fit_predict(X, k=3)
+    X, _ = gen_blobs(DataSpec(n_samples=300, n_features=4, centers=3, compactness=0.5, seed=1))
+    res = Fmm(n_frequencies=24, n_scales=3, max_iter=10).fit_predict(X, k=3)
     assert res.labels.shape == (300,)
     assert 1 <= len(set(int(v) for v in res.labels)) <= 3
-    # Fourier basis init + kmeans init + at least one em_step.
     assert res.trajectory and len(res.trajectory) >= 3
     types = [s.action.get("type") for s in res.trajectory]
     assert types[0] == "fourier_basis"
     assert types[1] == "kmeans_init"
-    assert types[2] == "em_step"
+    assert types[2] == "newton_step"
     assert res.extra["feature_dim"] == 2 * 24
+
+    # Newton M-step should be concave EM: log-likelihood non-decreasing.
+    lls = [s.state["log_likelihood"] for s in res.trajectory if s.action.get("type") == "newton_step"]
+    assert all(lls[i + 1] >= lls[i] - 1e-6 for i in range(len(lls) - 1)), "EM should not decrease ll"
+    # BIC should be present and a finite number.
+    import math
+    assert "bic" in res.extra and math.isfinite(res.extra["bic"])
+
+
+def test_fmm_auto_k_via_bic():
+    """k_search picks the lowest-BIC k when k is not supplied."""
+    from clustbench.datasets import gen_blobs, DataSpec
+    from clustbench.algorithms.fmm import Fmm
+
+    X, _ = gen_blobs(DataSpec(n_samples=300, n_features=4, centers=3, compactness=0.5, seed=1))
+    fmm = Fmm(n_frequencies=24, n_scales=2, max_iter=8, k_search=(2, 5))
+    res = fmm.fit_predict(X, k=None)
+    assert "k_search_best_k" in res.extra
+    assert 2 <= res.extra["k_search_best_k"] <= 5
+    profile = res.extra["k_search_bic_profile"]
+    assert [p["k"] for p in profile] == [2, 3, 4, 5]
+    # Best BIC in the profile matches the chosen k.
+    best = min(profile, key=lambda p: p["bic"])
+    assert best["k"] == res.extra["k_search_best_k"]
 
 
 def test_cli_end_to_end(tmp_path):
