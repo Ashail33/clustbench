@@ -1,0 +1,110 @@
+# Non-convex / anisotropic task grid for the dashboard.
+#
+# Adds moons / circles / anisotropic datasets across all 18 registered
+# algorithms, so the dashboard surfaces where graph-based methods (LMM,
+# spectral) decisively beat centroid-based methods (kmeans, GMM).
+#
+# Grid: 3 datasets × 3 n_samples × 1 compactness × 3 seeds = 9 task cells.
+
+datasets:
+  - id: moons
+    n_samples: [400, 800, 1500]
+    n_features: [2]
+    k_targets: [2]
+    compactness: [1.0]
+  - id: circles
+    n_samples: [400, 800, 1500]
+    n_features: [2]
+    k_targets: [2]
+    compactness: [1.0]
+  - id: anisotropic
+    n_samples: [400, 800, 1500]
+    n_features: [2]
+    k_targets: [3]
+    compactness: [1.0]
+
+algorithms:
+  - name: kmeans
+    kind: python
+    entry: kmeans
+    params: {max_iter: 100, n_init: 3}
+  - name: minibatch_kmeans
+    kind: python
+    entry: minibatch_kmeans
+    params: {batch_size: 200, max_iter: 100}
+  - name: parallel_kmeans
+    kind: python
+    entry: parallel_kmeans
+    params: {max_iter: 100, n_init: 3, n_workers: 1}
+  - name: birch_algo
+    kind: python
+    entry: birch_algo
+    params: {threshold: 1.0}
+  - name: dbscan
+    kind: python
+    entry: dbscan
+    params: {eps: 0.3, min_samples: 5}
+  - name: clarans
+    kind: python
+    entry: clarans
+    params: {numlocal: 2, maxneigh: 30}
+  - name: gmm
+    kind: python
+    entry: gmm
+    params: {max_iter: 100, n_init: 1, reg_covar: 0.001}
+  - name: agglomerative
+    kind: python
+    entry: agglomerative
+    params: {linkage: ward}
+  - name: spectral
+    kind: python
+    entry: spectral
+    params: {n_neighbors: 10}
+  - name: meanshift
+    kind: python
+    entry: meanshift
+    params: {bin_seeding: true}
+  - name: optics
+    kind: python
+    entry: optics
+    params: {min_samples: 5, xi: 0.05}
+  - name: pwcc
+    kind: python
+    entry: pwcc
+    params:
+      base: [kmeans, minibatch_kmeans, birch_algo]
+      base_params:
+        kmeans: {record_trajectory: false, max_iter: 100, n_init: 3}
+        minibatch_kmeans: {batch_size: 200, max_iter: 100}
+        birch_algo: {threshold: 1.0}
+  - name: s5c
+    kind: python
+    entry: s5c
+    params: {sample_size: 400, n_nonzero_coefs: 5}
+  - name: consensus
+    kind: python
+    entry: consensus
+    params:
+      base: [kmeans, minibatch_kmeans, birch_algo]
+      base_params:
+        kmeans: {record_trajectory: false, max_iter: 100, n_init: 3}
+        minibatch_kmeans: {batch_size: 200, max_iter: 100}
+        birch_algo: {threshold: 1.0}
+  - name: chameleon
+    kind: python
+    entry: chameleon
+    params: {n_neighbors: 10, overcluster_factor: 4, max_partitions: 30}
+  - name: mri
+    kind: python
+    entry: mri
+    params: {n_neighbors: 15, n_echoes: 6, n_gradient_axes: 3}
+  - name: fmm
+    kind: python
+    entry: fmm
+    params: {n_frequencies: 64, n_scales: 3, max_iter: 40}
+  - name: lmm
+    kind: python
+    entry: lmm
+    params: {}
+
+seeds: [1, 2, 3]

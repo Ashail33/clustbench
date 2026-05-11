@@ -37,6 +37,8 @@ EXPECTED_ALGOS = {
     "optics",
     "chameleon",
     "mri",
+    "fmm",
+    "lmm",
 }
 
 
@@ -158,6 +160,123 @@ def test_mri_runs():
     assert types[2] == "gradient_encode"
     assert types[3] == "rf_pulse_90"
     assert types[-1] == "signature_kmeans"
+
+
+def test_fmm_runs():
+    """Fourier mixture model produces k clusters with monotone EM and reports BIC."""
+    from clustbench.datasets import gen_blobs, DataSpec
+    from clustbench.algorithms.fmm import Fmm
+
+    X, _ = gen_blobs(DataSpec(n_samples=300, n_features=4, centers=3, compactness=0.5, seed=1))
+    res = Fmm(n_frequencies=24, n_scales=3, max_iter=10).fit_predict(X, k=3)
+    assert res.labels.shape == (300,)
+    assert 1 <= len(set(int(v) for v in res.labels)) <= 3
+    assert res.trajectory and len(res.trajectory) >= 3
+    types = [s.action.get("type") for s in res.trajectory]
+    assert types[0] == "fourier_basis"
+    assert types[1] == "kmeans_init"
+    assert types[2] == "newton_step"
+    assert res.extra["feature_dim"] == 2 * 24
+
+    # Newton M-step should be concave EM: log-likelihood non-decreasing.
+    lls = [s.state["log_likelihood"] for s in res.trajectory if s.action.get("type") == "newton_step"]
+    assert all(lls[i + 1] >= lls[i] - 1e-6 for i in range(len(lls) - 1)), "EM should not decrease ll"
+    # BIC should be present and a finite number.
+    import math
+    assert "bic" in res.extra and math.isfinite(res.extra["bic"])
+
+
+def test_fmm_auto_k_via_bic():
+    """k_search picks the lowest-mean-BIC k when k is not supplied, averaging
+    across multiple Fourier bases."""
+    from clustbench.datasets import gen_blobs, DataSpec
+    from clustbench.algorithms.fmm import Fmm
+
+    X, _ = gen_blobs(DataSpec(n_samples=300, n_features=4, centers=3, compactness=0.5, seed=1))
+    fmm = Fmm(
+        n_frequencies=24, n_scales=2, max_iter=8,
+        k_search=(2, 5), n_basis_samples=2,
+    )
+    res = fmm.fit_predict(X, k=None)
+    assert "k_search_best_k" in res.extra
+    assert 2 <= res.extra["k_search_best_k"] <= 5
+    profile = res.extra["k_search_bic_profile"]
+    assert [p["k"] for p in profile] == [2, 3, 4, 5]
+    # Each profile entry has the per-basis breakdown and the mean.
+    assert all(len(p["bic_per_basis"]) == 2 for p in profile)
+    best = min(profile, key=lambda p: p["bic_mean"])
+    assert best["k"] == res.extra["k_search_best_k"]
+
+
+def test_lmm_handles_non_convex_shapes():
+    """LMM with k-NN Laplacian basis recovers non-convex shapes where
+    Euclidean mixtures (kmeans/gmm/fmm) bottom out near zero ARI."""
+    import numpy as np
+    from clustbench.datasets import DATASETS, DataSpec
+    from clustbench.algorithms.lmm import Lmm
+    from clustbench.algorithms.fmm import Fmm
+    from sklearn.metrics import adjusted_rand_score
+
+    lmm_aris, fmm_aris = [], []
+    for seed in (1, 2, 3):
+        X, y = DATASETS["circles"](DataSpec(n_samples=400, n_features=2, centers=2, compactness=1.0, seed=seed))
+        lmm_aris.append(adjusted_rand_score(y, Lmm(n_neighbors=10).fit_predict(X, k=2).labels))
+        fmm_aris.append(adjusted_rand_score(y, Fmm().fit_predict(X, k=2).labels))
+    # On circles, FMM is near zero; LMM should clearly beat it.
+    assert np.mean(lmm_aris) > 0.5, f"LMM mean ARI {np.mean(lmm_aris):.3f} too low"
+    assert np.mean(lmm_aris) > np.mean(fmm_aris) + 0.3, \
+        f"LMM ({np.mean(lmm_aris):.3f}) should clearly beat FMM ({np.mean(fmm_aris):.3f}) on circles"
+
+    # Trajectory and feature-dim plumbing.
+    X, _ = DATASETS["moons"](DataSpec(n_samples=400, n_features=2, centers=2, compactness=1.0, seed=2))
+    res = Lmm(n_neighbors=10).fit_predict(X, k=2)
+    assert res.trajectory[0].action["type"] == "laplacian_basis"
+    assert res.extra["feature_dim"] == 2  # n_eigvecs auto-sized to k
+
+
+def test_lmm_nystrom_opt_in():
+    """Nystrom mode produces sensible labels at much lower cost than full LMM."""
+    from clustbench.datasets import gen_blobs, DataSpec
+    from clustbench.algorithms.lmm import Lmm
+    from sklearn.metrics import adjusted_rand_score
+
+    X, y = gen_blobs(DataSpec(n_samples=600, n_features=4, centers=4, compactness=0.5, seed=1))
+    res = Lmm(nystrom=True, n_landmarks=100).fit_predict(X, k=4)
+    assert res.labels.shape == (600,)
+    # On well-separated blobs Nystrom should match full quality.
+    assert adjusted_rand_score(y, res.labels) > 0.9
+
+
+def test_consensus_with_fmm():
+    """Consensus can mix FMM with centroid- and density-based algorithms."""
+    from clustbench.datasets import gen_blobs, DataSpec
+    from clustbench.consensus import Consensus
+
+    X, y = gen_blobs(DataSpec(n_samples=300, n_features=4, centers=3, compactness=0.5, seed=1))
+    res = Consensus(
+        base=["kmeans", "gmm", "fmm"],
+        base_params={"fmm": {"n_frequencies": 24, "max_iter": 8}},
+    ).fit_predict(X, k=3)
+    assert res.labels.shape == (300,)
+    assert 1 <= len(set(int(v) for v in res.labels)) <= 3
+    assert "fmm" in res.extra["bases"]
+
+
+def test_fmm_heat_kernel_learns_tau():
+    """Per-cluster heat-kernel bandwidth ``tau`` is learned during EM."""
+    from clustbench.datasets import gen_blobs, DataSpec
+    from clustbench.algorithms.fmm import Fmm
+
+    X, _ = gen_blobs(DataSpec(n_samples=300, n_features=4, centers=3, compactness=0.5, seed=1))
+    res = Fmm(
+        n_frequencies=24, n_scales=3, max_iter=10,
+        learn_bandwidth=True, tau_init=0.1, tau_step=0.5,
+    ).fit_predict(X, k=3)
+    assert res.extra["learn_bandwidth"] is True
+    # tau is bounded and finite.
+    assert 0.0 <= res.extra["tau_min"] <= res.extra["tau_mean"] <= res.extra["tau_max"] < 1e4
+    # tau should be reflected in the parameter count for BIC.
+    assert res.extra["n_params"] == 3 * (2 * 24) + 3 + 2
 
 
 def test_cli_end_to_end(tmp_path):
