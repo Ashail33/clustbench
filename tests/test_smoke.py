@@ -42,6 +42,7 @@ EXPECTED_ALGOS = {
     "lmm",
     "smm",
     "amm",
+    "mwc",
 }
 
 
@@ -296,6 +297,27 @@ def test_noisy_classification_dataset():
     # n_informative is n_features // 20 = 2, so the cluster signal lives in
     # ~2 of the 40 dims; the rest is noise. We don't assert specific values,
     # just that the dataset is generated without error.
+
+
+def test_mwc_runs():
+    """Mann-Whitney consensus produces sensible labels and a trajectory of
+    test-gated merges."""
+    from clustbench.algorithms.mwc import Mwc
+    from clustbench.datasets import gen_blobs, DataSpec
+    from sklearn.metrics import adjusted_rand_score
+
+    X, y = gen_blobs(DataSpec(n_samples=300, n_features=4, centers=3, compactness=0.5, seed=1))
+    res = Mwc(base=["kmeans", "gmm", "lmm"]).fit_predict(X, k=3)
+    assert res.labels.shape == (300,)
+    # On well-separated blobs MWC should recover the structure cleanly.
+    assert adjusted_rand_score(y, res.labels) > 0.9
+    # Trajectory: run_base + init_overcluster + at least one merge step.
+    assert res.trajectory and len(res.trajectory) >= 3
+    types = [s.action.get("type") for s in res.trajectory]
+    assert types[0] == "run_base"
+    assert types[1] == "init_overcluster"
+    assert "merge" in types
+    assert res.extra["n_base"] == 3
 
 
 def test_consensus_with_fmm():
