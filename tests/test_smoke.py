@@ -37,6 +37,7 @@ EXPECTED_ALGOS = {
     "optics",
     "chameleon",
     "mri",
+    "fmm",
 }
 
 
@@ -158,6 +159,24 @@ def test_mri_runs():
     assert types[2] == "gradient_encode"
     assert types[3] == "rf_pulse_90"
     assert types[-1] == "signature_kmeans"
+
+
+def test_fmm_runs():
+    """Fourier mixture model produces k clusters and a per-iteration trajectory."""
+    from clustbench.datasets import gen_blobs, DataSpec
+    from clustbench.algorithms.fmm import Fmm
+
+    X, y = gen_blobs(DataSpec(n_samples=300, n_features=4, centers=3, compactness=0.5, seed=1))
+    res = Fmm(n_frequencies=24, max_iter=15, n_inner_iter=3).fit_predict(X, k=3)
+    assert res.labels.shape == (300,)
+    assert 1 <= len(set(int(v) for v in res.labels)) <= 3
+    # Fourier basis init + kmeans init + at least one em_step.
+    assert res.trajectory and len(res.trajectory) >= 3
+    types = [s.action.get("type") for s in res.trajectory]
+    assert types[0] == "fourier_basis"
+    assert types[1] == "kmeans_init"
+    assert types[2] == "em_step"
+    assert res.extra["feature_dim"] == 2 * 24
 
 
 def test_cli_end_to_end(tmp_path):
