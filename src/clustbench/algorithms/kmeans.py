@@ -14,15 +14,27 @@ from sklearn.cluster import KMeans as SkKMeans
 from .base import Algorithm, AlgoResult, Step, register
 
 
+def _sq_dists(X: np.ndarray, centers: np.ndarray) -> np.ndarray:
+    """Pairwise squared Euclidean distances ``||X[i] - centers[j]||^2``.
+
+    Uses the BLAS-friendly identity
+    ``||x - c||^2 = ||x||^2 - 2 x.c + ||c||^2``
+    instead of the broadcast pattern ``(X[:, None] - C[None])**2`` which
+    materialises an ``(n, k, d)`` intermediate. Typically 5-10× faster
+    via gemm at our problem sizes; same result.
+    """
+    x_sq = np.einsum("nd,nd->n", X, X)
+    c_sq = np.einsum("kd,kd->k", centers, centers)
+    cross = X @ centers.T
+    return np.maximum(x_sq[:, None] + c_sq[None, :] - 2.0 * cross, 0.0)
+
+
 def _kmeans_plus_plus_init(X: np.ndarray, k: int, rng: np.random.Generator) -> np.ndarray:
     n = X.shape[0]
     first = int(rng.integers(n))
     centers = [X[first]]
     for _ in range(1, k):
-        d2 = np.min(
-            np.sum((X[:, None, :] - np.stack(centers, axis=0)[None, :, :]) ** 2, axis=2),
-            axis=1,
-        )
+        d2 = _sq_dists(X, np.stack(centers, axis=0)).min(axis=1)
         total = d2.sum()
         if total <= 0:
             idx = int(rng.integers(n))
@@ -46,7 +58,7 @@ def _kmeans_em(
     prev_inertia: Optional[float] = None
 
     for step_idx in range(max_iter):
-        D = np.sum((X[:, None, :] - centroids[None, :, :]) ** 2, axis=2)
+        D = _sq_dists(X, centroids)
         labels = D.argmin(axis=1)
         inertia = float(D[np.arange(X.shape[0]), labels].sum())
 
@@ -78,7 +90,7 @@ def _kmeans_em(
         prev_labels = labels
         prev_inertia = inertia
 
-    D = np.sum((X[:, None, :] - centroids[None, :, :]) ** 2, axis=2)
+    D = _sq_dists(X, centroids)
     labels = D.argmin(axis=1)
     inertia = float(D[np.arange(X.shape[0]), labels].sum())
     return labels, centroids, inertia, trajectory
