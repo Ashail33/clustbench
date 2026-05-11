@@ -8,9 +8,10 @@
     "runs\\all_algos_factorial_plus_expanded",
     "runs\\chameleon_factorial_backfill",
     "runs\\large_chameleon",
-    "runs/mri_fmm_lmm_backfill"
+    "runs/mri_fmm_lmm_backfill",
+    "runs/nonconvex_dashboard"
   ],
-  "row_count": 1768,
+  "row_count": 2254,
   "algorithm_count": 18,
-  "task_count": 104
+  "task_count": 113
 }
