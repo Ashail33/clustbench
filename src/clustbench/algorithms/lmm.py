@@ -143,58 +143,86 @@ class Lmm(Fmm):
         return max(int(kk), 2)
 
     def _init_alpha(self, X, k, phi, rng):
-        """Hand-rolled k-means++ + a few Lloyd iterations on ``phi``.
+        """Yu-Shi spectral rotation: argmax labels from one orthogonal align.
 
-        ``phi`` has shape ``(n, k)`` for LMM and is already
-        cluster-aligned (the bottom-k Laplacian eigenvectors are
-        approximate cluster indicators), so the partition converges in
-        a handful of Lloyd sweeps. Hand-rolling avoids sklearn's
-        ~10 ms of dispatch / validation overhead per ``KMeans().fit``,
-        which matters at our scale where the whole LMM fit is ~25-40 ms.
+        Standard spectral-clustering finalization. After row-
+        normalisation, each row of ``phi`` is a point on the unit
+        sphere in R^k; in the ideal-graph case rows of the same cluster
+        cluster around a single direction. We find an orthogonal
+        rotation ``R`` (k × k) that aligns those directions with the
+        coordinate axes — at which point ``argmax`` on ``|phi R|``
+        rows gives cluster labels in one shot, no Lloyd iterations.
+
+        The rotation is found by Procrustes iteration (Yu & Shi 2003):
+        repeatedly take the current argmax labels, build a signed
+        indicator matrix ``M``, and update ``R`` via the SVD of
+        ``phi^T M``. Typically converges in 5-10 iters; each iter is a
+        couple of matmuls on (n, k) and a k×k SVD — much cheaper than
+        the previous kmeans++ + Lloyd loop on ``phi``.
         """
         eps = 1e-12
         n, m2 = phi.shape
 
-        # k-means++ seeding on phi.
-        centers_idx = [int(rng.integers(n))]
-        d2 = np.full(n, np.inf)
-        for _ in range(k - 1):
-            diff = phi - phi[centers_idx[-1]]
-            d2 = np.minimum(d2, np.einsum("nm,nm->n", diff, diff))
-            total = d2.sum()
-            if total <= 0:
-                centers_idx.append(int(rng.integers(n)))
-            else:
-                centers_idx.append(int(rng.choice(n, p=d2 / total)))
-        centers = phi[np.asarray(centers_idx)].copy()                  # (k, m2)
+        # ``phi`` should already be row-normalised by ``_build_basis``
+        # for LMM; defensive normalise here in case row_normalize=False.
+        phi_n = phi
+        rn = np.linalg.norm(phi_n, axis=1, keepdims=True)
+        phi_n = phi_n / np.maximum(rn, eps)
 
-        # Up to 10 Lloyd sweeps; usually converges in 3-5.
+        # Initialize R: pick the row with max norm as first axis, then
+        # repeatedly pick the row that is least aligned with any prior
+        # pick. This is the "k-means++ on the sphere" seeding from the
+        # Yu-Shi paper.
+        cs = np.zeros((min(k, m2), m2))
+        cs[0] = phi_n[np.argmax(np.einsum("nm,nm->n", phi_n, phi_n))]
+        align = np.abs(phi_n @ cs[0])
+        for j in range(1, min(k, m2)):
+            cs[j] = phi_n[np.argmin(align)]
+            align = np.maximum(align, np.abs(phi_n @ cs[j]))
+        # Orthonormalise (the picked rows aren't guaranteed orthogonal).
+        R, _ = np.linalg.qr(cs.T)
+        if R.shape[1] < k:
+            # pad with random orthonormal columns if k > m2 somehow.
+            pad = rng.standard_normal((m2, k - R.shape[1]))
+            R = np.concatenate([R, pad], axis=1)
+            R, _ = np.linalg.qr(R)
+
+        prev_obj = -np.inf
         labels = np.zeros(n, dtype=np.int64)
-        for _ in range(10):
-            # ||phi - centers||^2 = ||phi||^2 - 2 phi.centers^T + ||centers||^2
-            phi_sq = np.einsum("nm,nm->n", phi, phi)
-            c_sq = np.einsum("km,km->k", centers, centers)
-            D = phi_sq[:, None] - 2.0 * phi @ centers.T + c_sq[None, :]  # (n, k)
-            new_labels = D.argmin(axis=1)
-            if np.array_equal(new_labels, labels):
+        for _ in range(20):
+            Z = phi_n @ R                                              # (n, k)
+            absZ = np.abs(Z)
+            labels = absZ.argmax(axis=1)
+            signs = np.sign(Z[np.arange(n), labels])
+            signs[signs == 0] = 1.0
+            # Build signed indicator: M[i, labels[i]] = signs[i].
+            M = np.zeros((n, k))
+            M[np.arange(n), labels] = signs
+            U, S, Vt = np.linalg.svd(phi_n.T @ M, full_matrices=False)
+            R = U @ Vt
+            obj = float(S.sum())
+            if obj - prev_obj < 1e-6:
                 break
-            labels = new_labels
-            new_centers = centers.copy()
-            for j in range(k):
-                mask = labels == j
-                if mask.any():
-                    new_centers[j] = phi[mask].mean(axis=0)
-            centers = new_centers
+            prev_obj = obj
 
         global_mean = phi.mean(axis=0)
         phi_std = phi.std(axis=0) + eps
         init_strength = 1.0 / np.sqrt(m2)
+        # Build cluster means in the unrotated phi-space from the labels.
+        centers = np.zeros((k, m2))
+        for j in range(k):
+            mask = labels == j
+            if mask.any():
+                centers[j] = phi[mask].mean(axis=0)
+            else:
+                # Empty cluster: seed from a random row.
+                centers[j] = phi[int(rng.integers(n))]
         alpha = init_strength * (centers - global_mean) / phi_std
         alpha = alpha + rng.normal(scale=1e-3, size=alpha.shape)
         return (
             alpha,
-            {"type": "kmeans_on_eigenvectors", "n_clusters": int(k)},
-            {"cost": float(D[np.arange(n), labels].sum())},
+            {"type": "spectral_rotation", "n_clusters": int(k)},
+            {"cost": float(-prev_obj)},
         )
 
     def _resolve_n_neighbors(self, n: int) -> int:
