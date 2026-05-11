@@ -36,6 +36,7 @@ EXPECTED_ALGOS = {
     "meanshift",
     "optics",
     "chameleon",
+    "mri",
 }
 
 
@@ -133,6 +134,30 @@ def test_chameleon_runs():
     assert res.labels.shape == (300,)
     assert 1 <= len(set(int(v) for v in res.labels)) <= 4
     assert res.trajectory and len(res.trajectory) >= 2
+
+
+def test_mri_runs():
+    """MRI-inspired clustering produces k clusters with non-empty trajectory."""
+    from clustbench.datasets import gen_blobs, DataSpec
+    from clustbench.algorithms.mri import Mri
+
+    X, y = gen_blobs(DataSpec(n_samples=300, n_features=5, centers=3, compactness=0.5, seed=1))
+    res = Mri(n_neighbors=10, n_echoes=4, n_gradient_axes=2).fit_predict(X, k=3)
+    assert res.labels.shape == (300,)
+    assert 1 <= len(set(int(v) for v in res.labels)) <= 3
+    assert res.trajectory and len(res.trajectory) >= 4
+    # B0 alignment + local probe + gradient encode + RF pulse + n_echoes acquires + final kmeans.
+    expected_steps = 4 + 4 + 1
+    assert len(res.trajectory) == expected_steps
+    # Signature feature space should be wider than the input.
+    assert res.extra["n_signature_features"] >= X.shape[1]
+    # The phases we documented should appear in order.
+    types = [s.action.get("type") for s in res.trajectory]
+    assert types[0] == "b0_align"
+    assert types[1] == "local_probe"
+    assert types[2] == "gradient_encode"
+    assert types[3] == "rf_pulse_90"
+    assert types[-1] == "signature_kmeans"
 
 
 def test_cli_end_to_end(tmp_path):
