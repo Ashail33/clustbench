@@ -53,12 +53,18 @@ class S5c(Algorithm):
         self,
         sample_size: int = 500,
         n_nonzero_coefs: int = 5,
+        assign_labels: str = "discretize",
         random_state: int = 42,
         **kwargs: Any,
     ) -> None:
         self.name = "s5c"
         self.sample_size = sample_size
         self.n_nonzero_coefs = n_nonzero_coefs
+        # Yu-Shi spectral rotation ("discretize") consistently outperforms
+        # k-means on spectral embeddings — same effect we saw when LMM beat
+        # plain spectral clustering. Keeping "kmeans" as an opt-in for
+        # backward compatibility.
+        self.assign_labels = assign_labels
         self.random_state = random_state
 
     def fit_predict(self, X: np.ndarray, k: Optional[int] = None) -> AlgoResult:
@@ -129,7 +135,7 @@ class S5c(Algorithm):
             sc = SpectralClustering(
                 n_clusters=k,
                 affinity="precomputed",
-                assign_labels="kmeans",
+                assign_labels=self.assign_labels,
                 random_state=self.random_state,
                 n_init=5,
             )
@@ -147,7 +153,7 @@ class S5c(Algorithm):
                 cost=float(np.unique(sample_labels).size),
                 delta_cost=None,
                 accepted=True,
-                action={"type": "spectral", "method": "ncut"},
+                action={"type": "spectral", "method": "ncut", "assign_labels": self.assign_labels},
                 state={"clusters_in_sample": int(np.unique(sample_labels).size)},
             )
         )
