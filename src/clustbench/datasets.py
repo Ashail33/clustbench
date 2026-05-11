@@ -232,6 +232,37 @@ def gen_text20news(spec: DataSpec):
     return X, y_full
 
 
+def gen_noisy_classification(spec: DataSpec):
+    """High-d Gaussian clusters where most feature dimensions are pure noise.
+
+    Simulates the TF-IDF-after-SVD regime: ``spec.n_features`` total
+    dimensions, but only ``max(2, spec.n_features // 20)`` of them
+    carry cluster signal — the rest are random Gaussian noise that
+    fools graph k-NN distances and centroid methods alike. Built on
+    ``sklearn.datasets.make_classification``.
+
+    Useful for testing AMM (autoencoder bottleneck) vs LMM (kNN
+    Laplacian): if AMM is supposed to beat LMM at high d, this is
+    the regime where it should show.
+    """
+    from sklearn.datasets import make_classification
+
+    n_inf = max(2, spec.n_features // 20)
+    X, y = make_classification(
+        n_samples=spec.n_samples,
+        n_features=spec.n_features,
+        n_informative=n_inf,
+        n_redundant=0,
+        n_repeated=0,
+        n_classes=spec.centers,
+        n_clusters_per_class=1,
+        class_sep=1.5 * float(spec.compactness),
+        flip_y=0.0,
+        random_state=spec.seed,
+    )
+    return X.astype(np.float32), y.astype(np.int64)
+
+
 DATASETS = {
     "blobs": gen_blobs,
     "mixed": gen_mixed,
@@ -240,4 +271,5 @@ DATASETS = {
     "circles": gen_circles,
     "anisotropic": gen_anisotropic,
     "text20news": gen_text20news,
+    "noisy_classification": gen_noisy_classification,
 }

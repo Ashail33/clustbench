@@ -283,6 +283,20 @@ def test_text20news_dataset():
     assert X.dtype == np.float32
 
 
+def test_noisy_classification_dataset():
+    """gen_noisy_classification produces high-d data with mostly-noise features."""
+    from clustbench.datasets import DATASETS, DataSpec
+
+    X, y = DATASETS["noisy_classification"](
+        DataSpec(n_samples=200, n_features=40, centers=3, compactness=1.0, seed=1)
+    )
+    assert X.shape == (200, 40)
+    assert set(int(v) for v in y) == {0, 1, 2}
+    # n_informative is n_features // 20 = 2, so the cluster signal lives in
+    # ~2 of the 40 dims; the rest is noise. We don't assert specific values,
+    # just that the dataset is generated without error.
+
+
 def test_consensus_with_fmm():
     """Consensus can mix FMM with centroid- and density-based algorithms."""
     from clustbench.datasets import gen_blobs, DataSpec
