@@ -174,6 +174,64 @@ def gen_anisotropic(spec: DataSpec):
     return (X @ transform).astype(np.float32), y.astype(np.int64)
 
 
+def gen_text20news(spec: DataSpec):
+    """20-newsgroups TF-IDF features, truncated to ``spec.n_features`` dims via SVD.
+
+    Real-world high-dimensional sparse data — the regime where graph-based
+    spectral clustering (LMM) tends to degrade and dense embedding methods
+    like AMM have a fair shot. ``spec.centers`` selects how many topic
+    categories to sample from (uses a deterministic prefix of the 20
+    standard category names). ``spec.n_samples`` caps the sample size
+    after fetching; the function uses a random subset of the fetched
+    corpus to honour it.
+
+    Network round-trip on first call (sklearn caches afterwards).
+    """
+    from sklearn.datasets import fetch_20newsgroups
+    from sklearn.decomposition import TruncatedSVD
+    from sklearn.feature_extraction.text import TfidfVectorizer
+
+    all_categories = [
+        "alt.atheism", "comp.graphics", "comp.os.ms-windows.misc",
+        "comp.sys.ibm.pc.hardware", "comp.sys.mac.hardware",
+        "comp.windows.x", "misc.forsale", "rec.autos",
+        "rec.motorcycles", "rec.sport.baseball", "rec.sport.hockey",
+        "sci.crypt", "sci.electronics", "sci.med", "sci.space",
+        "soc.religion.christian", "talk.politics.guns",
+        "talk.politics.mideast", "talk.politics.misc", "talk.religion.misc",
+    ]
+    n_cat = max(2, min(int(spec.centers), len(all_categories)))
+    categories = all_categories[:n_cat]
+
+    bunch = fetch_20newsgroups(
+        subset="train",
+        categories=categories,
+        shuffle=True,
+        random_state=spec.seed,
+        remove=("headers", "footers", "quotes"),
+    )
+    texts = bunch.data
+    y_full = bunch.target.astype(np.int64)
+
+    # Subsample to the requested n_samples if the corpus is larger.
+    if len(texts) > spec.n_samples > 0:
+        rng = np.random.default_rng(spec.seed)
+        idx = rng.choice(len(texts), size=spec.n_samples, replace=False)
+        texts = [texts[i] for i in idx]
+        y_full = y_full[idx]
+
+    # TF-IDF → SVD truncation. SVD gives a dense, signed embedding which
+    # downstream methods (kmeans / FMM / LMM / AMM) can all consume.
+    vec = TfidfVectorizer(max_features=20000, stop_words="english",
+                          min_df=2, max_df=0.95)
+    tfidf = vec.fit_transform(texts)
+    n_components = max(2, min(int(spec.n_features), tfidf.shape[1] - 1,
+                              tfidf.shape[0] - 1))
+    svd = TruncatedSVD(n_components=n_components, random_state=spec.seed)
+    X = svd.fit_transform(tfidf).astype(np.float32)
+    return X, y_full
+
+
 DATASETS = {
     "blobs": gen_blobs,
     "mixed": gen_mixed,
@@ -181,4 +239,5 @@ DATASETS = {
     "moons": gen_moons,
     "circles": gen_circles,
     "anisotropic": gen_anisotropic,
+    "text20news": gen_text20news,
 }

@@ -1,0 +1,54 @@
+# Text-classification benchmark on 20-newsgroups TF-IDF features.
+#
+# Compares the new autoencoder mixture (AMM) against the established
+# clustering algorithms on a real high-dimensional sparse-but-dense-svd
+# dataset. ``text20news`` fetches the 20-newsgroups corpus, applies
+# TF-IDF + TruncatedSVD to ``n_features`` dimensions.
+#
+# Hypothesis: AMM tops the leaderboard because the autoencoder
+# bottleneck learns a denser, label-aligned manifold than what TF-IDF
+# Euclidean k-NN can see; LMM's spectral approach falls behind on this
+# regime because high-d nearest-neighbour distances are uninformative.
+
+datasets:
+  - id: text20news
+    n_samples: [2000]
+    n_features: [200]
+    k_targets: [4]
+    compactness: [1.0]
+
+algorithms:
+  - name: kmeans
+    kind: python
+    entry: kmeans
+    params: {max_iter: 100, n_init: 3}
+  - name: gmm
+    kind: python
+    entry: gmm
+    params: {max_iter: 100, n_init: 1, reg_covar: 0.001}
+  - name: agglomerative
+    kind: python
+    entry: agglomerative
+    params: {linkage: ward}
+  - name: spectral
+    kind: python
+    entry: spectral
+    params: {n_neighbors: 15}
+  - name: fmm
+    kind: python
+    entry: fmm
+    params: {n_frequencies: 64, n_scales: 3}
+  - name: lmm
+    kind: python
+    entry: lmm
+    params: {}
+  - name: amm
+    kind: python
+    entry: amm
+    params:
+      n_components: 16
+      hidden_sizes: [128]
+      ae_max_iter: 300
+      ae_solver: adam
+
+seeds: [1, 2, 3]
