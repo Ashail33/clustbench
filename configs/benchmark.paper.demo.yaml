@@ -1,9 +1,11 @@
 # Canonical config the GitHub Pages workflow runs on every push.
 #
-# Includes all 14 registered algorithms — the four paper-taxonomy ones
-# plus every classic baseline and sklearn extra — and the same dataset
-# properties Maharaj (2024) varied (outliers, noise, density). Sized for
-# a CI run of ~6-8 minutes on an ubuntu-latest GitHub-hosted runner.
+# Includes all 17 registered algorithms — the four paper-taxonomy ones,
+# every classic baseline and sklearn extra, plus the three research
+# algorithms added in PR #4 (mri, fmm, lmm) — and the same dataset
+# properties Maharaj (2024) varied (outliers, noise, density), plus
+# moons / circles / anisotropic for non-convex coverage. Sized for a CI
+# run of ~10 minutes on an ubuntu-latest GitHub-hosted runner.
 #
 # For bigger sweeps, use configs/benchmark.paper.yaml (the full grid)
 # locally and push the regenerated docs/data/.
@@ -21,6 +23,16 @@ datasets:
     n_samples: [500]
     n_features: [10]
     k_targets: [3, 5]
+    compactness: [1.0]
+  - id: moons
+    n_samples: [500]
+    n_features: [2]
+    k_targets: [2]
+    compactness: [1.0]
+  - id: circles
+    n_samples: [500]
+    n_features: [2]
+    k_targets: [2]
     compactness: [1.0]
 
 algorithms:
@@ -87,5 +99,19 @@ algorithms:
     kind: python
     entry: optics
     params: {min_samples: 5, xi: 0.05}
+
+  # Research algorithms added in PR #4
+  - name: mri
+    kind: python
+    entry: mri
+    params: {n_neighbors: 15, n_echoes: 6, n_gradient_axes: 3}
+  - name: fmm
+    kind: python
+    entry: fmm
+    params: {n_frequencies: 64, n_scales: 3, max_iter: 40}
+  - name: lmm
+    kind: python
+    entry: lmm
+    params: {}
 
 seeds: [1, 2]
