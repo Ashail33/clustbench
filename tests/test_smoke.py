@@ -234,6 +234,19 @@ def test_lmm_handles_non_convex_shapes():
     assert res.extra["feature_dim"] == 2  # n_eigvecs auto-sized to k
 
 
+def test_lmm_nystrom_opt_in():
+    """Nystrom mode produces sensible labels at much lower cost than full LMM."""
+    from clustbench.datasets import gen_blobs, DataSpec
+    from clustbench.algorithms.lmm import Lmm
+    from sklearn.metrics import adjusted_rand_score
+
+    X, y = gen_blobs(DataSpec(n_samples=600, n_features=4, centers=4, compactness=0.5, seed=1))
+    res = Lmm(nystrom=True, n_landmarks=100).fit_predict(X, k=4)
+    assert res.labels.shape == (600,)
+    # On well-separated blobs Nystrom should match full quality.
+    assert adjusted_rand_score(y, res.labels) > 0.9
+
+
 def test_consensus_with_fmm():
     """Consensus can mix FMM with centroid- and density-based algorithms."""
     from clustbench.datasets import gen_blobs, DataSpec

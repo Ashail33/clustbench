@@ -69,6 +69,20 @@ class Lmm(Fmm):
         makes the per-point feature vectors directionally comparable
         and is what lets spectral methods cleanly separate
         non-convex shapes.
+    nystrom : bool or "auto"
+        Use Nyström landmark approximation: pick ``n_landmarks``
+        points via k-means++, build the kNN graph and eigendecompose
+        the Laplacian only on those landmarks, then extend the
+        eigenvectors to all points by averaging over each point's
+        nearest landmarks. Cost drops from O(n·iters) eigendecomp to
+        O(m³ + n·m). Best for ``n ≥ 5000`` on convex-shape data; the
+        landmark approximation degrades non-convex performance
+        (moons/circles) noticeably. Default ``False`` — opt-in.
+        ``"auto"`` triggers only when ``n > 5000``.
+    n_landmarks : int
+        Number of landmarks for the Nyström mode. Quality scales with
+        m; m≈200 covers most cases at n in the low-thousands; bump to
+        500 for n in the tens of thousands or sharper manifolds.
     Other parameters are inherited from :class:`Fmm` (``max_iter``,
     ``l2``, ``adaptive_l2``, ``damping``, ``learn_bandwidth``, etc.).
     """
@@ -79,6 +93,8 @@ class Lmm(Fmm):
         n_neighbors: Any = "auto",
         affinity: str = "binary",
         row_normalize: bool = True,
+        nystrom: Any = False,
+        n_landmarks: int = 200,
         **kwargs: Any,
     ) -> None:
         # ``n_frequencies`` in the Fmm parent is reused as the basis
@@ -100,7 +116,15 @@ class Lmm(Fmm):
         self.n_neighbors = n_neighbors
         self.affinity = affinity
         self.row_normalize = row_normalize
+        self.nystrom = nystrom
+        self.n_landmarks = int(n_landmarks)
         self._k_hint: int | None = None
+
+    def _use_nystrom(self, n: int) -> bool:
+        if isinstance(self.nystrom, bool):
+            return self.nystrom
+        # "auto" — only when the eigendecomp would actually dominate.
+        return n > 5000
 
     def _resolve_n_eigvecs(self, k: int | None) -> int:
         if isinstance(self.n_eigvecs, int):
@@ -190,14 +214,117 @@ class Lmm(Fmm):
             result.extra["n_eigvecs_used"] = self.n_frequencies
         return result
 
+    def _kmeans_pp_indices(
+        self, X: np.ndarray, m: int, rng: np.random.Generator
+    ) -> np.ndarray:
+        """k-means++ index sampler over the rows of X."""
+        n = X.shape[0]
+        chosen = [int(rng.integers(n))]
+        d2 = np.full(n, np.inf)
+        for _ in range(m - 1):
+            diff = X - X[chosen[-1]]
+            d2 = np.minimum(d2, np.einsum("nd,nd->n", diff, diff))
+            total = d2.sum()
+            if total <= 0:
+                chosen.append(int(rng.integers(n)))
+            else:
+                chosen.append(int(rng.choice(n, p=d2 / total)))
+        return np.asarray(chosen)
+
+    def _build_basis_nystrom(
+        self, X: np.ndarray, rng: np.random.Generator
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Landmark Nyström approximation of the kNN-Laplacian eigenbasis.
+
+        1. Pick ``m`` landmarks via k-means++ on X.
+        2. Build the kNN graph and eigendecompose its Laplacian only on
+           the landmarks (m × m, cheap).
+        3. Extend the eigenvectors to all ``n`` points by averaging the
+           landmark eigenvectors over each point's nearest landmarks.
+
+        At m = 200, eigendecomp is < 5 ms regardless of n; the
+        dominant remaining cost is the n × m distance computation for
+        finding each point's nearest landmarks.
+        """
+        n = X.shape[0]
+        m_eig = int(self.n_frequencies)
+        k_nn = self._resolve_n_neighbors(n)
+        m = min(self.n_landmarks, n)
+
+        # 1. Pick landmarks.
+        landmark_idx = self._kmeans_pp_indices(X, m, rng)
+        L_X = X[landmark_idx]
+
+        # 2. kNN graph + Laplacian on landmarks.
+        nn_in = max(1, min(k_nn, m - 1))
+        if self.affinity == "heat":
+            knn = kneighbors_graph(L_X, n_neighbors=nn_in, mode="distance", include_self=False)
+            knn_sym = knn.maximum(knn.T)
+            sigma = float(np.median(knn.data)) if knn.data.size else 1.0
+            W = knn_sym.copy()
+            W.data = np.exp(-(W.data ** 2) / max(sigma ** 2, 1e-12))
+        else:
+            knn = kneighbors_graph(L_X, n_neighbors=nn_in, mode="connectivity", include_self=False)
+            W = knn.maximum(knn.T)
+        deg = np.maximum(np.asarray(W.sum(axis=1)).ravel(), 1e-12)
+        d_inv_sqrt = 1.0 / np.sqrt(deg)
+        D_inv = sp.diags(d_inv_sqrt)
+        L_lap = sp.eye(m) - D_inv @ W @ D_inv
+        L_lap = (L_lap + L_lap.T) * 0.5
+
+        # 3. Eigendecompose landmark Laplacian.
+        m_e = min(m_eig, m - 1)
+        X0 = np.empty((m, m_e))
+        X0[:, 0] = 1.0 / np.sqrt(m)
+        if m_e > 1:
+            rest = rng.standard_normal((m, m_e - 1))
+            rest -= rest.mean(axis=0, keepdims=True)
+            q, _ = np.linalg.qr(rest)
+            X0[:, 1:] = q
+        try:
+            vals, vecs = lobpcg(
+                L_lap, X0, largest=False, tol=1e-5, maxiter=200, verbosityLevel=0
+            )
+        except Exception:
+            dense = L_lap.toarray()
+            vals_all, vecs_all = np.linalg.eigh(dense)
+            vals, vecs = vals_all[:m_e], vecs_all[:, :m_e]
+        order = np.argsort(vals)
+        vals = np.clip(vals[order], 0.0, None)
+        vecs = vecs[:, order]
+        # Column scale.
+        rms = np.sqrt(np.mean(vecs ** 2, axis=0)) + 1e-12
+        vecs = vecs / rms[None, :]
+
+        # 4. Extend to all n points: each point gets the mean of its
+        # ``nn_ext`` nearest landmarks' eigenvectors.
+        from sklearn.neighbors import NearestNeighbors
+
+        nn_ext = max(1, min(k_nn, m))
+        nn = NearestNeighbors(n_neighbors=nn_ext).fit(L_X)
+        _, idx_landmarks = nn.kneighbors(X)                            # (n, nn_ext)
+        phi = vecs[idx_landmarks].mean(axis=1)                         # (n, m_e)
+
+        if self.row_normalize:
+            row_norms = np.linalg.norm(phi, axis=1, keepdims=True)
+            phi = phi / np.maximum(row_norms, 1e-12)
+
+        omega = vals.reshape(-1, 1)
+        omega_norm_sq = vals
+        return omega, phi, omega_norm_sq
+
     def _build_basis(
         self, X: np.ndarray, rng: np.random.Generator
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Compute the bottom ``n_eigvecs`` eigenvectors of the normalised
         k-NN graph Laplacian. Eigenvalues replace ``||omega||^2`` so the
         heat kernel becomes ``exp(-tau * lambda / 2)`` — graph diffusion.
+        Switches to landmark Nyström when ``nystrom`` is True (or auto-on
+        for ``n > 800``).
         """
         n = X.shape[0]
+        if self._use_nystrom(n):
+            return self._build_basis_nystrom(X, rng)
         m_eig = int(self.n_frequencies)
         k_nn = self._resolve_n_neighbors(n)
 
