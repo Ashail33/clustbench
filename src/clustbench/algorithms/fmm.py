@@ -115,8 +115,14 @@ class Fmm(Algorithm):
         but the per-cluster objective is concave, so 2-3 inner steps
         produce a near-exact M-step and tighter EM monotonicity.
     l2 : float
-        Ridge regulariser on ``alpha_k``. Also keeps the Newton Hessian
-        positive-definite even when ``Cov_q[phi]`` is rank-deficient.
+        Base ridge regulariser on ``alpha_k``. Also keeps the Newton
+        Hessian positive-definite even when ``Cov_q[phi]`` is
+        rank-deficient.
+    adaptive_l2 : bool
+        Scale the per-cluster ``l2`` by ``max(1, n_features / N_k)``
+        each iteration. This protects high-k fits (where each cluster
+        has few responsibility-weighted points) from overfitting the
+        2M-dim basis without hurting low-k cases.
     damping : float
         Maximum Newton step size in (0, 1]. The actual step is chosen
         by backtracking so the marginal log-likelihood never decreases.
@@ -153,6 +159,7 @@ class Fmm(Algorithm):
         max_iter: int = 40,
         n_inner_iter: int = 1,
         l2: float = 1e-4,
+        adaptive_l2: bool = True,
         damping: float = 0.2,
         tol: float = 1e-4,
         learn_bandwidth: bool = True,
@@ -170,6 +177,7 @@ class Fmm(Algorithm):
         self.max_iter = max_iter
         self.n_inner_iter = max(1, n_inner_iter)
         self.l2 = l2
+        self.adaptive_l2 = adaptive_l2
         self.damping = damping
         self.tol = tol
         self.learn_bandwidth = learn_bandwidth
@@ -240,46 +248,44 @@ class Fmm(Algorithm):
 
     def _newton_directions(
         self,
-        alpha: np.ndarray,        # (k, M2)
-        phi: np.ndarray,          # (n, M2)
-        data_moments: np.ndarray, # (k, M2)
-        W: np.ndarray,            # (k, M2) heat-kernel weights
+        alpha: np.ndarray,         # (k, M2)
+        phi: np.ndarray,           # (n, M2)
+        data_moments: np.ndarray,  # (k, M2)
+        W: np.ndarray,             # (k, M2) heat-kernel weights
+        l2_per_cluster: np.ndarray, # (k,)
     ) -> np.ndarray:
-        """Per-cluster Newton ascent direction for ``alpha`` at fixed ``tau``.
-
-        With heat-kernel weighting ``alpha_eff = alpha * W``, the
-        gradient and Hessian of the per-cluster softmax objective
-        w.r.t. ``alpha_k`` are
-
-            g_k = W_k * (d_k - m_k) - l2 * alpha_k,
-            H_k = -(W_k . Cov_q[phi] . W_k + l2 * I),
-
-        where ``m_k = Σ_j q_jk phi_j`` and ``q_jk`` is the softmax over
-        the data of ``alpha_eff_k . phi(x_j)``.
-        """
+        """Per-cluster Newton ascent direction for ``alpha`` at fixed ``tau``."""
         n, m2 = phi.shape
         k = alpha.shape[0]
         alpha_eff = alpha * W
-        logits = phi @ alpha_eff.T                                # (n, k)
+        logits = phi @ alpha_eff.T
         log_q = logits - logsumexp(logits, axis=0, keepdims=True)
-        q = np.exp(log_q)                                         # cols sum to 1
+        q = np.exp(log_q)
         step = np.zeros_like(alpha)
-        eye = self.l2 * np.eye(m2)
+        eye = np.eye(m2)
         for j in range(k):
             qj = q[:, j]
             phi_w = phi * qj[:, None]
             m_j = phi_w.sum(axis=0)
-            cov_j = phi_w.T @ phi - np.outer(m_j, m_j)            # (M2, M2)
+            cov_j = phi_w.T @ phi - np.outer(m_j, m_j)
             Wj = W[j]
-            # Hessian sandwich: H_j = W_j Cov W_j + l2 I.
-            H = (Wj[:, None] * cov_j) * Wj[None, :] + eye
-            g = Wj * (data_moments[j] - m_j) - self.l2 * alpha[j]
+            lj = float(l2_per_cluster[j])
+            H = (Wj[:, None] * cov_j) * Wj[None, :] + lj * eye
+            g = Wj * (data_moments[j] - m_j) - lj * alpha[j]
             try:
                 c, low = cho_factor(H, lower=True)
                 step[j] = cho_solve((c, low), g)
             except np.linalg.LinAlgError:
                 step[j] = np.linalg.lstsq(H, g, rcond=None)[0]
         return step
+
+    def _basis_action(self) -> dict:
+        """Subclasses describe their basis here (appears in the trajectory)."""
+        return {
+            "type": "fourier_basis",
+            "n_frequencies": int(self.n_frequencies),
+            "n_scales": int(self.n_scales),
+        }
 
     def _fit_one(
         self,
@@ -300,11 +306,7 @@ class Fmm(Algorithm):
                 step_idx=0,
                 cost=0.0,
                 accepted=True,
-                action={
-                    "type": "fourier_basis",
-                    "n_frequencies": int(self.n_frequencies),
-                    "n_scales": int(self.n_scales),
-                },
+                action=self._basis_action(),
                 state={"feature_dim": int(m2)},
             )
         )
@@ -385,6 +387,12 @@ class Fmm(Algorithm):
                 new_tau[j] = best_tau
             return new_tau
 
+        def _l2_for(Nk_local: np.ndarray) -> np.ndarray:
+            """Adaptive ridge per cluster: scale up when N_k < n_features."""
+            if not self.adaptive_l2:
+                return np.full(Nk_local.shape, self.l2)
+            return self.l2 * np.maximum(1.0, m2 / np.maximum(Nk_local, eps))
+
         # --- EM loop.
         ll, gamma = _ll(alpha, pi, tau)
         em_iter = 0
@@ -392,6 +400,7 @@ class Fmm(Algorithm):
             Nk = gamma.sum(axis=0) + eps
             new_pi = Nk / n
             data_moments = (gamma.T @ phi) / Nk[:, None]
+            l2_per_cluster = _l2_for(Nk)
 
             cur_alpha = alpha
             cur_ll = ll
@@ -399,7 +408,9 @@ class Fmm(Algorithm):
             last_step_size = 0.0
             W = self._heat_weights(tau, omega_norm_sq)
             for _ in range(self.n_inner_iter):
-                direction = self._newton_directions(cur_alpha, phi, data_moments, W)
+                direction = self._newton_directions(
+                    cur_alpha, phi, data_moments, W, l2_per_cluster
+                )
                 step_size = self.damping
                 improved = False
                 for _bt in range(6):
@@ -475,6 +486,8 @@ class Fmm(Algorithm):
         alpha_eff_final = alpha * W_final
         logits_final = phi @ alpha_eff_final.T
         q_final = np.exp(logits_final - logsumexp(logits_final, axis=0, keepdims=True))
+        Nk_final = gamma.sum(axis=0) + eps
+        l2_final = _l2_for(Nk_final)
         edf = 0.0
         for j in range(k):
             qj = q_final[:, j]
@@ -485,7 +498,7 @@ class Fmm(Algorithm):
             H_j = (Wj[:, None] * cov_j) * Wj[None, :]
             evals = np.linalg.eigvalsh(H_j)
             evals = np.clip(evals, 0.0, None)
-            edf += float(np.sum(evals / (evals + self.l2)))
+            edf += float(np.sum(evals / (evals + l2_final[j])))
         edf += tau_params + (k - 1)
         bic_eff = -2.0 * ll + edf * np.log(max(n, 1))
 
@@ -515,15 +528,30 @@ class Fmm(Algorithm):
         nq = (omega * omega).sum(axis=1)
         return np.concatenate([nq, nq])
 
+    def _build_basis(
+        self, X: np.ndarray, rng: np.random.Generator
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Construct the basis features and per-feature heat-kernel arguments.
+
+        Returns ``(omega, phi, omega_norm_sq)`` where ``omega`` is opaque to
+        the EM loop (kept for trajectory introspection), ``phi`` has shape
+        ``(n, M2)`` and ``omega_norm_sq`` has shape ``(M2,)`` and is used by
+        the heat kernel ``exp(-tau * omega_norm_sq / 2)``.
+
+        Subclasses (e.g. ``Lmm``) override this to swap in a different basis.
+        """
+        omega, _ = self._sample_omega(X, rng)
+        phi = self._features(X, omega)
+        omega_norm_sq = self._omega_norm_sq(omega)
+        return omega, phi, omega_norm_sq
+
     def fit_predict(self, X: np.ndarray, k: Optional[int] = None) -> AlgoResult:
         X = np.asarray(X, dtype=np.float64)
         rng = np.random.default_rng(self.random_state)
 
         # For a single ``k`` we only need one basis — sample it and fit.
         if k is not None:
-            omega, _ = self._sample_omega(X, rng)
-            phi = self._features(X, omega)
-            omega_norm_sq = self._omega_norm_sq(omega)
+            omega, phi, omega_norm_sq = self._build_basis(X, rng)
             result, _ = self._fit_one(X, k, phi, omega, omega_norm_sq, rng)
             return result
 
@@ -542,9 +570,7 @@ class Fmm(Algorithm):
         # apples; averaging then removes the basis-draw variance.
         per_basis_results: list[dict[int, Tuple[AlgoResult, float]]] = []
         for _basis_idx in range(self.n_basis_samples):
-            omega, _ = self._sample_omega(X, rng)
-            phi = self._features(X, omega)
-            omega_norm_sq = self._omega_norm_sq(omega)
+            omega, phi, omega_norm_sq = self._build_basis(X, rng)
             k_map: dict[int, Tuple[AlgoResult, float]] = {}
             for kk in ks:
                 res, bic = self._fit_one(X, kk, phi, omega, omega_norm_sq, rng)

@@ -38,6 +38,7 @@ EXPECTED_ALGOS = {
     "chameleon",
     "mri",
     "fmm",
+    "lmm",
 }
 
 
@@ -205,6 +206,32 @@ def test_fmm_auto_k_via_bic():
     assert all(len(p["bic_per_basis"]) == 2 for p in profile)
     best = min(profile, key=lambda p: p["bic_mean"])
     assert best["k"] == res.extra["k_search_best_k"]
+
+
+def test_lmm_handles_non_convex_shapes():
+    """LMM with k-NN Laplacian basis recovers non-convex shapes where
+    Euclidean mixtures (kmeans/gmm/fmm) bottom out near zero ARI."""
+    import numpy as np
+    from clustbench.datasets import DATASETS, DataSpec
+    from clustbench.algorithms.lmm import Lmm
+    from clustbench.algorithms.fmm import Fmm
+    from sklearn.metrics import adjusted_rand_score
+
+    lmm_aris, fmm_aris = [], []
+    for seed in (1, 2, 3):
+        X, y = DATASETS["circles"](DataSpec(n_samples=400, n_features=2, centers=2, compactness=1.0, seed=seed))
+        lmm_aris.append(adjusted_rand_score(y, Lmm(n_neighbors=10).fit_predict(X, k=2).labels))
+        fmm_aris.append(adjusted_rand_score(y, Fmm().fit_predict(X, k=2).labels))
+    # On circles, FMM is near zero; LMM should clearly beat it.
+    assert np.mean(lmm_aris) > 0.5, f"LMM mean ARI {np.mean(lmm_aris):.3f} too low"
+    assert np.mean(lmm_aris) > np.mean(fmm_aris) + 0.3, \
+        f"LMM ({np.mean(lmm_aris):.3f}) should clearly beat FMM ({np.mean(fmm_aris):.3f}) on circles"
+
+    # Trajectory and feature-dim plumbing.
+    X, _ = DATASETS["moons"](DataSpec(n_samples=400, n_features=2, centers=2, compactness=1.0, seed=2))
+    res = Lmm(n_neighbors=10).fit_predict(X, k=2)
+    assert res.trajectory[0].action["type"] == "laplacian_basis"
+    assert res.extra["feature_dim"] == 2  # n_eigvecs auto-sized to k
 
 
 def test_consensus_with_fmm():
