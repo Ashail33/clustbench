@@ -40,6 +40,7 @@ EXPECTED_ALGOS = {
     "mri",
     "fmm",
     "lmm",
+    "smm",
     "amm",
 }
 
