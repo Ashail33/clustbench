@@ -1,15 +1,16 @@
 {
-  "generated_at": "2026-04-26 01:14:27",
+  "generated_at": "2026-05-11 16:16:47",
   "env": {
-    "python": "3.10.6",
-    "platform": "Windows-10-10.0.26200-SP0"
+    "python": "3.11.15",
+    "platform": "Linux"
   },
   "merged_from": [
     "runs\\all_algos_factorial_plus_expanded",
     "runs\\chameleon_factorial_backfill",
-    "runs\\large_chameleon"
+    "runs\\large_chameleon",
+    "runs/mri_fmm_lmm_backfill"
   ],
-  "row_count": 1480,
-  "algorithm_count": 15,
+  "row_count": 1768,
+  "algorithm_count": 18,
   "task_count": 104
 }
