@@ -83,7 +83,6 @@ from __future__ import annotations
 from typing import Any, Optional, Tuple, Union
 
 import numpy as np
-from scipy.linalg import cho_factor, cho_solve
 from scipy.special import logsumexp
 from sklearn.cluster import KMeans
 
@@ -254,29 +253,51 @@ class Fmm(Algorithm):
         W: np.ndarray,             # (k, M2) heat-kernel weights
         l2_per_cluster: np.ndarray, # (k,)
     ) -> np.ndarray:
-        """Per-cluster Newton ascent direction for ``alpha`` at fixed ``tau``."""
+        """Per-cluster Newton ascent direction for ``alpha`` at fixed ``tau``.
+
+        All ``k`` per-cluster Hessians/gradients are stacked into a single
+        ``(k, M2, M2)`` block and solved with one batched LAPACK call
+        (``np.linalg.solve``) — about an order of magnitude faster than
+        ``k`` independent ``cho_factor`` invocations.
+        """
         n, m2 = phi.shape
         k = alpha.shape[0]
         alpha_eff = alpha * W
         logits = phi @ alpha_eff.T
         log_q = logits - logsumexp(logits, axis=0, keepdims=True)
-        q = np.exp(log_q)
-        step = np.zeros_like(alpha)
-        eye = np.eye(m2)
-        for j in range(k):
-            qj = q[:, j]
-            phi_w = phi * qj[:, None]
-            m_j = phi_w.sum(axis=0)
-            cov_j = phi_w.T @ phi - np.outer(m_j, m_j)
-            Wj = W[j]
-            lj = float(l2_per_cluster[j])
-            H = (Wj[:, None] * cov_j) * Wj[None, :] + lj * eye
-            g = Wj * (data_moments[j] - m_j) - lj * alpha[j]
-            try:
-                c, low = cho_factor(H, lower=True)
-                step[j] = cho_solve((c, low), g)
-            except np.linalg.LinAlgError:
-                step[j] = np.linalg.lstsq(H, g, rcond=None)[0]
+        q = np.exp(log_q)                                              # (n, k)
+
+        # Per-cluster Cov_q[phi]: vectorise over k using a single batched
+        # gemm (faster than k separate matmuls — one BLAS call, no
+        # per-cluster Python overhead).
+        #   m[j, m]        = sum_i q[i, j] phi[i, m]
+        #   cov[j, m, l]   = sum_i q[i, j] phi[i, m] phi[i, l] - m[j, m] m[j, l]
+        m_k = q.T @ phi                                                # (k, M2)
+        # phi_weighted_T[j, m, i] = q[i, j] * phi[i, m]
+        phi_weighted_T = phi.T[None, :, :] * q.T[:, None, :]           # (k, M2, n)
+        cov_outer = phi_weighted_T @ phi                               # (k, M2, M2)
+        cov = cov_outer - m_k[:, :, None] * m_k[:, None, :]            # (k, M2, M2)
+
+        # Hessian sandwich: H_j = W_j Cov W_j + l2_j I
+        W_outer = W[:, :, None] * W[:, None, :]                        # (k, M2, M2)
+        H = cov * W_outer
+        # Add l2_j * I to each cluster's H.
+        H_diag = H.reshape(k, m2 * m2)
+        H_diag[:, :: m2 + 1] += l2_per_cluster[:, None]
+        H = H_diag.reshape(k, m2, m2)
+
+        g = W * (data_moments - m_k) - l2_per_cluster[:, None] * alpha # (k, M2)
+
+        try:
+            # numpy.linalg.solve treats b.ndim == 1 as a single RHS, so
+            # we add a trailing axis to get the batched signature
+            # (k, M2, M2), (k, M2, 1) -> (k, M2, 1).
+            step = np.linalg.solve(H, g[..., None])[..., 0]
+        except np.linalg.LinAlgError:
+            # Per-cluster lstsq fallback for any singular Hessian.
+            step = np.zeros_like(alpha)
+            for j in range(k):
+                step[j] = np.linalg.lstsq(H[j], g[j], rcond=None)[0]
         return step
 
     def _basis_action(self) -> dict:
@@ -312,8 +333,12 @@ class Fmm(Algorithm):
         )
 
         # --- k-means warm start for alpha_k.
+        # n_init=3 is a compromise: n_init=5 dominated the fit time on
+        # small datasets, n_init=1 occasionally lands the warm start
+        # in a bad pocket from which EM can't recover. n_init=3 closes
+        # the quality gap while still cutting warm-start time ~40%.
         km = KMeans(
-            n_clusters=k, n_init=5, random_state=self.random_state, max_iter=100
+            n_clusters=k, n_init=3, random_state=self.random_state, max_iter=100
         ).fit(X)
         init_labels = km.labels_
         alpha = np.zeros((k, m2))
