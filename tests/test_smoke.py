@@ -8,6 +8,7 @@ expected output files are produced and the registry is fully populated.
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -39,6 +40,7 @@ EXPECTED_ALGOS = {
     "mri",
     "fmm",
     "lmm",
+    "amm",
 }
 
 
@@ -245,6 +247,40 @@ def test_lmm_nystrom_opt_in():
     assert res.labels.shape == (600,)
     # On well-separated blobs Nystrom should match full quality.
     assert adjusted_rand_score(y, res.labels) > 0.9
+
+
+def test_amm_runs():
+    """Autoencoder mixture model returns sensible labels on synthetic blobs."""
+    from clustbench.datasets import gen_blobs, DataSpec
+    from clustbench.algorithms.amm import Amm
+    from sklearn.metrics import adjusted_rand_score
+
+    X, y = gen_blobs(DataSpec(n_samples=300, n_features=10, centers=3, compactness=0.5, seed=1))
+    res = Amm(n_components=4, hidden_sizes=(32,), ae_max_iter=50).fit_predict(X, k=3)
+    assert res.labels.shape == (300,)
+    assert 1 <= len(set(int(v) for v in res.labels)) <= 3
+    # Autoencoder is overkill for plain blobs but should still recover well.
+    assert adjusted_rand_score(y, res.labels) > 0.5
+    assert res.trajectory and res.trajectory[0].action.get("type") == "autoencoder_basis"
+    assert res.extra["feature_dim"] == 4
+
+
+@pytest.mark.skipif(
+    not os.environ.get("CLUSTBENCH_TEST_DOWNLOADS"),
+    reason="20-newsgroups fetch makes a network round-trip; opt in via CLUSTBENCH_TEST_DOWNLOADS=1",
+)
+def test_text20news_dataset():
+    """gen_text20news fetches and vectorises a small slice of 20-newsgroups."""
+    from clustbench.datasets import DATASETS, DataSpec
+    import numpy as np
+
+    X, y = DATASETS["text20news"](
+        DataSpec(n_samples=200, n_features=64, centers=4, compactness=1.0, seed=1)
+    )
+    assert X.shape[0] <= 200
+    assert X.shape[1] == 64
+    assert set(int(v) for v in np.unique(y)) <= {0, 1, 2, 3}
+    assert X.dtype == np.float32
 
 
 def test_consensus_with_fmm():
