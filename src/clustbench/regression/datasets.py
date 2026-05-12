@@ -202,6 +202,30 @@ def gen_random_walk(spec: RegSpec):
     return t[:, None].astype(np.float32), y.astype(np.float32)
 
 
+def gen_delayed_copy(spec: RegSpec):
+    """Long-range memory task: ``y_t = y_{t - delay}`` for ``t > delay``.
+
+    The first ``delay`` steps are a random walk (warm-up); after that,
+    the signal is a perfect copy of itself ``delay`` steps back. Models
+    that can carry a hidden state across ``delay`` timesteps recover
+    the structure; models that see only a short lagged window cannot.
+
+    ``spec.n_components`` is reused as the delay length (so the
+    name carries the intended meaning even though "components" is
+    repurposed for this generator).
+    """
+    rng = np.random.default_rng(spec.seed)
+    n = spec.n_samples
+    delay = max(8, int(spec.n_components))
+    y = np.zeros(n)
+    # Warm-up: random walk for the first `delay` steps.
+    y[:delay] = np.cumsum(rng.normal(scale=spec.noise, size=delay) * 0.5)
+    for i in range(delay, n):
+        y[i] = y[i - delay] + rng.normal(scale=spec.noise * 0.1)
+    t = np.linspace(0.0, 1.0, n)
+    return t[:, None].astype(np.float32), y.astype(np.float32)
+
+
 REG_DATASETS = {
     "piecewise_linear": gen_piecewise_linear,
     "friedman1": gen_friedman1,
@@ -212,4 +236,5 @@ REG_DATASETS = {
     "modulated_ar": gen_modulated_ar,
     "multi_sinusoid": gen_multi_sinusoid,
     "random_walk": gen_random_walk,
+    "delayed_copy": gen_delayed_copy,
 }
