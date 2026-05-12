@@ -17,5 +17,7 @@ from . import chameleon  # noqa: F401
 from . import mri  # noqa: F401
 from . import fmm  # noqa: F401
 from . import lmm  # noqa: F401
+from . import smm  # noqa: F401
 from . import amm  # noqa: F401
+from . import mwc  # noqa: F401
 from . import sklearn_extras  # noqa: F401
