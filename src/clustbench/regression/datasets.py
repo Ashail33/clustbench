@@ -72,8 +72,82 @@ def gen_sinusoidal(spec: RegSpec):
     return X.astype(np.float32), y.astype(np.float32)
 
 
+def gen_regime_switch_linear(spec: RegSpec):
+    """Time-varying linear regression with regime switches.
+
+    The covariates are ``[t, e_1, ..., e_{d-1}]`` where ``t`` is a
+    normalised timestamp in ``[0, 1)`` and ``e_*`` are exogenous noise
+    features. The dataset is split into ``spec.n_components`` equal
+    time segments; each segment has its own linear regression
+    coefficients. This is the textbook regime-switching regression
+    setup that mixture-of-experts is explicitly designed for.
+    """
+    rng = np.random.default_rng(spec.seed)
+    n = spec.n_samples
+    K = spec.n_components
+    t = np.arange(n, dtype=np.float64) / n
+    exog = rng.standard_normal((n, max(0, spec.n_features - 1)))
+    X = np.concatenate([t[:, None], exog], axis=1) if exog.size else t[:, None]
+    regime = np.floor(t * K).astype(int).clip(0, K - 1)
+
+    weights = rng.standard_normal((K, X.shape[1])) * 1.5
+    biases = rng.standard_normal(K) * 2.0
+    y = np.einsum("nd,nd->n", X, weights[regime]) + biases[regime]
+    y = y + rng.normal(scale=spec.noise, size=n)
+    return X.astype(np.float32), y.astype(np.float32)
+
+
+def gen_piecewise_polynomial(spec: RegSpec):
+    """K segments, each fitting a polynomial of t of degree in {1, 2, 3}.
+
+    ``X = t`` (single feature), ``y`` is piecewise polynomial. Tests
+    whether the regressor can pick up local *order* changes (linear in
+    one segment, cubic in another) — a thing mixture-of-experts should
+    handle by routing each segment to a different expert.
+    """
+    rng = np.random.default_rng(spec.seed)
+    n = spec.n_samples
+    K = spec.n_components
+    t = np.linspace(-1.0, 1.0, n)
+    regime = np.floor((t + 1) / 2 * K).astype(int).clip(0, K - 1)
+
+    orders = rng.integers(1, 4, size=K)
+    coefs = [rng.standard_normal(orders[r] + 1) * 2.0 for r in range(K)]
+    y = np.zeros(n)
+    for r in range(K):
+        mask = regime == r
+        if not mask.any():
+            continue
+        tr = t[mask]
+        c = coefs[r]
+        y[mask] = sum(c[d] * (tr ** d) for d in range(len(c)))
+    y = y + rng.normal(scale=spec.noise, size=n)
+    return t[:, None].astype(np.float32), y.astype(np.float32)
+
+
+def gen_sinusoid_drift(spec: RegSpec):
+    """Chirp signal: ``y = sin(2π · ω(t) · t)`` with linearly increasing
+    frequency ``ω(t) = 1 + (K - 1) · t``.
+
+    Classical non-stationary spectral signal. RFF-based methods with a
+    fixed frequency draw will struggle; methods that can adapt the
+    feature representation locally (mixture of experts, SIREN-style
+    networks) have a fair shot.
+    """
+    rng = np.random.default_rng(spec.seed)
+    n = spec.n_samples
+    K = spec.n_components
+    t = np.linspace(0.0, 1.0, n)
+    omega = 1.0 + (K - 1) * t
+    y = np.sin(2.0 * np.pi * omega * t) + rng.normal(scale=spec.noise, size=n)
+    return t[:, None].astype(np.float32), y.astype(np.float32)
+
+
 REG_DATASETS = {
     "piecewise_linear": gen_piecewise_linear,
     "friedman1": gen_friedman1,
     "sinusoidal": gen_sinusoidal,
+    "regime_switch_linear": gen_regime_switch_linear,
+    "piecewise_polynomial": gen_piecewise_polynomial,
+    "sinusoid_drift": gen_sinusoid_drift,
 }
