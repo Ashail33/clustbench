@@ -143,6 +143,65 @@ def gen_sinusoid_drift(spec: RegSpec):
     return t[:, None].astype(np.float32), y.astype(np.float32)
 
 
+def gen_modulated_ar(spec: RegSpec):
+    """AR(1) process with a sinusoidally-varying coefficient.
+
+    ``x_t = ρ(t) * x_{t-1} + ε_t`` where ``ρ(t) = 0.5 + 0.4 sin(π t / T)``
+    cycles between roughly 0.1 (mean-reverting) and 0.9 (near random
+    walk) over the sequence. The relationship between past and future
+    is *time-varying* — exactly the regime where Liquid Neural Networks
+    have a built-in inductive bias and standard RNNs/MLPs have to
+    memorise the modulation.
+
+    Returns ``X = t.reshape(-1, 1)``, ``y = x``. For sequence models a
+    typical setup is to construct lagged windows from ``y`` and predict
+    ``x_{t+1}``; the bench script does this conversion.
+    """
+    rng = np.random.default_rng(spec.seed)
+    n = spec.n_samples
+    t = np.linspace(0.0, 1.0, n)
+    rho = 0.5 + 0.4 * np.sin(np.pi * t * spec.n_components)
+    x = np.zeros(n)
+    x[0] = rng.normal()
+    for i in range(1, n):
+        x[i] = rho[i] * x[i - 1] + rng.normal(scale=spec.noise)
+    return t[:, None].astype(np.float32), x.astype(np.float32)
+
+
+def gen_multi_sinusoid(spec: RegSpec):
+    """Sum of ``spec.n_components`` sinusoids at random frequencies.
+
+    ``y_t = Σ_k a_k sin(2π f_k t + φ_k) + noise``. Stationary by
+    construction (every frequency present everywhere), but the spectral
+    content is rich, so models that can fit multiple frequencies at
+    once should do well.
+    """
+    rng = np.random.default_rng(spec.seed)
+    n = spec.n_samples
+    K = spec.n_components
+    t = np.linspace(0.0, 1.0, n)
+    freqs = rng.uniform(1.0, 8.0, size=K)
+    amps = rng.uniform(0.5, 1.5, size=K)
+    phases = rng.uniform(0.0, 2 * np.pi, size=K)
+    y = sum(amps[k] * np.sin(2 * np.pi * freqs[k] * t + phases[k]) for k in range(K))
+    y = y + rng.normal(scale=spec.noise, size=n)
+    return t[:, None].astype(np.float32), y.astype(np.float32)
+
+
+def gen_random_walk(spec: RegSpec):
+    """Cumulative-sum random walk — control with no periodicity.
+
+    Used as a sanity check: methods that win on the periodic data
+    should NOT win here (otherwise the win is spurious).
+    """
+    rng = np.random.default_rng(spec.seed)
+    n = spec.n_samples
+    steps = rng.normal(scale=spec.noise, size=n)
+    y = np.cumsum(steps)
+    t = np.linspace(0.0, 1.0, n)
+    return t[:, None].astype(np.float32), y.astype(np.float32)
+
+
 REG_DATASETS = {
     "piecewise_linear": gen_piecewise_linear,
     "friedman1": gen_friedman1,
@@ -150,4 +209,7 @@ REG_DATASETS = {
     "regime_switch_linear": gen_regime_switch_linear,
     "piecewise_polynomial": gen_piecewise_polynomial,
     "sinusoid_drift": gen_sinusoid_drift,
+    "modulated_ar": gen_modulated_ar,
+    "multi_sinusoid": gen_multi_sinusoid,
+    "random_walk": gen_random_walk,
 }
