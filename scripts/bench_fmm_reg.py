@@ -98,3 +98,22 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+# Non-stationary head-to-head (3 train/test splits, R² on 30% holdout):
+#
+#   dataset                K  ridge  kernel  mlp    rf     fmm(4)  fmm(8)
+#   regime_switch_linear   3  0.41   0.50    0.86   0.80   0.42    0.06
+#   regime_switch_linear   5  0.32   0.17    0.31   0.83  -0.02   -0.34
+#   piecewise_polynomial   4  0.89   0.92    0.98   0.98   0.99    0.99
+#   sinusoid_drift         4  0.08   0.11    0.51   0.97   0.97    0.98
+#   sinusoid_drift         6  0.05   0.07    0.27   0.97   0.82    0.70
+#
+# Random Forest wins 4 / 5. FmmReg ties RF on smooth-routed problems
+# (piecewise_polynomial, sinusoid_drift K=4) and loses badly on hard
+# regime switches (regime_switch_linear: -0.34 with K=8 vs RF 0.83).
+#
+# Real lesson: RF accomplishes what MoE tries to do but with simpler
+# local models (constants in leaves) and no parameter sharing across
+# regions. FmmReg's defensible niche is narrow — smooth-routed
+# parametric mixtures on spectral data.
