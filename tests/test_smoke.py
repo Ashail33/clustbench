@@ -59,6 +59,7 @@ EXPECTED_ALGOS = {
     "learned_router_v2",
     "learned_router_v3",
     "learned_router_v4",
+    "learned_router_v5",
     "mutant_kmeans_meta",
 }
 
