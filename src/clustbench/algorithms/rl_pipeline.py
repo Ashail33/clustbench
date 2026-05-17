@@ -777,24 +777,36 @@ class Rl_pipeline(Algorithm):
         eigen_pool = [r for r in pool if r["used_eigen"]]
 
         chosen = None
-        # Tier 2: if a non-spectral rollout produced a partition with
-        # sil_raw above the convex threshold, trust it. This stops a
-        # spectral rollout with inflated sil_env from stealing the win on
-        # easy convex data.
-        good_convex = [
+
+        # Tier 2: convex regime. If any *non-eigen* rollout produces a
+        # partition with raw silhouette above the convex threshold, that's
+        # strong evidence the data is convex-clusterable in the original
+        # space. Pick the highest sil_raw among non-eigen rollouts and
+        # *do not* compare against eigen rollouts (whose sil_env is
+        # inflated by the spectral lift and not directly comparable).
+        good_convex_non_eigen = [
             r
             for r in non_eigen_pool
             if (r["sil_raw"] is not None and r["sil_raw"] >= CONVEX_SIL_THRESH)
         ]
-        if good_convex:
-            chosen = _best_by("sil_raw", good_convex)
-        else:
-            # Tier 3: non-convex regime — raw silhouette is unreliable.
-            # Prefer eigen-rollouts and rank by sil_env (the spectral space
-            # silhouette is a real signal after EIGEN_EMBED).
-            chosen = _best_by("sil_env", eigen_pool) if eigen_pool else None
-            if chosen is None:
-                chosen = _best_by("sil_env", pool) or _best_by("sil_raw", pool)
+        if good_convex_non_eigen:
+            chosen = _best_by("sil_raw", good_convex_non_eigen)
+
+        # Tier 3: non-convex regime. No non-eigen rollout cleared the
+        # convex threshold => raw silhouette is unreliable. Pick the eigen
+        # rollout with highest sil_env (the spectral-space silhouette is a
+        # real signal once we're in the spectral lens).
+        if chosen is None:
+            chosen = _best_by("sil_env", eigen_pool)
+
+        # Tier 4: nothing eigen-y worked either. Fall back to best sil_raw
+        # then sil_env then anything.
+        if chosen is None:
+            chosen = (
+                _best_by("sil_raw", pool)
+                or _best_by("sil_env", pool)
+                or (pool[0] if pool else None)
+            )
 
         if chosen is not None:
             best_labels = chosen["labels"]

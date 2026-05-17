@@ -320,4 +320,13 @@ algorithms:
     entry: louvain_knn
     params: {}
 
+  # Behaviour-cloned RL agent over a primitive-action ontology
+  # (Framing C). Trained on runs/rl_traces.parquet — 419 rows of
+  # (state, action, reward) tuples harvested from kmeans / clarans /
+  # agglomerative / spectral / dbscan rollouts through ClusteringEnv.
+  - name: rl_pipeline
+    kind: python
+    entry: rl_pipeline
+    params: {n_rollouts: 16, exploration: 1.5, max_steps: 12}
+
 seeds: [1, 2, 3]
