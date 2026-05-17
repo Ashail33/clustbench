@@ -470,6 +470,12 @@
         }
       },
       {
+        "name": "learned_router_v4",
+        "kind": "python",
+        "entry": "learned_router_v4",
+        "params": {}
+      },
+      {
         "name": "mutant_kmeans_meta",
         "kind": "python",
         "entry": "mutant_kmeans_meta",
@@ -482,7 +488,7 @@
       3
     ]
   },
-  "generated_at": "2026-05-17 14:33:33",
+  "generated_at": "2026-05-17 15:24:12",
   "env": {
     "python": "3.11.15",
     "platform": "Linux-6.18.5-x86_64-with-glibc2.39"

@@ -1214,6 +1214,67 @@ becomes "propose architectures" rather than "propose performance"
 — mutator proposes mutant, we benchmark it, learned router learns
 when to dispatch to mutant.
 
+### Round 6: learned_router_v4 — different but not better
+
+v4 of the learned router shipped: per-algorithm
+`GradientBoostingRegressor(n_estimators=40, max_depth=3)` replacing
+v3's kNN, three new metadata features (`is_real_data`,
+`is_image_domain`, `log_outlier_extremity`) bringing the fingerprint
+to **20 features**, plus an ensemble-fallback to v3 when v4 picks an
+algorithm that v3 disagrees with by > 0.05 ARI.
+
+Smoke test (held-out seed=99) confirmed the architecture works:
+disagreement fired on 3/4 cases (mdcgen-outliers, moons, circles) so
+v4 deferred to v3's picks there; v4 took its own pick on the close-
+margin mdcgen-convex.
+
+**Benchmark result: v3 still wins.**
+
+| version | mean ARI | rank (of 36) |
+|---|---|---|
+| `learned_router` (v1) | 0.796 | 4 |
+| `learned_router_v2` | 0.823 | 3 |
+| **`learned_router_v3`** | **0.851** | **1** |
+| `learned_router_v4` | 0.836 | 2 |
+
+v4 lands rank 2 — better than v1 / v2 but **below v3 by 0.015 ARI**.
+The progression is flattening: v1→v2 lifted +0.027, v2→v3 lifted
++0.028, but v3→v4 went -0.015. Architecture change without a clear
+mechanism for improvement.
+
+**Why v4 didn't beat v3** (the honest diagnostic):
+
+- v4 overrode v3 on **51 of 52 tasks** (98%). The 0.05-ARI fallback
+  threshold was too lenient: v4's per-task predictions usually
+  disagreed with v3's by less than 0.05, so v4 kept its own pick.
+  The guardrail almost never fired in practice.
+- v4 picked a wider variety of algorithms than v3 (16 distinct
+  algorithms across 52 tasks, with `gmm` × 9, `lmm` × 7,
+  `agglomerative` × 5 as the top three). v3 had concentrated picks
+  on parallel_kmeans / spectral / lmm / gmm. The wider distribution
+  suggests v4 captured more nuance but at the cost of consistency.
+- GradientBoosting on ~118 training tasks per algorithm is enough to
+  fit the broad trends but not to beat well-tuned kNN, which has
+  better calibrated uncertainty in sparse regions.
+
+**The methodology lesson**: not every architectural change is an
+improvement. The four-iteration loop on the learned router worked
+*twice* (v1→v2 added probe features, v2→v3 added direct ARI
+prediction); the third iteration (v3→v4) didn't yield a clear win
+because the change wasn't targeted at a specific failure mode of v3.
+
+This matches the "stopping criterion" in
+[`docs/METHODOLOGY.md`](METHODOLOGY.md): **per-iteration lift is
+shrinking and v3→v4 is within noise; the iteration loop has
+converged on this benchmark grid.** The next signal-bearing move is
+either (a) enlarge the grid again (real datasets in new domains),
+(b) instrument v4 more carefully — track *which* tasks v4 beats v3
+on, retrain v3 on those tasks' picks, or (c) accept v3 as the
+current best learned dispatcher.
+
+The benchmark itself still has 36 algorithms × 52 tasks; v3 at rank
+1 is the empirical answer for what to dispatch to right now.
+
 ### What to try first
 
 A pragmatic decision tree from the dashboard data:
