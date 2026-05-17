@@ -261,6 +261,18 @@ algorithms:
     kind: python
     entry: learned_router_v6
     params: {}
+  - name: learned_router_v6b
+    kind: python
+    entry: learned_router_v6b
+    params: {}
+  - name: learned_router_v6c
+    kind: python
+    entry: learned_router_v6c
+    params: {}
+  - name: learned_router_v7
+    kind: python
+    entry: learned_router_v7
+    params: {}
 
   # Mutator-proposed crossover: kmeans + meta_clusterer_v2 hybrid.
   # The algorithm_mutator predicted ARI 0.926 (+0.138 over best
