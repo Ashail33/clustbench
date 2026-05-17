@@ -44,6 +44,12 @@ RESULT_COLS = [
     "cpu_system_s",
     "n_clusters_found",
     "n_steps",
+    "theoretical_wall_time_s",
+    "theoretical_rss_mb",
+    "theoretical_ari_upper_bound",
+    "dataset_source",
+    "dataset_domain",
+    "outlier_extremity",
 ]
 
 
