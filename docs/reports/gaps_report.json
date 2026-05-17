@@ -1,0 +1,9 @@
+{
+  "threshold": 0.65,
+  "max_grid": 500,
+  "n_fingerprints_searched": 500,
+  "n_gaps_below_threshold": 0,
+  "n_unique_benchmark_tasks": 52,
+  "n_algorithm_cards": 35,
+  "top_gaps": []
+}
