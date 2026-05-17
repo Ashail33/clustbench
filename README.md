@@ -244,6 +244,59 @@ numbers come from `runs/paper_demo` and `runs/scaling`; the diagnosis
 (*what's holding it back*) is the actionable line per algorithm — the
 specific component that would need to change to lift the score.
 
+## How to use clustbench on your own data
+
+If you don't know your data's regime in advance, install clustbench and
+call `Learned_router_v3().fit_predict(X, k=...)` — across nine rounds of
+benchmark iteration documented in
+[`docs/ALGORITHM_ANALYSIS.md`](docs/ALGORITHM_ANALYSIS.md) it lands at or
+near rank 1 with mean ARI 0.839 across 55 dataset tasks (time-series,
+graph nodes, 23 synthetic families, and real-world UCI sets).
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+from sklearn.metrics import silhouette_score
+
+from clustbench.algorithms.learned_router_v3 import Learned_router_v3
+
+# 1. Load your data into a (n, d) float array.
+X = np.load("my_features.npy")            # shape (n_samples, n_features)
+
+# 2. Dispatch through the learned router.
+res = Learned_router_v3().fit_predict(X, k=5)  # k = target cluster count
+labels = res.labels                            # (n,) integer cluster ids
+
+# 3. Inspect what the router did (extra["chose"]) and why (extra["fingerprint"]).
+print("dispatched to:", res.extra["chose"])
+print("fingerprint :", res.extra["fingerprint"])
+
+# 4. Evaluate (silhouette internally, ARI vs ground truth externally) + plot.
+sil = silhouette_score(X, labels)
+XY = PCA(n_components=2).fit_transform(X)
+plt.scatter(XY[:, 0], XY[:, 1], c=labels, s=8); plt.show()
+```
+
+`res.extra["chose"]` names the underlying algorithm the router dispatched
+to (e.g. `gmm`, `spectral`, `meanshift_robust`); `res.extra["fingerprint"]`
+is the 17-feature vector it built from your data (effective dim, k-means
+convex-compression cv, DBSCAN density probe, etc.).
+
+**If you don't know `k`.** Pass `k=None` and use a density-based algorithm
+whose card in
+[`src/clustbench/algorithm_cards.py`](src/clustbench/algorithm_cards.py)
+has `handles_k_directly=False` — `dbscan_auto`, `optics`,
+`meanshift_robust`, or `rapid` (which discovers `k` from a density
+partition).
+
+**If you trust the methodology, not the model.** `learned_router_v3` is
+*trained on* this repo's benchmark grid; generalisation outside that
+distribution is not guaranteed. To retrain on a domain-specific benchmark,
+follow the recipe in [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md). A
+hands-on walkthrough lives at
+[`notebooks/default_clustering.ipynb`](notebooks/default_clustering.ipynb).
+
 ## Methodology
 
 [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) distills the v1 → v4
