@@ -55,6 +55,7 @@ EXPECTED_ALGOS = {
     "aura_v3",
     "meta_clusterer_v3",
     "rapid_v3",
+    "learned_router",
 }
 
 

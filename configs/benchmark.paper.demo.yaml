@@ -182,4 +182,12 @@ algorithms:
     entry: rapid_v3
     params: {}
 
+  # v4: meta-of-meta-of-meta. Learned dispatch rule trained on past
+  # benchmark results in docs/data/results.json (kNN over fingerprints,
+  # leave-one-out at exact-fingerprint match for honest evaluation).
+  - name: learned_router
+    kind: python
+    entry: learned_router
+    params: {k_neighbors: 5}
+
 seeds: [1, 2]
