@@ -3,177 +3,181 @@
     "average_ranks": [
       {
         "algo": "learned_router_v7",
-        "rank": 9.139705882352942
+        "rank": 9.330882352941176
       },
       {
         "algo": "learned_router_v3",
-        "rank": 9.602941176470589
+        "rank": 9.794117647058824
       },
       {
         "algo": "learned_router_v5",
-        "rank": 9.602941176470589
+        "rank": 9.794117647058824
       },
       {
         "algo": "learned_router_v4",
-        "rank": 9.917910447761194
+        "rank": 10.365671641791044
       },
       {
         "algo": "learned_router_v2",
-        "rank": 11.619402985074627
+        "rank": 12.08955223880597
       },
       {
         "algo": "learned_router",
-        "rank": 12.671641791044776
+        "rank": 12.880597014925373
       },
       {
         "algo": "lmm",
-        "rank": 14.898550724637682
+        "rank": 15.181159420289855
       },
       {
         "algo": "spectral",
-        "rank": 16.217391304347824
+        "rank": 16.594202898550726
       },
       {
         "algo": "gmm",
-        "rank": 17.15671641791045
-      },
-      {
-        "algo": "aura_v3",
-        "rank": 17.630434782608695
-      },
-      {
-        "algo": "pwcc_diverse",
-        "rank": 17.708955223880597
-      },
-      {
-        "algo": "agglomerative",
-        "rank": 18.10144927536232
-      },
-      {
-        "algo": "aura_v2",
-        "rank": 18.644927536231883
-      },
-      {
-        "algo": "rapid",
-        "rank": 18.8768115942029
-      },
-      {
-        "algo": "mutant_kmeans_meta",
-        "rank": 18.91304347826087
-      },
-      {
-        "algo": "rapid_v3",
-        "rank": 19.043478260869566
+        "rank": 17.492537313432837
       },
       {
         "algo": "louvain_knn",
-        "rank": 19.36231884057971
+        "rank": 17.528985507246375
+      },
+      {
+        "algo": "aura_v3",
+        "rank": 18.057971014492754
+      },
+      {
+        "algo": "pwcc_diverse",
+        "rank": 18.082089552238806
+      },
+      {
+        "algo": "agglomerative",
+        "rank": 18.58695652173913
+      },
+      {
+        "algo": "aura_v2",
+        "rank": 19.144927536231883
+      },
+      {
+        "algo": "mutant_kmeans_meta",
+        "rank": 19.26086956521739
+      },
+      {
+        "algo": "rapid",
+        "rank": 19.31159420289855
+      },
+      {
+        "algo": "rapid_v3",
+        "rank": 19.456521739130434
       },
       {
         "algo": "aura",
-        "rank": 19.63768115942029
+        "rank": 20.05072463768116
       },
       {
         "algo": "meta_clusterer_v2",
-        "rank": 19.963768115942027
+        "rank": 20.391304347826086
       },
       {
         "algo": "meta_clusterer_v3",
-        "rank": 20.333333333333332
+        "rank": 20.818840579710145
       },
       {
         "algo": "rapid_v2",
-        "rank": 21.08695652173913
+        "rank": 21.5
       },
       {
         "algo": "kmeans_trimmed",
-        "rank": 21.115942028985508
+        "rank": 21.6231884057971
       },
       {
         "algo": "pwcc",
-        "rank": 21.434782608695652
-      },
-      {
-        "algo": "consensus",
-        "rank": 21.47826086956522
+        "rank": 21.97826086956522
       },
       {
         "algo": "meta_clusterer",
-        "rank": 21.50735294117647
+        "rank": 22.0
+      },
+      {
+        "algo": "consensus",
+        "rank": 22.02173913043478
       },
       {
         "algo": "learned_router_v6b",
-        "rank": 21.55072463768116
+        "rank": 22.13768115942029
       },
       {
         "algo": "kmeans",
-        "rank": 21.884057971014492
+        "rank": 22.44927536231884
       },
       {
         "algo": "parallel_kmeans",
-        "rank": 22.094202898550726
+        "rank": 22.695652173913043
       },
       {
         "algo": "minibatch_kmeans",
-        "rank": 22.608695652173914
+        "rank": 23.159420289855074
       },
       {
         "algo": "birch_algo",
-        "rank": 22.659420289855074
+        "rank": 23.304347826086957
+      },
+      {
+        "algo": "rl_pipeline",
+        "rank": 23.963768115942027
       },
       {
         "algo": "learned_router_v6c",
-        "rank": 24.731884057971016
+        "rank": 24.73913043478261
       },
       {
         "algo": "learned_router_v6",
-        "rank": 25.17391304347826
+        "rank": 25.86231884057971
       },
       {
         "algo": "fmm",
-        "rank": 25.52173913043478
+        "rank": 26.420289855072465
       },
       {
         "algo": "clarans_pp",
-        "rank": 26.065217391304348
+        "rank": 26.72463768115942
       },
       {
         "algo": "mri",
-        "rank": 26.71014492753623
+        "rank": 27.26086956521739
       },
       {
         "algo": "clarans",
-        "rank": 27.384057971014492
+        "rank": 28.028985507246375
       },
       {
         "algo": "meanshift_robust",
-        "rank": 29.03030303030303
+        "rank": 29.757575757575758
       },
       {
         "algo": "meanshift",
-        "rank": 30.33582089552239
+        "rank": 30.97761194029851
       },
       {
         "algo": "dbscan_auto",
-        "rank": 32.52173913043478
+        "rank": 33.2536231884058
       },
       {
         "algo": "optics",
-        "rank": 36.85507246376812
+        "rank": 37.768115942028984
       },
       {
         "algo": "s5c",
-        "rank": 37.927536231884055
+        "rank": 38.7536231884058
       },
       {
         "algo": "dbscan",
-        "rank": 38.21739130434783
+        "rank": 39.18840579710145
       }
     ],
     "friedman": {
-      "statistic": 1030.0211791902757,
-      "p_value": 3.1476847492554708e-189,
-      "k": 42,
+      "statistic": 1034.8574546881518,
+      "p_value": 1.5542818424463855e-189,
+      "k": 43,
       "n_tasks": 63
     }
   },
@@ -181,177 +185,181 @@
     "average_ranks": [
       {
         "algo": "learned_router_v7",
-        "rank": 10.301470588235293
+        "rank": 10.566176470588236
       },
       {
         "algo": "learned_router_v3",
-        "rank": 10.558823529411764
+        "rank": 10.838235294117647
       },
       {
         "algo": "learned_router_v5",
-        "rank": 10.558823529411764
+        "rank": 10.838235294117647
       },
       {
         "algo": "learned_router_v4",
-        "rank": 10.880597014925373
+        "rank": 11.32089552238806
       },
       {
         "algo": "learned_router_v2",
-        "rank": 12.26865671641791
+        "rank": 12.567164179104477
       },
       {
         "algo": "learned_router",
-        "rank": 13.380597014925373
+        "rank": 13.67910447761194
       },
       {
         "algo": "spectral",
-        "rank": 15.956521739130435
-      },
-      {
-        "algo": "lmm",
-        "rank": 16.347826086956523
+        "rank": 16.318840579710145
       },
       {
         "algo": "gmm",
-        "rank": 16.37313432835821
+        "rank": 16.65671641791045
+      },
+      {
+        "algo": "lmm",
+        "rank": 16.746376811594203
       },
       {
         "algo": "mutant_kmeans_meta",
-        "rank": 16.797101449275363
-      },
-      {
-        "algo": "agglomerative",
-        "rank": 17.833333333333332
-      },
-      {
-        "algo": "meta_clusterer_v2",
-        "rank": 18.02173913043478
-      },
-      {
-        "algo": "aura_v3",
-        "rank": 18.52173913043478
-      },
-      {
-        "algo": "rapid_v3",
-        "rank": 18.543478260869566
-      },
-      {
-        "algo": "rapid",
-        "rank": 18.55072463768116
-      },
-      {
-        "algo": "meta_clusterer_v3",
-        "rank": 18.57246376811594
-      },
-      {
-        "algo": "pwcc_diverse",
-        "rank": 18.611940298507463
-      },
-      {
-        "algo": "aura_v2",
-        "rank": 19.166666666666668
-      },
-      {
-        "algo": "aura",
-        "rank": 19.456521739130434
+        "rank": 17.18840579710145
       },
       {
         "algo": "louvain_knn",
-        "rank": 19.507246376811594
+        "rank": 17.304347826086957
+      },
+      {
+        "algo": "agglomerative",
+        "rank": 18.340579710144926
+      },
+      {
+        "algo": "meta_clusterer_v2",
+        "rank": 18.47826086956522
+      },
+      {
+        "algo": "rapid_v3",
+        "rank": 18.92753623188406
+      },
+      {
+        "algo": "rapid",
+        "rank": 18.985507246376812
+      },
+      {
+        "algo": "aura_v3",
+        "rank": 19.0
+      },
+      {
+        "algo": "pwcc_diverse",
+        "rank": 19.029850746268657
+      },
+      {
+        "algo": "meta_clusterer_v3",
+        "rank": 19.07246376811594
+      },
+      {
+        "algo": "aura_v2",
+        "rank": 19.652173913043477
+      },
+      {
+        "algo": "aura",
+        "rank": 19.884057971014492
       },
       {
         "algo": "meta_clusterer",
-        "rank": 20.53676470588235
+        "rank": 21.095588235294116
       },
       {
         "algo": "learned_router_v6b",
-        "rank": 20.971014492753625
+        "rank": 21.528985507246375
       },
       {
         "algo": "rapid_v2",
-        "rank": 21.144927536231883
+        "rank": 21.543478260869566
       },
       {
         "algo": "kmeans_trimmed",
-        "rank": 21.304347826086957
+        "rank": 21.78985507246377
       },
       {
         "algo": "kmeans",
-        "rank": 21.77536231884058
+        "rank": 22.333333333333332
       },
       {
         "algo": "consensus",
-        "rank": 21.818840579710145
+        "rank": 22.340579710144926
       },
       {
         "algo": "pwcc",
-        "rank": 21.963768115942027
+        "rank": 22.485507246376812
       },
       {
         "algo": "parallel_kmeans",
-        "rank": 22.094202898550726
+        "rank": 22.659420289855074
       },
       {
         "algo": "birch_algo",
-        "rank": 22.17391304347826
+        "rank": 22.81159420289855
       },
       {
         "algo": "minibatch_kmeans",
-        "rank": 23.195652173913043
+        "rank": 23.782608695652176
+      },
+      {
+        "algo": "rl_pipeline",
+        "rank": 23.855072463768117
       },
       {
         "algo": "learned_router_v6c",
-        "rank": 24.434782608695652
+        "rank": 24.666666666666668
       },
       {
         "algo": "learned_router_v6",
-        "rank": 24.855072463768117
+        "rank": 25.5
       },
       {
         "algo": "fmm",
-        "rank": 24.905797101449274
+        "rank": 25.855072463768117
       },
       {
         "algo": "mri",
-        "rank": 26.079710144927535
+        "rank": 26.6231884057971
       },
       {
         "algo": "clarans_pp",
-        "rank": 26.18840579710145
+        "rank": 26.847826086956523
       },
       {
         "algo": "clarans",
-        "rank": 28.1231884057971
+        "rank": 28.78985507246377
       },
       {
         "algo": "meanshift_robust",
-        "rank": 29.674242424242426
+        "rank": 30.416666666666668
       },
       {
         "algo": "meanshift",
-        "rank": 30.828358208955223
+        "rank": 31.51492537313433
       },
       {
         "algo": "dbscan_auto",
-        "rank": 31.27536231884058
+        "rank": 31.934782608695652
       },
       {
         "algo": "optics",
-        "rank": 35.78260869565217
+        "rank": 36.6231884057971
       },
       {
         "algo": "s5c",
-        "rank": 38.710144927536234
+        "rank": 39.55072463768116
       },
       {
         "algo": "dbscan",
-        "rank": 39.03623188405797
+        "rank": 39.98550724637681
       }
     ],
     "friedman": {
-      "statistic": 978.7456421447296,
-      "p_value": 1.5877677573099826e-178,
-      "k": 42,
+      "statistic": 981.8813421824896,
+      "p_value": 1.7364210777878084e-178,
+      "k": 43,
       "n_tasks": 63
     }
   },
@@ -359,177 +367,181 @@
     "average_ranks": [
       {
         "algo": "kmeans",
-        "rank": 12.217391304347826
+        "rank": 12.528985507246377
       },
       {
         "algo": "parallel_kmeans",
-        "rank": 12.710144927536232
+        "rank": 13.057971014492754
       },
       {
         "algo": "consensus",
-        "rank": 12.869565217391305
+        "rank": 13.18840579710145
       },
       {
         "algo": "pwcc",
-        "rank": 13.028985507246377
+        "rank": 13.347826086956522
       },
       {
         "algo": "kmeans_trimmed",
-        "rank": 13.159420289855072
+        "rank": 13.471014492753623
       },
       {
         "algo": "pwcc_diverse",
-        "rank": 14.477611940298507
+        "rank": 14.850746268656716
       },
       {
         "algo": "meanshift",
-        "rank": 15.693877551020408
+        "rank": 16.020408163265305
       },
       {
         "algo": "minibatch_kmeans",
-        "rank": 16.26086956521739
+        "rank": 16.58695652173913
       },
       {
         "algo": "birch_algo",
-        "rank": 16.311475409836067
+        "rank": 16.770491803278688
       },
       {
         "algo": "mutant_kmeans_meta",
-        "rank": 17.102941176470587
+        "rank": 17.53676470588235
       },
       {
         "algo": "agglomerative",
-        "rank": 18.065217391304348
+        "rank": 18.384057971014492
       },
       {
         "algo": "meta_clusterer_v3",
-        "rank": 18.09090909090909
+        "rank": 18.575757575757574
       },
       {
         "algo": "meta_clusterer",
-        "rank": 18.169354838709676
+        "rank": 18.661290322580644
       },
       {
         "algo": "meta_clusterer_v2",
-        "rank": 18.25
+        "rank": 18.727272727272727
       },
       {
         "algo": "lmm",
-        "rank": 18.52173913043478
+        "rank": 18.934782608695652
       },
       {
         "algo": "gmm",
-        "rank": 18.917910447761194
+        "rank": 19.380597014925375
       },
       {
         "algo": "fmm",
-        "rank": 19.22463768115942
-      },
-      {
-        "algo": "aura_v3",
-        "rank": 19.36231884057971
+        "rank": 19.543478260869566
       },
       {
         "algo": "learned_router_v2",
-        "rank": 19.604477611940297
+        "rank": 19.78358208955224
       },
       {
-        "algo": "aura_v2",
-        "rank": 20.130434782608695
-      },
-      {
-        "algo": "aura",
-        "rank": 20.152173913043477
-      },
-      {
-        "algo": "spectral",
-        "rank": 20.181159420289855
+        "algo": "aura_v3",
+        "rank": 19.818840579710145
       },
       {
         "algo": "learned_router",
-        "rank": 20.32089552238806
+        "rank": 20.291044776119403
       },
       {
-        "algo": "learned_router_v6",
-        "rank": 20.920289855072465
+        "algo": "aura",
+        "rank": 20.565217391304348
+      },
+      {
+        "algo": "aura_v2",
+        "rank": 20.57246376811594
+      },
+      {
+        "algo": "spectral",
+        "rank": 20.6231884057971
       },
       {
         "algo": "rapid",
-        "rank": 20.963768115942027
+        "rank": 21.340579710144926
       },
       {
-        "algo": "meanshift_robust",
-        "rank": 20.989583333333332
-      },
-      {
-        "algo": "learned_router_v3",
-        "rank": 21.0
+        "algo": "learned_router_v6",
+        "rank": 21.347826086956523
       },
       {
         "algo": "learned_router_v5",
-        "rank": 21.0
+        "rank": 21.350746268656717
       },
       {
-        "algo": "learned_router_v4",
-        "rank": 21.253846153846155
+        "algo": "learned_router_v3",
+        "rank": 21.350746268656717
+      },
+      {
+        "algo": "meanshift_robust",
+        "rank": 21.385416666666668
       },
       {
         "algo": "learned_router_v7",
-        "rank": 21.375
+        "rank": 21.720588235294116
       },
       {
-        "algo": "learned_router_v6c",
-        "rank": 21.60144927536232
+        "algo": "learned_router_v4",
+        "rank": 21.946153846153845
       },
       {
         "algo": "rapid_v3",
-        "rank": 21.72463768115942
+        "rank": 22.094202898550726
       },
       {
         "algo": "learned_router_v6b",
-        "rank": 21.82608695652174
+        "rank": 22.253623188405797
+      },
+      {
+        "algo": "learned_router_v6c",
+        "rank": 23.27536231884058
+      },
+      {
+        "algo": "rl_pipeline",
+        "rank": 24.666666666666668
       },
       {
         "algo": "clarans_pp",
-        "rank": 24.86231884057971
-      },
-      {
-        "algo": "dbscan_auto",
-        "rank": 25.036231884057973
-      },
-      {
-        "algo": "mri",
-        "rank": 25.77536231884058
-      },
-      {
-        "algo": "rapid_v2",
-        "rank": 26.036231884057973
+        "rank": 25.434782608695652
       },
       {
         "algo": "louvain_knn",
-        "rank": 26.985507246376812
+        "rank": 25.463768115942027
+      },
+      {
+        "algo": "dbscan_auto",
+        "rank": 25.47826086956522
+      },
+      {
+        "algo": "mri",
+        "rank": 26.333333333333332
+      },
+      {
+        "algo": "rapid_v2",
+        "rank": 26.536231884057973
       },
       {
         "algo": "clarans",
-        "rank": 27.355072463768117
+        "rank": 27.963768115942027
       },
       {
         "algo": "dbscan",
-        "rank": 36.5
+        "rank": 37.44444444444444
       },
       {
         "algo": "optics",
-        "rank": 37.857142857142854
+        "rank": 38.74603174603175
       },
       {
         "algo": "s5c",
-        "rank": 38.492753623188406
+        "rank": 39.27536231884058
       }
     ],
     "friedman": {
-      "statistic": 191.8433190955941,
-      "p_value": 2.2569915058648434e-21,
-      "k": 42,
+      "statistic": 191.77304934582205,
+      "p_value": 5.083619629479534e-21,
+      "k": 43,
       "n_tasks": 9
     }
   },
@@ -537,177 +549,181 @@
     "average_ranks": [
       {
         "algo": "meanshift",
-        "rank": 11.775510204081632
+        "rank": 11.918367346938776
       },
       {
         "algo": "consensus",
-        "rank": 13.507246376811594
+        "rank": 14.014492753623188
       },
       {
         "algo": "pwcc",
-        "rank": 13.695652173913043
-      },
-      {
-        "algo": "kmeans",
-        "rank": 14.347826086956522
-      },
-      {
-        "algo": "parallel_kmeans",
-        "rank": 14.471014492753623
+        "rank": 14.202898550724637
       },
       {
         "algo": "meanshift_robust",
-        "rank": 14.614583333333334
+        "rank": 14.760416666666666
+      },
+      {
+        "algo": "kmeans",
+        "rank": 14.826086956521738
+      },
+      {
+        "algo": "parallel_kmeans",
+        "rank": 14.992753623188406
       },
       {
         "algo": "kmeans_trimmed",
-        "rank": 14.652173913043478
+        "rank": 15.41304347826087
       },
       {
         "algo": "birch_algo",
-        "rank": 15.319672131147541
+        "rank": 15.967213114754099
       },
       {
         "algo": "agglomerative",
-        "rank": 15.72463768115942
+        "rank": 16.231884057971016
       },
       {
         "algo": "spectral",
-        "rank": 17.166666666666668
-      },
-      {
-        "algo": "pwcc_diverse",
-        "rank": 17.238805970149254
+        "rank": 17.579710144927535
       },
       {
         "algo": "lmm",
-        "rank": 17.492753623188406
+        "rank": 17.833333333333332
+      },
+      {
+        "algo": "pwcc_diverse",
+        "rank": 17.880597014925375
       },
       {
         "algo": "minibatch_kmeans",
-        "rank": 17.782608695652176
+        "rank": 18.181159420289855
       },
       {
         "algo": "rapid",
-        "rank": 17.94927536231884
+        "rank": 18.217391304347824
       },
       {
         "algo": "fmm",
-        "rank": 18.42753623188406
-      },
-      {
-        "algo": "learned_router_v2",
-        "rank": 18.828358208955223
+        "rank": 18.463768115942027
       },
       {
         "algo": "aura_v3",
-        "rank": 18.89855072463768
+        "rank": 19.007246376811594
       },
       {
         "algo": "aura",
-        "rank": 19.195652173913043
+        "rank": 19.318840579710145
       },
       {
-        "algo": "learned_router",
-        "rank": 19.223880597014926
+        "algo": "learned_router_v2",
+        "rank": 19.41044776119403
       },
       {
         "algo": "rapid_v3",
-        "rank": 19.420289855072465
+        "rank": 19.782608695652176
       },
       {
         "algo": "aura_v2",
-        "rank": 19.44927536231884
+        "rank": 19.797101449275363
       },
       {
-        "algo": "mutant_kmeans_meta",
-        "rank": 20.433823529411764
+        "algo": "learned_router",
+        "rank": 19.96268656716418
       },
       {
         "algo": "learned_router_v7",
-        "rank": 20.676470588235293
+        "rank": 20.860294117647058
+      },
+      {
+        "algo": "mutant_kmeans_meta",
+        "rank": 20.985294117647058
       },
       {
         "algo": "learned_router_v5",
-        "rank": 20.917910447761194
+        "rank": 21.104477611940297
       },
       {
         "algo": "learned_router_v3",
-        "rank": 20.917910447761194
+        "rank": 21.104477611940297
       },
       {
         "algo": "rapid_v2",
-        "rank": 21.159420289855074
+        "rank": 21.594202898550726
       },
       {
         "algo": "learned_router_v4",
-        "rank": 21.346153846153847
-      },
-      {
-        "algo": "meta_clusterer_v2",
-        "rank": 21.946969696969695
+        "rank": 22.46923076923077
       },
       {
         "algo": "gmm",
-        "rank": 22.276119402985074
+        "rank": 22.51492537313433
+      },
+      {
+        "algo": "meta_clusterer_v2",
+        "rank": 22.560606060606062
       },
       {
         "algo": "meta_clusterer_v3",
-        "rank": 22.318181818181817
+        "rank": 22.954545454545453
       },
       {
         "algo": "meta_clusterer",
-        "rank": 22.798387096774192
+        "rank": 23.54032258064516
+      },
+      {
+        "algo": "rl_pipeline",
+        "rank": 23.57246376811594
       },
       {
         "algo": "clarans_pp",
-        "rank": 23.420289855072465
+        "rank": 24.08695652173913
       },
       {
         "algo": "learned_router_v6b",
-        "rank": 23.52173913043478
-      },
-      {
-        "algo": "learned_router_v6",
-        "rank": 24.166666666666668
+        "rank": 24.18840579710145
       },
       {
         "algo": "learned_router_v6c",
-        "rank": 24.536231884057973
-      },
-      {
-        "algo": "clarans",
-        "rank": 24.97826086956522
+        "rank": 24.36231884057971
       },
       {
         "algo": "louvain_knn",
-        "rank": 25.528985507246375
+        "rank": 24.41304347826087
+      },
+      {
+        "algo": "learned_router_v6",
+        "rank": 24.855072463768117
+      },
+      {
+        "algo": "clarans",
+        "rank": 25.463768115942027
       },
       {
         "algo": "dbscan",
-        "rank": 26.055555555555557
+        "rank": 26.944444444444443
       },
       {
         "algo": "mri",
-        "rank": 27.32608695652174
+        "rank": 27.942028985507246
       },
       {
         "algo": "optics",
-        "rank": 29.317460317460316
+        "rank": 30.095238095238095
       },
       {
         "algo": "dbscan_auto",
-        "rank": 34.007246376811594
+        "rank": 34.79710144927536
       },
       {
         "algo": "s5c",
-        "rank": 36.869565217391305
+        "rank": 37.710144927536234
       }
     ],
     "friedman": {
-      "statistic": 177.84575653465808,
-      "p_value": 5.754010607373314e-19,
-      "k": 42,
+      "statistic": 181.4534472380914,
+      "p_value": 2.9712719519435163e-19,
+      "k": 43,
       "n_tasks": 9
     }
   },
@@ -715,177 +731,181 @@
     "average_ranks": [
       {
         "algo": "clarans",
-        "rank": 2.5072463768115942
+        "rank": 2.1449275362318843
       },
       {
         "algo": "clarans_pp",
-        "rank": 2.6666666666666665
+        "rank": 2.5217391304347827
       },
       {
         "algo": "parallel_kmeans",
-        "rank": 3.5942028985507246
+        "rank": 4.086956521739131
       },
       {
         "algo": "kmeans",
-        "rank": 4.869565217391305
-      },
-      {
-        "algo": "kmeans_trimmed",
-        "rank": 5.884057971014493
-      },
-      {
-        "algo": "agglomerative",
-        "rank": 5.913043478260869
+        "rank": 5.188405797101449
       },
       {
         "algo": "dbscan",
-        "rank": 6.521739130434782
+        "rank": 5.594202898550725
+      },
+      {
+        "algo": "agglomerative",
+        "rank": 5.782608695652174
+      },
+      {
+        "algo": "kmeans_trimmed",
+        "rank": 6.159420289855072
       },
       {
         "algo": "birch_algo",
-        "rank": 9.768115942028986
-      },
-      {
-        "algo": "lmm",
-        "rank": 11.869565217391305
+        "rank": 8.768115942028986
       },
       {
         "algo": "dbscan_auto",
-        "rank": 12.46376811594203
+        "rank": 11.869565217391305
       },
       {
-        "algo": "louvain_knn",
-        "rank": 14.63768115942029
+        "algo": "lmm",
+        "rank": 12.594202898550725
       },
       {
         "algo": "minibatch_kmeans",
-        "rank": 15.623188405797102
+        "rank": 13.347826086956522
+      },
+      {
+        "algo": "louvain_knn",
+        "rank": 16.347826086956523
       },
       {
         "algo": "gmm",
-        "rank": 16.08955223880597
+        "rank": 16.582089552238806
       },
       {
         "algo": "aura_v2",
-        "rank": 16.594202898550726
+        "rank": 16.91304347826087
       },
       {
         "algo": "aura_v3",
-        "rank": 16.768115942028984
+        "rank": 16.956521739130434
       },
       {
         "algo": "aura",
-        "rank": 18.159420289855074
-      },
-      {
-        "algo": "rapid_v2",
-        "rank": 19.36231884057971
-      },
-      {
-        "algo": "pwcc",
-        "rank": 19.768115942028984
-      },
-      {
-        "algo": "rapid_v3",
-        "rank": 20.52173913043478
+        "rank": 17.608695652173914
       },
       {
         "algo": "consensus",
-        "rank": 20.869565217391305
+        "rank": 18.89855072463768
+      },
+      {
+        "algo": "pwcc",
+        "rank": 19.52173913043478
+      },
+      {
+        "algo": "rapid_v2",
+        "rank": 20.043478260869566
       },
       {
         "algo": "rapid",
-        "rank": 21.318840579710145
+        "rank": 20.10144927536232
+      },
+      {
+        "algo": "rapid_v3",
+        "rank": 20.44927536231884
       },
       {
         "algo": "mutant_kmeans_meta",
-        "rank": 22.0
+        "rank": 22.565217391304348
       },
       {
         "algo": "mri",
-        "rank": 23.3768115942029
+        "rank": 23.681159420289855
       },
       {
         "algo": "spectral",
-        "rank": 24.318840579710145
+        "rank": 24.3768115942029
       },
       {
         "algo": "meta_clusterer",
-        "rank": 26.058823529411764
-      },
-      {
-        "algo": "fmm",
-        "rank": 26.536231884057973
+        "rank": 25.205882352941178
       },
       {
         "algo": "pwcc_diverse",
-        "rank": 26.776119402985074
+        "rank": 26.880597014925375
+      },
+      {
+        "algo": "fmm",
+        "rank": 27.28985507246377
       },
       {
         "algo": "learned_router",
-        "rank": 26.850746268656717
-      },
-      {
-        "algo": "meanshift",
-        "rank": 27.507462686567163
+        "rank": 27.671641791044777
       },
       {
         "algo": "learned_router_v6",
-        "rank": 27.82608695652174
+        "rank": 28.217391304347824
+      },
+      {
+        "algo": "meanshift",
+        "rank": 28.432835820895523
       },
       {
         "algo": "meta_clusterer_v2",
-        "rank": 28.52173913043478
-      },
-      {
-        "algo": "s5c",
-        "rank": 29.231884057971016
+        "rank": 28.869565217391305
       },
       {
         "algo": "learned_router_v6c",
-        "rank": 29.681159420289855
+        "rank": 29.652173913043477
+      },
+      {
+        "algo": "s5c",
+        "rank": 30.0
       },
       {
         "algo": "meanshift_robust",
-        "rank": 30.484848484848484
+        "rank": 30.303030303030305
       },
       {
         "algo": "meta_clusterer_v3",
-        "rank": 32.21739130434783
-      },
-      {
-        "algo": "learned_router_v2",
-        "rank": 32.8955223880597
+        "rank": 32.6231884057971
       },
       {
         "algo": "learned_router_v3",
-        "rank": 33.5735294117647
+        "rank": 33.14705882352941
       },
       {
-        "algo": "learned_router_v5",
-        "rank": 36.80882352941177
-      },
-      {
-        "algo": "optics",
-        "rank": 36.88405797101449
+        "algo": "learned_router_v2",
+        "rank": 33.417910447761194
       },
       {
         "algo": "learned_router_v7",
-        "rank": 37.088235294117645
+        "rank": 36.73529411764706
       },
       {
         "algo": "learned_router_v6b",
-        "rank": 37.7536231884058
+        "rank": 37.10144927536232
+      },
+      {
+        "algo": "learned_router_v5",
+        "rank": 37.11764705882353
+      },
+      {
+        "algo": "optics",
+        "rank": 37.18840579710145
       },
       {
         "algo": "learned_router_v4",
-        "rank": 38.04477611940298
+        "rank": 38.985074626865675
+      },
+      {
+        "algo": "rl_pipeline",
+        "rank": 42.072463768115945
       }
     ],
     "friedman": {
-      "statistic": 1938.0043769445765,
+      "statistic": 2067.0830564784046,
       "p_value": 0.0,
-      "k": 42,
+      "k": 43,
       "n_tasks": 63
     }
   },
@@ -893,177 +913,181 @@
     "average_ranks": [
       {
         "algo": "learned_router",
-        "rank": 13.029850746268657
-      },
-      {
-        "algo": "meta_clusterer_v2",
-        "rank": 14.579710144927537
+        "rank": 12.313432835820896
       },
       {
         "algo": "mri",
-        "rank": 14.601449275362318
+        "rank": 14.847826086956522
+      },
+      {
+        "algo": "meta_clusterer_v2",
+        "rank": 15.55072463768116
       },
       {
         "algo": "aura_v3",
-        "rank": 15.021739130434783
+        "rank": 16.065217391304348
       },
       {
         "algo": "birch_algo",
-        "rank": 15.782608695652174
+        "rank": 17.144927536231883
       },
       {
         "algo": "learned_router_v7",
-        "rank": 16.102941176470587
+        "rank": 17.205882352941178
       },
       {
         "algo": "pwcc_diverse",
-        "rank": 17.0
-      },
-      {
-        "algo": "fmm",
-        "rank": 17.282608695652176
+        "rank": 17.35820895522388
       },
       {
         "algo": "learned_router_v6b",
-        "rank": 17.71014492753623
+        "rank": 18.007246376811594
       },
       {
-        "algo": "minibatch_kmeans",
-        "rank": 19.456521739130434
-      },
-      {
-        "algo": "louvain_knn",
-        "rank": 19.77536231884058
-      },
-      {
-        "algo": "meta_clusterer",
-        "rank": 19.801470588235293
-      },
-      {
-        "algo": "kmeans",
-        "rank": 20.094202898550726
-      },
-      {
-        "algo": "mutant_kmeans_meta",
-        "rank": 20.26086956521739
-      },
-      {
-        "algo": "lmm",
-        "rank": 20.369565217391305
+        "algo": "fmm",
+        "rank": 18.78985507246377
       },
       {
         "algo": "meta_clusterer_v3",
-        "rank": 20.3768115942029
+        "rank": 19.847826086956523
+      },
+      {
+        "algo": "kmeans",
+        "rank": 20.144927536231883
       },
       {
         "algo": "agglomerative",
-        "rank": 20.463768115942027
-      },
-      {
-        "algo": "clarans",
-        "rank": 20.608695652173914
-      },
-      {
-        "algo": "aura",
-        "rank": 20.6231884057971
-      },
-      {
-        "algo": "spectral",
-        "rank": 20.71014492753623
-      },
-      {
-        "algo": "clarans_pp",
-        "rank": 20.855072463768117
-      },
-      {
-        "algo": "gmm",
-        "rank": 20.888059701492537
-      },
-      {
-        "algo": "kmeans_trimmed",
-        "rank": 21.130434782608695
-      },
-      {
-        "algo": "learned_router_v4",
-        "rank": 21.23134328358209
-      },
-      {
-        "algo": "learned_router_v2",
-        "rank": 21.395522388059703
-      },
-      {
-        "algo": "learned_router_v5",
-        "rank": 21.426470588235293
-      },
-      {
-        "algo": "s5c",
-        "rank": 22.13768115942029
-      },
-      {
-        "algo": "consensus",
-        "rank": 22.159420289855074
+        "rank": 20.253623188405797
       },
       {
         "algo": "meanshift_robust",
-        "rank": 22.946969696969695
+        "rank": 20.431818181818183
       },
       {
-        "algo": "parallel_kmeans",
-        "rank": 23.333333333333332
+        "algo": "mutant_kmeans_meta",
+        "rank": 20.52173913043478
       },
       {
-        "algo": "learned_router_v3",
-        "rank": 24.029411764705884
+        "algo": "meta_clusterer",
+        "rank": 20.53676470588235
       },
       {
-        "algo": "learned_router_v6c",
-        "rank": 24.21014492753623
+        "algo": "minibatch_kmeans",
+        "rank": 20.717391304347824
       },
       {
-        "algo": "aura_v2",
-        "rank": 24.681159420289855
+        "algo": "aura",
+        "rank": 20.746376811594203
       },
       {
-        "algo": "meanshift",
-        "rank": 26.20149253731343
+        "algo": "kmeans_trimmed",
+        "rank": 20.797101449275363
       },
       {
-        "algo": "rapid_v3",
-        "rank": 26.246376811594203
+        "algo": "learned_router_v2",
+        "rank": 21.029850746268657
       },
       {
-        "algo": "rapid",
-        "rank": 26.340579710144926
+        "algo": "clarans",
+        "rank": 21.043478260869566
       },
       {
-        "algo": "learned_router_v6",
-        "rank": 26.58695652173913
+        "algo": "clarans_pp",
+        "rank": 21.420289855072465
+      },
+      {
+        "algo": "gmm",
+        "rank": 21.492537313432837
+      },
+      {
+        "algo": "lmm",
+        "rank": 21.52173913043478
+      },
+      {
+        "algo": "consensus",
+        "rank": 21.77536231884058
+      },
+      {
+        "algo": "spectral",
+        "rank": 22.028985507246375
+      },
+      {
+        "algo": "learned_router_v5",
+        "rank": 22.235294117647058
+      },
+      {
+        "algo": "s5c",
+        "rank": 22.630434782608695
       },
       {
         "algo": "pwcc",
-        "rank": 26.608695652173914
+        "rank": 23.1231884057971
       },
       {
-        "algo": "dbscan_auto",
-        "rank": 26.68840579710145
+        "algo": "learned_router_v4",
+        "rank": 23.37313432835821
       },
       {
-        "algo": "rapid_v2",
-        "rank": 26.91304347826087
+        "algo": "meanshift",
+        "rank": 24.455223880597014
+      },
+      {
+        "algo": "parallel_kmeans",
+        "rank": 24.507246376811594
+      },
+      {
+        "algo": "rl_pipeline",
+        "rank": 24.891304347826086
+      },
+      {
+        "algo": "aura_v2",
+        "rank": 25.41304347826087
+      },
+      {
+        "algo": "rapid_v3",
+        "rank": 25.52173913043478
+      },
+      {
+        "algo": "learned_router_v3",
+        "rank": 25.691176470588236
+      },
+      {
+        "algo": "learned_router_v6c",
+        "rank": 25.76086956521739
+      },
+      {
+        "algo": "learned_router_v6",
+        "rank": 25.847826086956523
       },
       {
         "algo": "optics",
-        "rank": 27.855072463768117
+        "rank": 26.246376811594203
+      },
+      {
+        "algo": "dbscan_auto",
+        "rank": 26.797101449275363
+      },
+      {
+        "algo": "rapid_v2",
+        "rank": 27.130434782608695
+      },
+      {
+        "algo": "rapid",
+        "rank": 27.195652173913043
       },
       {
         "algo": "dbscan",
-        "rank": 30.202898550724637
+        "rank": 28.94927536231884
+      },
+      {
+        "algo": "louvain_knn",
+        "rank": 29.043478260869566
       }
     ],
     "friedman": {
-      "statistic": 508.04038120300316,
-      "p_value": 7.533615501508124e-82,
-      "k": 42,
+      "statistic": 485.5939900587437,
+      "p_value": 8.137801329886549e-77,
+      "k": 43,
       "n_tasks": 63
     }
   }

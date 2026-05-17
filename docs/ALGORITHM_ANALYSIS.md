@@ -1775,6 +1775,109 @@ the trained distribution is a real result but not transferable to
 arbitrary data. **For deployment outside the benchmark, v1 + lmm +
 agglomerative + louvain_knn is the safer bet.**
 
+#### Round 13: behaviour-cloned RL pipeline (Framing C) — works on the toy, struggles in the wild
+
+`src/clustbench/algorithms/rl_pipeline.py` is the project's first
+**state-action** clustering algorithm: an RL agent that picks
+primitive actions one at a time from a ClusteringEnv with eight
+operators (`kpp_init`, `assign_to_centers`, `update_centers`,
+`medoid_swap`, `ward_merge`, `density_partition`, `eigen_embed`,
+`outlier_trim`).
+
+The training pipeline is two stages:
+
+1. **Stage 1 — environment + behaviour-cloning data.**
+   `src/clustbench/rl_env.py` (1062 LOC) defines `ClusteringState`
+   (length-20 feature vector: n, d, k_target, cost, silhouette,
+   plateau signals, outlier mask, centroid stats),
+   `ClusteringEnv.step` (reward = clipped −Δcost / cost_initial), and
+   `collect_traces_from_existing_algorithms` which drives kmeans /
+   clarans / agglomerative / spectral / dbscan through the env and
+   emits 50 episodes / 419 (state, action, reward) rows to
+   `runs/rl_traces.parquet`.
+
+2. **Stage 2 — policy + value nets + clustbench wrapper.**
+   PyTorch MLPs (state → softmax over 8 actions; state → scalar
+   return). `train_bc()` computes discounted returns-to-go (γ=0.95),
+   splits 80/20 by episode_id, optimises cross-entropy on the policy
+   and MSE on the value with mild count^−0.25 class re-weighting (so
+   the 10 `eigen_embed` rows don't drown in the 170 `assign_to_centers`
+   rows). Final BC validation accuracy **0.59** (chance 0.125,
+   majority-class baseline 0.41). At inference, the wrapper runs N
+   rollouts through the env, then a tiered selector picks the best:
+   non-eigen rollout with raw silhouette ≥ 0.40, else the best eigen
+   rollout by env-space silhouette.
+
+**Closed-form smoke result (300 points, n_rollouts=16, exploration=1.5):**
+
+| dataset | rl_pipeline | kmeans | spectral | used EIGEN_EMBED? |
+|---|---|---|---|---|
+| mdcgen (d=8, k=3) | **1.000** | 1.000 | 1.000 | no (kpp loop) |
+| **circles (d=4, k=2)** | **1.000** | -0.003 | 1.000 | **yes** |
+| moons (d=4, k=2) | 0.26 | 0.26 | 1.000 | no (kpp loop won the silhouette tie) |
+
+The circles win is the load-bearing positive result: a policy with no
+hand-coded knowledge of spectral methods *learned* from BC traces that
+when the cost surface refuses to drop, the right primitive is
+`eigen_embed`. Of 16 rollouts on circles, rollout 15 fires
+`eigen_embed` at step 1 and lands at silhouette 0.76 in the embedded
+space; the tiered selector picks it.
+
+**Full benchmark result (43 algorithms, 17 dataset configs, 3 seeds,
+default `n_rollouts=16, exploration=1.5, max_steps=12`):**
+
+| algorithm | mean ARI | rank |
+|---|---|---|
+| `learned_router_v7` | 0.877 | 1 |
+| `learned_router_v5/v3` | 0.867 | 2-3 |
+| ... | ... | ... |
+| `lmm` | 0.78 | 7 |
+| `spectral` | 0.77 | 10 |
+| ... | ... | ... |
+| **`rl_pipeline`** | **0.584** | **36 of 43** |
+
+Per-dataset, the BC agent is **double-modal**: ARI 0.996 on anisotropic
+and 0.982 on graph_sbm (its Gaussian-mixture wheelhouse), but ARI
+−0.001 on circles at n=500 and 0.05 on extreme_outliers. The circles
+regression is illuminating — the policy *does* fire `eigen_embed` at
+step 0 (good — the spectral pattern survived), but the trajectory then
+terminates after a few `update_centers` no-ops because the policy
+never learned, from 419 traces, the *exact* follow-up sequence needed
+to convert a 500-point spectral embedding into a clean partition. At
+n=200/300 the rollout selector eventually finds a good completion; at
+n=500 every rollout converges to the same dead-end early.
+
+This is the BC ceiling made visible.
+
+#### Three honest implications of round 13
+
+1. **The action ontology and env work.** Stage-1 sanity checks pass —
+   a hand-written kmeans-equivalent trajectory reaches ARI 1.0 on
+   blobs, a spectral-equivalent trajectory reaches ARI 1.0 on circles.
+   The eight primitives span the dominant mechanisms in the registry.
+
+2. **BC alone is not enough for an RL clustering agent.**
+   419 traces are insufficient to learn the *coordinated multi-step
+   sequences* (kpp → eigen → assign → update) that the spectral path
+   requires; the model collapses into local minima once it leaves the
+   training distribution. The natural fix is PPO on top of the BC
+   initialisation — letting the agent explore its own rollouts and
+   re-weight by *terminal* silhouette rather than per-step policy
+   cross-entropy. That is stage 3, deferred.
+
+3. **The trajectory layer is still the project's most novel
+   contribution.** Round 13 shows the per-step `(state, action, cost,
+   delta_cost)` records can be trained on directly to produce a
+   working agent — at low accuracy, but working. Better RL training
+   on a bigger trace dataset (which the harness now produces
+   automatically every benchmark run) is the obvious next step.
+
+For deployment, **rl_pipeline is not yet competitive with the learned
+routers**. The honest framing: it is a publishable research artefact
+demonstrating that a learned policy over primitive clustering
+operators can recover the spectral pipeline from imitation — but it
+is not a recommended classifier.
+
 ### What to try first
 
 A pragmatic decision tree from the dashboard data:
