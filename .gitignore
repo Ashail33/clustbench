@@ -7,3 +7,4 @@ venv/
 runs/
 *.ipynb_checkpoints/
 .DS_Store
+.claude/
