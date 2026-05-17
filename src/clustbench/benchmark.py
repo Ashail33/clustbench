@@ -112,7 +112,20 @@ def run_task(
                     "trajectory": res.trajectory,
                 }
 
-            payload = measure_resources(_inner)
+            try:
+                payload = measure_resources(_inner)
+            except Exception as e:
+                # One algorithm crashing must not kill the whole run.
+                # Write a sentinel JSON so the dashboard knows the algo
+                # was attempted on this task and skip the rest.
+                err_path = artifacts / f"error_{cfg.name}__{task_suffix}.json"
+                err_path.write_text(json.dumps({
+                    "algo": cfg.name, **task_stub,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e)[:500],
+                }, indent=2, default=str))
+                print(f"  [skip] {cfg.name} on {task_suffix}: {type(e).__name__}: {str(e)[:120]}")
+                continue
         else:
 
             def _inner_ext():
@@ -127,7 +140,17 @@ def run_task(
                     "trajectory": None,
                 }
 
-            payload = measure_resources(_inner_ext)
+            try:
+                payload = measure_resources(_inner_ext)
+            except Exception as e:
+                err_path = artifacts / f"error_{cfg.name}__{task_suffix}.json"
+                err_path.write_text(json.dumps({
+                    "algo": cfg.name, **task_stub,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e)[:500],
+                }, indent=2, default=str))
+                print(f"  [skip] {cfg.name} (external) on {task_suffix}: {type(e).__name__}: {str(e)[:120]}")
+                continue
 
         trajectory: Optional[List[Step]] = payload.get("trajectory")
         run_id = uuid.uuid4().hex
