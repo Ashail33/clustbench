@@ -234,6 +234,16 @@ read/write bytes (where the platform supports it).
 `results.csv` is flat: every metric is a top-level column, so a one-liner
 in pandas / DuckDB / etc. gets you a leaderboard.
 
+## Algorithm analysis
+
+[`docs/ALGORITHM_ANALYSIS.md`](docs/ALGORITHM_ANALYSIS.md) breaks down
+every registered algorithm against four questions: how does it scale,
+how good is it on clean data, how does it handle outliers, and how well
+does it adapt to different cluster shapes and `k`. The empirical
+numbers come from `runs/paper_demo` and `runs/scaling`; the diagnosis
+(*what's holding it back*) is the actionable line per algorithm — the
+specific component that would need to change to lift the score.
+
 ## Dashboard
 
 `docs/index.html` is a static, dependency-free dashboard (Chart.js from

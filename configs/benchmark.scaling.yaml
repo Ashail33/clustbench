@@ -1,0 +1,88 @@
+# Scaling-diagnostic config — varies n_samples so we can plot wall-time
+# and quality vs n per algorithm. Single seed, two k_targets, two outlier
+# settings, four dataset shapes (mdcgen, anisotropic, moons, circles).
+# OPTICS is excluded — it's O(n^2) and dominates wall time without
+# adding information; its scaling story is already obvious.
+
+datasets:
+  - id: mdcgen
+    n_samples: [200, 500, 1000, 2000]
+    n_features: [10]
+    k_targets: [3, 5]
+    compactness: [1.0]
+    outliers: [0, 100]
+    noise: [0]
+    density: [1.0]
+  - id: anisotropic
+    n_samples: [200, 500, 1000, 2000]
+    n_features: [10]
+    k_targets: [3, 5]
+    compactness: [1.0]
+  - id: moons
+    n_samples: [200, 500, 1000, 2000]
+    n_features: [2]
+    k_targets: [2]
+    compactness: [1.0]
+  - id: circles
+    n_samples: [200, 500, 1000, 2000]
+    n_features: [2]
+    k_targets: [2]
+    compactness: [1.0]
+
+algorithms:
+  - name: parallel_kmeans
+    kind: python
+    entry: parallel_kmeans
+    params: {max_iter: 50, n_init: 2, n_workers: 1}
+  - name: minibatch_kmeans
+    kind: python
+    entry: minibatch_kmeans
+    params: {batch_size: 100, max_iter: 100}
+  - name: pwcc
+    kind: python
+    entry: pwcc
+    params:
+      base: [kmeans, minibatch_kmeans, birch_algo]
+  - name: s5c
+    kind: python
+    entry: s5c
+    params: {sample_size: 200, n_nonzero_coefs: 5}
+  - name: kmeans
+    kind: python
+    entry: kmeans
+    params: {max_iter: 100, n_init: 3}
+  - name: dbscan
+    kind: python
+    entry: dbscan
+    params: {eps: 0.8, min_samples: 5}
+  - name: birch_algo
+    kind: python
+    entry: birch_algo
+    params: {threshold: 1.0}
+  - name: clarans
+    kind: python
+    entry: clarans
+    params: {numlocal: 2, maxneigh: 30}
+  - name: consensus
+    kind: python
+    entry: consensus
+    params:
+      base: [kmeans, minibatch_kmeans, birch_algo]
+  - name: gmm
+    kind: python
+    entry: gmm
+    params: {max_iter: 100, n_init: 1}
+  - name: agglomerative
+    kind: python
+    entry: agglomerative
+    params: {linkage: ward}
+  - name: spectral
+    kind: python
+    entry: spectral
+    params: {n_neighbors: 10}
+  - name: meanshift
+    kind: python
+    entry: meanshift
+    params: {bin_seeding: true}
+
+seeds: [1]
