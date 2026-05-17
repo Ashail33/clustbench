@@ -1114,6 +1114,106 @@ algorithm. The natural next move is the v5 of the learned router —
 retrain on the 4332-row comprehensive benchmark so it has seen real
 datasets, mixed shapes, and extreme outliers in training.
 
+### Round 5: mutator + gap-finder loop — empirical close-out
+
+The algorithm-space mutator + gap-finder + retrained learned router
+all landed in the previous commit; this round measures them on a
+fresh sweep with the gap-finder's two new datasets included.
+
+**Three big empirical findings on the 35-algo × 54-task sweep:**
+
+#### 1. `learned_router_v3` cracked rank 1
+
+| pos | algorithm | rank | mean ARI |
+|---|---|---|---|
+| 1 | **`learned_router_v3`** | **7.66** | **0.823** |
+| 2 | `lmm` | 9.66 | 0.782 |
+| 3 | `learned_router_v2` | 10.10 | 0.792 |
+| 4 | `spectral` | 11.00 | — |
+| 5 | `learned_router` (v1) | 11.88 | 0.770 |
+
+Per-algorithm `KNeighborsRegressor(weights='distance')` predicting
+ARI directly + DBSCAN probe features beat the registry's natural
+best (`lmm`). The v1 → v2 → v3 progression of the learned router:
+mean ARI 0.770 → 0.792 → 0.823 (cumulative +0.053 across three
+iterations of the *learned* dispatcher).
+
+#### 2. The mutator's prediction did NOT pan out empirically
+
+| algorithm | predicted ARI | actual ARI | gap |
+|---|---|---|---|
+| `mutant_kmeans_meta` (mutator-proposed) | **0.926** | 0.747 | **-0.18** |
+| `kmeans_trimmed` (mutator's "best existing") | 0.788 | 0.657 | -0.13 |
+
+The mutant beats its parent `kmeans_trimmed` by +0.09 ARI — so the
+hybrid kmeans + meta_clusterer_v2 design does provide a genuine lift
+over the pure kmeans variant. But the mutator's +0.138 *predicted*
+delta over kmeans_trimmed was way too optimistic.
+
+**The honest lesson**: the card-based `predict_ari_upper_bound` is
+*aspirational*. It scores an algorithm by how its inductive biases
+match the data fingerprint, but doesn't know whether the implementation's
+routing decisions actually fire correctly. The mutator says "if you
+build an algorithm with both `convex_clusters` and `non_convex_capable`
+biases, it could hit ARI 0.93" — but in practice, that requires
+*flawless* routing between the two modes, which mutant_kmeans_meta
+doesn't achieve.
+
+**The methodology refinement** this surfaces: card-based prediction is
+useful for *ordering* mutations relative to each other (the
+top-predicted mutations are still plausible architectures), but
+calibrating predicted ARIs to actual ARIs requires a *predict-from-
+training-data* model rather than a *predict-from-biases* one. That
+model is exactly `learned_router_v3` — which is why v3 cracked rank 1
+while the mutator's hand-built mutation only matched its parent.
+
+#### 3. The gap-finder datasets are genuinely hard
+
+The gap-finder identified the `extreme_outliers + compactness=1.25`
+regime as a registry coverage gap. On those tasks, **the best
+algorithm only reaches ARI 0.71** (learned routers + lmm/spectral
+tied):
+
+| algorithm | ARI on extreme_outliers (c=1.25) |
+|---|---|
+| `learned_router_v2` | 0.706 |
+| `learned_router` | 0.705 |
+| `lmm` | 0.705 |
+| `spectral` | 0.695 |
+| `learned_router_v3` | 0.695 |
+| (worst) `dbscan` | 0.000 |
+| (worst) `optics` | 0.003 |
+| (worst) `aura_v3` | 0.071 |
+
+Compare to standard tasks where the same algorithms clear 0.93+.
+**The registry has a real gap here** — no algorithm in any family
+exceeds 0.71 on high-outlier-fraction + moderate-convexity data.
+That's the next concrete synthesis target.
+
+On the `anisotropic, compactness=1.25` gap, GMM wins clean (0.993)
+— the gap was real but easy to fill (any covariance-aware EM
+handles it).
+
+#### What this round taught us about the methodology
+
+The four-stage loop (synthesis → benchmark → identify failure mode →
+fix) generalises one more level: **learning from data beats
+inductive-bias prediction**. The mutator's bias-matching arithmetic
+gave a useful *direction* but a wrong *magnitude*; `learned_router_v3`
+trained on actual ARIs delivered the lift that the mutator only
+predicted. The pattern from earlier rounds — v3 (learned) > v2 (hand-
+coded routing) > v1 (single algorithm) — extends:
+
+> **v4 (learned-from-data) > v3 (card-based prediction) > v2 (single-
+> algorithm synthesis)**
+
+The next move in this loop is the v5 of `learned_router` — retrain on
+the 1879-row sweep that includes the gap datasets and `mutant_kmeans_meta`,
+giving the regressor data on the new regime. The mutator's role
+becomes "propose architectures" rather than "propose performance"
+— mutator proposes mutant, we benchmark it, learned router learns
+when to dispatch to mutant.
+
 ### What to try first
 
 A pragmatic decision tree from the dashboard data:

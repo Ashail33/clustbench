@@ -11,10 +11,19 @@
         ],
         "k_targets": [
           3,
-          5,
-          10
+          5
         ],
         "compactness": [
+          1.0
+        ],
+        "outliers": [
+          0,
+          100
+        ],
+        "noise": [
+          0
+        ],
+        "density": [
           1.0
         ]
       },
@@ -40,14 +49,12 @@
           500
         ],
         "n_features": [
-          2,
-          8
+          2
         ],
         "k_targets": [
           2
         ],
         "compactness": [
-          0.5,
           1.0
         ]
       },
@@ -57,233 +64,13 @@
           500
         ],
         "n_features": [
-          2,
-          8
+          2
         ],
         "k_targets": [
           2
         ],
         "compactness": [
-          0.5,
           1.0
-        ]
-      },
-      {
-        "id": "spiral",
-        "n_samples": [
-          500
-        ],
-        "n_features": [
-          2
-        ],
-        "k_targets": [
-          3,
-          5
-        ],
-        "compactness": [
-          0.5,
-          1.0
-        ]
-      },
-      {
-        "id": "swiss_roll",
-        "n_samples": [
-          500
-        ],
-        "n_features": [
-          3
-        ],
-        "k_targets": [
-          3,
-          5
-        ],
-        "compactness": [
-          1.0
-        ]
-      },
-      {
-        "id": "s_curve",
-        "n_samples": [
-          500
-        ],
-        "n_features": [
-          3
-        ],
-        "k_targets": [
-          3
-        ],
-        "compactness": [
-          1.0
-        ]
-      },
-      {
-        "id": "rings",
-        "n_samples": [
-          500
-        ],
-        "n_features": [
-          2
-        ],
-        "k_targets": [
-          3
-        ],
-        "compactness": [
-          0.5,
-          1.0
-        ]
-      },
-      {
-        "id": "varying_density",
-        "n_samples": [
-          500
-        ],
-        "n_features": [
-          10
-        ],
-        "k_targets": [
-          3,
-          5
-        ],
-        "compactness": [
-          1.0
-        ]
-      },
-      {
-        "id": "imbalanced",
-        "n_samples": [
-          500
-        ],
-        "n_features": [
-          10
-        ],
-        "k_targets": [
-          3,
-          5
-        ],
-        "compactness": [
-          1.0
-        ]
-      },
-      {
-        "id": "mixed_shapes",
-        "n_samples": [
-          500
-        ],
-        "n_features": [
-          2,
-          10
-        ],
-        "k_targets": [
-          5
-        ],
-        "compactness": [
-          1.0
-        ]
-      },
-      {
-        "id": "mdcgen",
-        "n_samples": [
-          500
-        ],
-        "n_features": [
-          10
-        ],
-        "k_targets": [
-          3
-        ],
-        "compactness": [
-          1.0
-        ],
-        "outliers": [
-          50,
-          100,
-          200
-        ],
-        "outlier_extremity": [
-          1.0,
-          5.0,
-          20.0
-        ]
-      },
-      {
-        "id": "mdcgen",
-        "n_samples": [
-          500
-        ],
-        "n_features": [
-          10
-        ],
-        "k_targets": [
-          3
-        ],
-        "compactness": [
-          1.0
-        ],
-        "noise": [
-          25,
-          100
-        ],
-        "density": [
-          0.1,
-          1.0
-        ]
-      },
-      {
-        "id": "mdcgen",
-        "n_samples": [
-          200,
-          500,
-          1500
-        ],
-        "n_features": [
-          4,
-          25,
-          100
-        ],
-        "k_targets": [
-          3
-        ],
-        "compactness": [
-          1.0
-        ]
-      },
-      {
-        "id": "inverse_pca",
-        "n_samples": [
-          400
-        ],
-        "n_features": [
-          50,
-          200
-        ],
-        "k_targets": [
-          3,
-          5
-        ],
-        "compactness": [
-          1.0
-        ]
-      },
-      {
-        "id": "extreme_outliers",
-        "n_samples": [
-          500
-        ],
-        "n_features": [
-          10
-        ],
-        "k_targets": [
-          3
-        ],
-        "compactness": [
-          1.0
-        ],
-        "outliers": [
-          100
-        ],
-        "outlier_extremity": [
-          3.0,
-          10.0
         ]
       },
       {
@@ -319,10 +106,10 @@
       {
         "id": "breast_cancer",
         "n_samples": [
-          569
+          500
         ],
         "n_features": [
-          30
+          10
         ],
         "k_targets": [
           2
@@ -347,90 +134,53 @@
         ]
       },
       {
-        "id": "olivetti_faces",
+        "id": "anisotropic",
+        "n_samples": [
+          1000
+        ],
+        "n_features": [
+          2
+        ],
+        "k_targets": [
+          2
+        ],
+        "compactness": [
+          1.25
+        ]
+      },
+      {
+        "id": "extreme_outliers",
+        "n_samples": [
+          1000
+        ],
+        "n_features": [
+          10
+        ],
+        "k_targets": [
+          5
+        ],
+        "compactness": [
+          1.25
+        ],
+        "outliers": [
+          250
+        ],
+        "outlier_extremity": [
+          1.8
+        ]
+      },
+      {
+        "id": "inverse_pca",
         "n_samples": [
           400
         ],
         "n_features": [
-          50
+          50,
+          200
         ],
         "k_targets": [
-          10
-        ],
-        "compactness": [
-          1.0
-        ]
-      },
-      {
-        "id": "glass",
-        "n_samples": [
-          214
-        ],
-        "n_features": [
-          9
-        ],
-        "k_targets": [
-          6
-        ],
-        "compactness": [
-          1.0
-        ]
-      },
-      {
-        "id": "vehicle",
-        "n_samples": [
-          846
-        ],
-        "n_features": [
-          18
-        ],
-        "k_targets": [
-          4
-        ],
-        "compactness": [
-          1.0
-        ]
-      },
-      {
-        "id": "segment",
-        "n_samples": [
-          1500
-        ],
-        "n_features": [
-          19
-        ],
-        "k_targets": [
-          7
-        ],
-        "compactness": [
-          1.0
-        ]
-      },
-      {
-        "id": "yeast",
-        "n_samples": [
-          1484
-        ],
-        "n_features": [
-          8
-        ],
-        "k_targets": [
-          10
-        ],
-        "compactness": [
-          1.0
-        ]
-      },
-      {
-        "id": "ecoli",
-        "n_samples": [
-          336
-        ],
-        "n_features": [
-          7
-        ],
-        "k_targets": [
-          8
+          3,
+          5
         ],
         "compactness": [
           1.0
@@ -438,24 +188,6 @@
       }
     ],
     "algorithms": [
-      {
-        "name": "kmeans",
-        "kind": "python",
-        "entry": "kmeans",
-        "params": {
-          "max_iter": 100,
-          "n_init": 3
-        }
-      },
-      {
-        "name": "minibatch_kmeans",
-        "kind": "python",
-        "entry": "minibatch_kmeans",
-        "params": {
-          "batch_size": 200,
-          "max_iter": 100
-        }
-      },
       {
         "name": "parallel_kmeans",
         "kind": "python",
@@ -467,72 +199,12 @@
         }
       },
       {
-        "name": "birch_algo",
+        "name": "minibatch_kmeans",
         "kind": "python",
-        "entry": "birch_algo",
+        "entry": "minibatch_kmeans",
         "params": {
-          "threshold": 1.0
-        }
-      },
-      {
-        "name": "clarans",
-        "kind": "python",
-        "entry": "clarans",
-        "params": {
-          "numlocal": 2,
-          "maxneigh": 30
-        }
-      },
-      {
-        "name": "agglomerative",
-        "kind": "python",
-        "entry": "agglomerative",
-        "params": {
-          "linkage": "ward"
-        }
-      },
-      {
-        "name": "dbscan",
-        "kind": "python",
-        "entry": "dbscan",
-        "params": {
-          "eps": 0.8,
-          "min_samples": 5
-        }
-      },
-      {
-        "name": "optics",
-        "kind": "python",
-        "entry": "optics",
-        "params": {
-          "min_samples": 5,
-          "xi": 0.05
-        }
-      },
-      {
-        "name": "gmm",
-        "kind": "python",
-        "entry": "gmm",
-        "params": {
-          "max_iter": 100,
-          "n_init": 1,
-          "reg_covar": "1e-4"
-        }
-      },
-      {
-        "name": "spectral",
-        "kind": "python",
-        "entry": "spectral",
-        "params": {
-          "n_neighbors": 10
-        }
-      },
-      {
-        "name": "meanshift",
-        "kind": "python",
-        "entry": "meanshift",
-        "params": {
-          "bin_seeding": true
+          "batch_size": 100,
+          "max_iter": 100
         }
       },
       {
@@ -557,10 +229,93 @@
         }
       },
       {
-        "name": "chameleon",
+        "name": "kmeans",
         "kind": "python",
-        "entry": "chameleon",
-        "params": {}
+        "entry": "kmeans",
+        "params": {
+          "max_iter": 100,
+          "n_init": 3
+        }
+      },
+      {
+        "name": "dbscan",
+        "kind": "python",
+        "entry": "dbscan",
+        "params": {
+          "eps": 0.8,
+          "min_samples": 5
+        }
+      },
+      {
+        "name": "birch_algo",
+        "kind": "python",
+        "entry": "birch_algo",
+        "params": {
+          "threshold": 1.0
+        }
+      },
+      {
+        "name": "clarans",
+        "kind": "python",
+        "entry": "clarans",
+        "params": {
+          "numlocal": 2,
+          "maxneigh": 30
+        }
+      },
+      {
+        "name": "consensus",
+        "kind": "python",
+        "entry": "consensus",
+        "params": {
+          "base": [
+            "kmeans",
+            "minibatch_kmeans",
+            "birch_algo"
+          ]
+        }
+      },
+      {
+        "name": "gmm",
+        "kind": "python",
+        "entry": "gmm",
+        "params": {
+          "max_iter": 100,
+          "n_init": 1
+        }
+      },
+      {
+        "name": "agglomerative",
+        "kind": "python",
+        "entry": "agglomerative",
+        "params": {
+          "linkage": "ward"
+        }
+      },
+      {
+        "name": "spectral",
+        "kind": "python",
+        "entry": "spectral",
+        "params": {
+          "n_neighbors": 10
+        }
+      },
+      {
+        "name": "meanshift",
+        "kind": "python",
+        "entry": "meanshift",
+        "params": {
+          "bin_seeding": true
+        }
+      },
+      {
+        "name": "optics",
+        "kind": "python",
+        "entry": "optics",
+        "params": {
+          "min_samples": 5,
+          "xi": 0.05
+        }
       },
       {
         "name": "mri",
@@ -587,18 +342,6 @@
         "kind": "python",
         "entry": "lmm",
         "params": {}
-      },
-      {
-        "name": "consensus",
-        "kind": "python",
-        "entry": "consensus",
-        "params": {
-          "base": [
-            "kmeans",
-            "minibatch_kmeans",
-            "birch_algo"
-          ]
-        }
       },
       {
         "name": "kmeans_trimmed",
@@ -717,14 +460,29 @@
         "params": {
           "k_neighbors": 5
         }
+      },
+      {
+        "name": "learned_router_v3",
+        "kind": "python",
+        "entry": "learned_router_v3",
+        "params": {
+          "k_neighbors": 5
+        }
+      },
+      {
+        "name": "mutant_kmeans_meta",
+        "kind": "python",
+        "entry": "mutant_kmeans_meta",
+        "params": {}
       }
     ],
     "seeds": [
       1,
-      2
+      2,
+      3
     ]
   },
-  "generated_at": "2026-05-17 13:41:54",
+  "generated_at": "2026-05-17 14:33:33",
   "env": {
     "python": "3.11.15",
     "platform": "Linux-6.18.5-x86_64-with-glibc2.39"
