@@ -1675,7 +1675,107 @@ on the next inference.**
 Round 10 is the biggest single-step lift since v3 was introduced —
 and it required *zero new router code*. The data did the work.
 
-#### What to try first
+#### Round 12: out-of-distribution benchmark — the routers overfit, simple wins
+
+`configs/benchmark.unseen.yaml` evaluates all 42 algorithms on 7
+dataset configurations none of the learned routers have seen in
+training (new n / d / k / outlier_extremity values + seeds 100-102).
+This is the proper generalisation test the methodology has been
+pointing at.
+
+**The hard finding: advanced learned routers overfit, simple wins.**
+
+| algorithm | trained ARI | unseen ARI | Δ |
+|---|---|---|---|
+| `learned_router_v7` (former rank 1) | 0.879 | 0.753 | **−0.126** |
+| `learned_router_v3` | 0.868 | 0.753 | **−0.115** |
+| `learned_router_v5` | 0.868 | 0.753 | **−0.115** |
+| `learned_router_v4` | 0.862 | 0.734 | **−0.128** |
+| `learned_router_v2` | 0.826 | 0.812 | -0.014 |
+| **`learned_router` (v1)** | **0.817** | **0.840** | **+0.023** |
+| **`lmm`** | 0.78 | **0.845** | **+0.065** |
+| `louvain_knn` | 0.769 | 0.825 | +0.056 |
+
+The new rank-1 on unseen data is **`learned_router` v1**, at mean
+ARI 0.840 — a *14-point lift over the routers that beat it on the
+trained distribution*.
+
+#### Why v1 generalises better than v3-v7
+
+v1 dispatches via "find the K nearest training tasks by fingerprint,
+take the algorithm with the lowest mean rank across them". It has *no
+per-algorithm model* — just nearest-neighbour voting. When the
+inference fingerprint is outside the training distribution, the
+nearest neighbours are still informative on average, even if not
+exactly matched.
+
+v3-v7 fit *per-algorithm regressors* on those same fingerprints.
+Each regressor learned the historical ARI surface of its algorithm
+in the training fingerprint region. When the inference fingerprint
+is outside that region, the regressor *extrapolates badly*. v3's
+per-algo KNeighborsRegressor with weights="distance" weights its
+prediction by 1/distance — so a far-away inference point gets a
+prediction that's near-zero-confidence, and the argmax becomes
+nearly random.
+
+#### v3 and v7 made identical picks on every unseen task
+
+v7 is a stacker that picks between v3 and v6. On unseen data, v7's
+RandomForest classifier was trained to flag the "use v6" regime
+(the inverse_pca seed=3 task). It never recognises the OOD
+fingerprints as "v6 territory" so it always picks v3 — which is
+guessing badly. **v7 ≡ v3 on unseen data.**
+
+#### Specific failures of v3/v7 on unseen tasks
+
+| unseen task | v3/v7 picked | actual winner |
+|---|---|---|
+| `inverse_pca, d=150, k=4` | `birch_algo` (ARI 0.27) | `rapid_v3` (ARI 0.88) |
+| `extreme_outliers, extremity=10` | `lmm`/`gmm` (ARI 0.55) | `louvain_knn` (ARI 0.81) |
+| `moons, d=5` | `louvain_knn` (ARI 0.45) | best in registry 0.45 — OOD shape |
+
+#### Classical algorithms (no fingerprinting) beat all learned routers
+
+`lmm` (graph Laplacian basis, 0.845) and `agglomerative` (Ward
+linkage, top on 4 of 7 unseen datasets) don't look at fingerprints.
+They run their fixed algorithm. When the data shape matches their
+inductive bias they win — and they win irrespective of training
+distribution because there is no training.
+
+**This is the methodology's most-honest finding to date.** The whole
+"learn the router" project produced something that's spectacular on
+the training distribution and merely competitive off it. The
+underlying classical algorithms are robustly competitive everywhere
+because they don't try to be clever.
+
+#### Three honest implications
+
+1. **The published "best algorithm: learned_router_v7" recommendation
+   carries an asterisk.** It's the best dispatcher *if your data
+   resembles something in the benchmark's training distribution*.
+   For truly unseen data, the safer dispatcher is `learned_router`
+   v1, or even `lmm` directly.
+
+2. **The remedy is more benchmark coverage, not a better router.**
+   Every router we built saturates at the achievable frontier
+   *given its training data*. The right move when you face new
+   data domains is to add those domains to the benchmark and let
+   the routers retrain — exactly what round 11 demonstrated for the
+   graph_karate gap.
+
+3. **Theoretical predictions (algorithm_cards) are overly
+   pessimistic.** Spectral on unseen data: actual ARI 0.775,
+   card-predicted upper bound 0.614 (off by +0.16). The
+   inductive-bias-matching heuristic in `predict_ari_upper_bound`
+   underestimates how well classical algorithms generalise.
+
+The achievable frontier on unseen data is `learned_router` v1 at
+**0.840** — the project's most-generalisable router. v7's 0.879 on
+the trained distribution is a real result but not transferable to
+arbitrary data. **For deployment outside the benchmark, v1 + lmm +
+agglomerative + louvain_knn is the safer bet.**
+
+### What to try first
 
 A pragmatic decision tree from the dashboard data:
 
