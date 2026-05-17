@@ -471,6 +471,71 @@ never reached).*
 | **Replace the fixed component with a learned one** — FMM → LMM (graph Laplacian basis) → AMM (autoencoder basis). This is already the natural progression in the repo |
 | **Combine algorithms**: use a density-based algo to find dense regions, then run a centroid-based algo within each region |
 
+### Validation: did the fixes actually work?
+
+Five of the cheapest fixes above are now implemented and registered as
+new algorithms (`kmeans_trimmed`, `clarans_pp`, `dbscan_auto`,
+`meanshift_robust`, `pwcc_diverse`) so the benchmark runs them
+alongside the originals. Mean ARI across all 16 tasks in the demo
+sweep:
+
+| pair (original → improved) | ARI orig | ARI improved | Δ ARI | wall time orig | wall time improved |
+|---|---|---|---|---|---|
+| `dbscan` → `dbscan_auto` | 0.000 | **0.589** | **+0.589** | 0.020s | 0.035s |
+| `meanshift` → `meanshift_robust` | 0.470 | **0.622** | **+0.151** | 0.229s | 0.288s |
+| `clarans` → `clarans_pp` | 0.581 | 0.656 | +0.075 | 0.018s | 0.017s |
+| `pwcc` → `pwcc_diverse` | 0.702 | 0.751 | +0.049 | 0.145s | 0.223s |
+| `kmeans` → `kmeans_trimmed` | 0.701 | 0.703 | +0.003 | 0.024s | 0.024s |
+
+**What worked, qualitatively.**
+
+- **`dbscan_auto` is the most dramatic single intervention in the
+  repo.** DBSCAN at the fixed eps=0.8 in d=10 returned one cluster on
+  every task (ARI 0.0). Replacing the constant with the k-distance
+  knee from Ester 1996 §4.2 lifts DBSCAN from completely failing to
+  joining `spectral` and `lmm` as the third algorithm in the registry
+  that *partially solves circles* (ARI 0.83 on circles, 0.97 on
+  anisotropic). One scientific intervention (auto-eps), zero
+  architecture change, +0.589 ARI.
+- **`meanshift_robust` halves the outlier collapse.** Original
+  meanshift loses 40 ARI points under outliers (0.57 → 0.17) because
+  the bandwidth is contaminated. Estimating bandwidth on the trimmed
+  sample drops the loss to 25 points (0.68 → 0.44) and pushes mean
+  ARI on clean MDCGen from 0.38 → 0.69.
+- **`clarans_pp` and `pwcc_diverse` confirm the structural fixes.**
+  Distance-biased initialisation closes most of the clarans-vs-kmeans
+  gap (`+0.075` ARI overall, `+0.29` on moons), and swapping pwcc's
+  homogeneous k-means-style base set for `[kmeans, spectral, gmm]`
+  lifts pwcc's circles score from 0.0 to 0.16 (partial credit thanks
+  to spectral's vote weight) and moons from 0.25 to 0.42.
+
+**What surprised the analysis.**
+
+- **`kmeans_trimmed` barely moves.** Trimming 10% of the farthest
+  cluster members per iteration is *capped at* tolerating roughly
+  twice that contamination — the demo grid uses 20% outliers, right
+  at the limit. A higher trim helps but starts to bias the centroid
+  inward; the right fix is a posterior-weighted update (i.e. become
+  GMM) rather than a heavier trim.
+- **`dbscan_auto` is now itself outlier-sensitive** (-0.475 ARI
+  delta under outliers). The k-distance plot's knee is contaminated
+  by the same outliers it's supposed to ignore — the plot's tail rises,
+  pulling eps up, smoothing real clusters. The next intervention is
+  robust eps estimation (k-distance plot computed on a trimmed
+  sample), not the auto-eps itself.
+- **`clarans_pp` is more outlier-sensitive than vanilla `clarans`.**
+  Kmeans++ probability is proportional to squared distance, which
+  means in a 20%-outlier setting the seeding is *biased toward picking
+  outliers as medoids*. The fix is to combine kmeans++ with an
+  outlier filter or use a robust seeding strategy (e.g., medoid-init
+  on a trimmed sample).
+
+Each surprise becomes the next bottleneck in the chain — exactly the
+pattern the trajectory layer is designed to compress: each
+intervention is logged as an extra (state, action, delta_cost) tuple
+that a meta-policy can learn from to choose the right *combination*
+of fixes per data regime.
+
 ### What to try first
 
 A pragmatic decision tree from the dashboard data:

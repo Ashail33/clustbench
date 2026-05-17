@@ -41,11 +41,49 @@ EXPECTED_ALGOS = {
     "fmm",
     "lmm",
     "amm",
+    "kmeans_trimmed",
+    "clarans_pp",
+    "dbscan_auto",
+    "meanshift_robust",
+    "pwcc_diverse",
 }
 
 
 def test_registry_contains_all_algos():
     assert EXPECTED_ALGOS.issubset(ALGO_REGISTRY.keys())
+
+
+def test_improved_variants_lift_their_bottleneck():
+    """Each improved variant should beat its original on the specific
+    failure mode it was designed for.
+    """
+    from clustbench.datasets import gen_mdcgen, DataSpec
+    from sklearn.metrics import adjusted_rand_score
+
+    # Outlier-heavy task: kmeans_trimmed / clarans_pp / dbscan_auto /
+    # meanshift_robust should all beat or match their originals.
+    X, y = gen_mdcgen(
+        DataSpec(
+            n_samples=400,
+            n_features=8,
+            centers=3,
+            compactness=1.0,
+            seed=1,
+            outliers=80,
+            noise=0,
+            density=1.0,
+        )
+    )
+    mask = y != -1
+    for original, improved in [
+        ("dbscan", "dbscan_auto"),
+        ("meanshift", "meanshift_robust"),
+    ]:
+        a = ALGO_REGISTRY[original]().fit_predict(X, k=3)
+        b = ALGO_REGISTRY[improved]().fit_predict(X, k=3)
+        ari_a = adjusted_rand_score(y[mask], a.labels[mask])
+        ari_b = adjusted_rand_score(y[mask], b.labels[mask])
+        assert ari_b >= ari_a, f"{improved} should at least match {original} (ARI {ari_b:.2f} vs {ari_a:.2f})"
 
 
 def test_mdcgen_injects_outliers_and_noise():

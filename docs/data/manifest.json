@@ -1,17 +1,292 @@
 {
-  "generated_at": "2026-05-11 16:16:47",
+  "config": {
+    "datasets": [
+      {
+        "id": "mdcgen",
+        "n_samples": [
+          500
+        ],
+        "n_features": [
+          10
+        ],
+        "k_targets": [
+          3,
+          5
+        ],
+        "compactness": [
+          1.0
+        ],
+        "outliers": [
+          0,
+          100
+        ],
+        "noise": [
+          0
+        ],
+        "density": [
+          1.0
+        ]
+      },
+      {
+        "id": "anisotropic",
+        "n_samples": [
+          500
+        ],
+        "n_features": [
+          10
+        ],
+        "k_targets": [
+          3,
+          5
+        ],
+        "compactness": [
+          1.0
+        ]
+      },
+      {
+        "id": "moons",
+        "n_samples": [
+          500
+        ],
+        "n_features": [
+          2
+        ],
+        "k_targets": [
+          2
+        ],
+        "compactness": [
+          1.0
+        ]
+      },
+      {
+        "id": "circles",
+        "n_samples": [
+          500
+        ],
+        "n_features": [
+          2
+        ],
+        "k_targets": [
+          2
+        ],
+        "compactness": [
+          1.0
+        ]
+      }
+    ],
+    "algorithms": [
+      {
+        "name": "parallel_kmeans",
+        "kind": "python",
+        "entry": "parallel_kmeans",
+        "params": {
+          "max_iter": 50,
+          "n_init": 2,
+          "n_workers": 1
+        }
+      },
+      {
+        "name": "minibatch_kmeans",
+        "kind": "python",
+        "entry": "minibatch_kmeans",
+        "params": {
+          "batch_size": 100,
+          "max_iter": 100
+        }
+      },
+      {
+        "name": "pwcc",
+        "kind": "python",
+        "entry": "pwcc",
+        "params": {
+          "base": [
+            "kmeans",
+            "minibatch_kmeans",
+            "birch_algo"
+          ]
+        }
+      },
+      {
+        "name": "s5c",
+        "kind": "python",
+        "entry": "s5c",
+        "params": {
+          "sample_size": 200,
+          "n_nonzero_coefs": 5
+        }
+      },
+      {
+        "name": "kmeans",
+        "kind": "python",
+        "entry": "kmeans",
+        "params": {
+          "max_iter": 100,
+          "n_init": 3
+        }
+      },
+      {
+        "name": "dbscan",
+        "kind": "python",
+        "entry": "dbscan",
+        "params": {
+          "eps": 0.8,
+          "min_samples": 5
+        }
+      },
+      {
+        "name": "birch_algo",
+        "kind": "python",
+        "entry": "birch_algo",
+        "params": {
+          "threshold": 1.0
+        }
+      },
+      {
+        "name": "clarans",
+        "kind": "python",
+        "entry": "clarans",
+        "params": {
+          "numlocal": 2,
+          "maxneigh": 30
+        }
+      },
+      {
+        "name": "consensus",
+        "kind": "python",
+        "entry": "consensus",
+        "params": {
+          "base": [
+            "kmeans",
+            "minibatch_kmeans",
+            "birch_algo"
+          ]
+        }
+      },
+      {
+        "name": "gmm",
+        "kind": "python",
+        "entry": "gmm",
+        "params": {
+          "max_iter": 100,
+          "n_init": 1
+        }
+      },
+      {
+        "name": "agglomerative",
+        "kind": "python",
+        "entry": "agglomerative",
+        "params": {
+          "linkage": "ward"
+        }
+      },
+      {
+        "name": "spectral",
+        "kind": "python",
+        "entry": "spectral",
+        "params": {
+          "n_neighbors": 10
+        }
+      },
+      {
+        "name": "meanshift",
+        "kind": "python",
+        "entry": "meanshift",
+        "params": {
+          "bin_seeding": true
+        }
+      },
+      {
+        "name": "optics",
+        "kind": "python",
+        "entry": "optics",
+        "params": {
+          "min_samples": 5,
+          "xi": 0.05
+        }
+      },
+      {
+        "name": "mri",
+        "kind": "python",
+        "entry": "mri",
+        "params": {
+          "n_neighbors": 15,
+          "n_echoes": 6,
+          "n_gradient_axes": 3
+        }
+      },
+      {
+        "name": "fmm",
+        "kind": "python",
+        "entry": "fmm",
+        "params": {
+          "n_frequencies": 64,
+          "n_scales": 3,
+          "max_iter": 40
+        }
+      },
+      {
+        "name": "lmm",
+        "kind": "python",
+        "entry": "lmm",
+        "params": {}
+      },
+      {
+        "name": "kmeans_trimmed",
+        "kind": "python",
+        "entry": "kmeans_trimmed",
+        "params": {
+          "trim": 0.1,
+          "n_init": 3,
+          "max_iter": 100
+        }
+      },
+      {
+        "name": "clarans_pp",
+        "kind": "python",
+        "entry": "clarans_pp",
+        "params": {
+          "numlocal": 2,
+          "maxneigh": 80
+        }
+      },
+      {
+        "name": "dbscan_auto",
+        "kind": "python",
+        "entry": "dbscan_auto",
+        "params": {
+          "min_samples": 5
+        }
+      },
+      {
+        "name": "meanshift_robust",
+        "kind": "python",
+        "entry": "meanshift_robust",
+        "params": {
+          "trim": 0.2,
+          "quantile": 0.2
+        }
+      },
+      {
+        "name": "pwcc_diverse",
+        "kind": "python",
+        "entry": "pwcc_diverse",
+        "params": {
+          "base": [
+            "kmeans",
+            "spectral",
+            "gmm"
+          ]
+        }
+      }
+    ],
+    "seeds": [
+      1,
+      2
+    ]
+  },
+  "generated_at": "2026-05-17 11:15:26",
   "env": {
     "python": "3.11.15",
-    "platform": "Linux"
-  },
-  "merged_from": [
-    "runs\\all_algos_factorial_plus_expanded",
-    "runs\\chameleon_factorial_backfill",
-    "runs\\large_chameleon",
-    "runs/mri_fmm_lmm_backfill",
-    "runs/nonconvex_dashboard"
-  ],
-  "row_count": 2254,
-  "algorithm_count": 18,
-  "task_count": 113
+    "platform": "Linux-6.18.5-x86_64-with-glibc2.39"
+  }
 }

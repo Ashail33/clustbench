@@ -114,4 +114,27 @@ algorithms:
     entry: lmm
     params: {}
 
+  # Improved variants (see docs/ALGORITHM_ANALYSIS.md "Overcoming the bottlenecks")
+  - name: kmeans_trimmed
+    kind: python
+    entry: kmeans_trimmed
+    params: {trim: 0.10, n_init: 3, max_iter: 100}
+  - name: clarans_pp
+    kind: python
+    entry: clarans_pp
+    params: {numlocal: 2, maxneigh: 80}
+  - name: dbscan_auto
+    kind: python
+    entry: dbscan_auto
+    params: {min_samples: 5}
+  - name: meanshift_robust
+    kind: python
+    entry: meanshift_robust
+    params: {trim: 0.2, quantile: 0.2}
+  - name: pwcc_diverse
+    kind: python
+    entry: pwcc_diverse
+    params:
+      base: [kmeans, spectral, gmm]
+
 seeds: [1, 2]
