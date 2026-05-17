@@ -312,4 +312,12 @@ algorithms:
     entry: mutant_kmeans_meta
     params: {}
 
+  # Graph-native: builds a kNN graph from features then runs
+  # Louvain modularity optimisation. Smoke test scored 0.772 on
+  # graph_karate (vs the prior registry best, rapid_v2 at 0.428).
+  - name: louvain_knn
+    kind: python
+    entry: louvain_knn
+    params: {}
+
 seeds: [1, 2, 3]

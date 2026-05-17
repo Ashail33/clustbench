@@ -65,6 +65,7 @@ EXPECTED_ALGOS = {
     "learned_router_v6c",
     "learned_router_v7",
     "mutant_kmeans_meta",
+    "louvain_knn",
 }
 
 

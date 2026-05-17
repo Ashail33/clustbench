@@ -38,4 +38,5 @@ from . import learned_router_v6  # noqa: F401
 from . import learned_router_v6b  # noqa: F401
 from . import learned_router_v6c  # noqa: F401
 from . import learned_router_v7  # noqa: F401
+from . import louvain_knn  # noqa: F401
 from . import mutant_kmeans_meta  # noqa: F401
