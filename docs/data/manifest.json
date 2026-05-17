@@ -488,6 +488,24 @@
         "params": {}
       },
       {
+        "name": "learned_router_v6b",
+        "kind": "python",
+        "entry": "learned_router_v6b",
+        "params": {}
+      },
+      {
+        "name": "learned_router_v6c",
+        "kind": "python",
+        "entry": "learned_router_v6c",
+        "params": {}
+      },
+      {
+        "name": "learned_router_v7",
+        "kind": "python",
+        "entry": "learned_router_v7",
+        "params": {}
+      },
+      {
         "name": "mutant_kmeans_meta",
         "kind": "python",
         "entry": "mutant_kmeans_meta",
@@ -500,7 +518,7 @@
       3
     ]
   },
-  "generated_at": "2026-05-17 16:00:32",
+  "generated_at": "2026-05-17 17:08:38",
   "env": {
     "python": "3.11.15",
     "platform": "Linux-6.18.5-x86_64-with-glibc2.39"

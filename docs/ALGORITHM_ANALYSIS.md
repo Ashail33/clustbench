@@ -1344,6 +1344,84 @@ is the union of their wins.
    produces wins on some subset, the stacker activates without
    needing to rebuild anything.
 
+### Round 8: stacker over {v3, v6} cracks rank 1; cost-aware probe regresses
+
+Three routers shipped this round — `v6b` (multi-metric probe replacing
+v6's single silhouette), `v6c` (v6b + computational complexity as a
+5th metric), and `v7` (stacker over {v3, v6}). Plus a latent
+recursion-risk fix in v3's blocked-targets list.
+
+**`learned_router_v7` is the new rank 1** across all 41 algorithms,
+mean ARI 0.848 (vs v3's 0.841). The stacker activated on exactly 1
+of 53 tasks — the inverse_pca regime (use_v6_proba=0.600, ARI=0.38)
+— and forwarded to v3 elsewhere. Tiny but real lift over the
+previously-dominant v3.
+
+| pos | algorithm | rank | mean ARI | wall_mean |
+|---|---|---|---|---|
+| **1** | **`learned_router_v7`** | **7.73** | **0.848** | 0.617s |
+| 2 | `learned_router_v3` | 8.16 | 0.841 | 0.478s |
+| 3 | `learned_router_v5` | 8.16 | 0.841 (≡ v3) | 0.799s |
+| 4 | `learned_router_v4` | 8.67 | 0.851 | 0.761s |
+| 5 | `learned_router_v2` | 9.95 | 0.842 | 0.561s |
+| 20 | `learned_router_v6b` | 20.64 | 0.728 | 0.491s |
+| 30 | `learned_router_v6c` | 23.72 | 0.613 | 0.271s |
+| 31 | `learned_router_v6` | 25.15 | 0.633 | 0.233s |
+
+**The stacker thesis is now validated empirically.** v5 over {v3,
+v4} degenerated to always-v3 because v4 was "same-shape, different-
+model" — never strictly beat v3 on any task. v7 over {v3, v6}
+activated on 1/53 tasks because v6 is *genuinely architecturally
+different* (probe-on-data vs fingerprint-similarity) and has a
+regime where it wins.
+
+**The size of the v7 lift is small** (0.848 vs 0.841 = +0.007) but
+it's *real* — the methodology produces a top-1 router from a single
+v6-win signal. If the benchmark grid eventually contains more
+inverse_pca-like regimes (low-rank-in-high-d / probe-favouring
+data), v7's lift over v3 should grow proportionally.
+
+#### v6b vs v6c — the cost-weighting lesson
+
+v6b (4 quality metrics) lands at rank 20 with mean ARI 0.728 — a
+real improvement over v6 (rank 31, 0.633) thanks to kneighbor_purity
+catching the silhouette bias. v6b's wall time is 0.491s (similar to
+v6).
+
+v6c (v6b + cost_inv at 20% weight) drops to rank 30 with mean ARI
+0.613 — actually *worse* than v6 on quality. The smoke test
+predicted this (mean ARI 0.895 → 0.635) and the full benchmark
+confirmed it. v6c is faster (0.271s) but the speed gain doesn't
+pay for itself.
+
+| algorithm | mean ARI | wall_s | ari / (1 + wall) composite |
+|---|---|---|---|
+| `learned_router_v3` | 0.841 | 0.478 | **0.634** |
+| `learned_router_v7` | 0.848 | 0.617 | 0.585 |
+| `learned_router_v6b` | 0.728 | 0.491 | 0.500 |
+| `learned_router_v6c` | 0.613 | 0.271 | 0.481 |
+
+The cost-weighting lesson: **a 20% cost weight is enough to dethrone
+spectral on close-call tasks, even when spectral is the correct
+answer.** A more discriminating cost-weighting (e.g. tiebreaker only,
+or weight-by-budget) would be needed for cost-quality balance to
+beat pure-quality dispatch.
+
+#### What this round taught us
+
+- **Architectural diversity is the prerequisite for stacking.** v4
+  ≠ v3 in implementation but ≡ v3 in dispatch; v6 ≠ v3 in both.
+  Only the latter difference enabled v7 to win.
+- **Multi-metric probes work — better metric choice matters more
+  than counting metrics.** v6b's kneighbor_purity was the key
+  addition (not just more metrics). Adding cost_inv to v6b didn't
+  help quality; it would only help if cost is the explicit
+  optimization target.
+- **The methodology's stopping criterion is approaching.** v7's lift
+  over v3 (+0.007) is the smallest improvement we've measured. The
+  next signal would need to come from enlarging the benchmark
+  again, not from another iteration of routing.
+
 ### What to try first
 
 A pragmatic decision tree from the dashboard data:
