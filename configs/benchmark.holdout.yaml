@@ -1,0 +1,80 @@
+# Held-out evaluation grid. Same algorithms, same dataset shapes as
+# benchmark.paper.demo.yaml, but seeds [11, 12, 13] — completely
+# disjoint from the [1, 2] seeds used to train learned_router. This
+# gives an honest generalisation number for any algorithm that
+# learns from past benchmark data (currently learned_router and its
+# eventual v2/v3 successors).
+#
+# Run with:
+#   clustbench --config configs/benchmark.holdout.yaml --out runs/holdout
+#   python scripts/build_site.py --run runs/holdout --out docs/data_holdout
+#
+# Note: this benchmark deliberately keeps the dataset *shapes*
+# identical so the held-out comparison isolates seed-level
+# generalisation, not regime-level generalisation. A separate config
+# would test on entirely unseen dataset shapes.
+
+datasets:
+  - id: mdcgen
+    n_samples: [500]
+    n_features: [10]
+    k_targets: [3, 5]
+    compactness: [1.0]
+    outliers: [0, 100]
+    noise: [0]
+    density: [1.0]
+  - id: anisotropic
+    n_samples: [500]
+    n_features: [10]
+    k_targets: [3, 5]
+    compactness: [1.0]
+
+algorithms:
+  # Top-ranking originals from the dashboard
+  - name: lmm
+    kind: python
+    entry: lmm
+    params: {}
+  - name: spectral
+    kind: python
+    entry: spectral
+    params: {n_neighbors: 10}
+  - name: pwcc_diverse
+    kind: python
+    entry: pwcc_diverse
+    params:
+      base: [kmeans, spectral, gmm]
+  - name: gmm
+    kind: python
+    entry: gmm
+    params: {max_iter: 100, n_init: 1}
+  - name: parallel_kmeans
+    kind: python
+    entry: parallel_kmeans
+    params: {max_iter: 50, n_init: 2, n_workers: 1}
+
+  # Synthesised algorithms across all versions
+  - name: aura_v3
+    kind: python
+    entry: aura_v3
+    params: {}
+  - name: meta_clusterer_v2
+    kind: python
+    entry: meta_clusterer_v2
+    params: {}
+  - name: rapid
+    kind: python
+    entry: rapid
+    params: {}
+
+  # The learned router(s). v2 added when present in the registry.
+  - name: learned_router
+    kind: python
+    entry: learned_router
+    params: {k_neighbors: 5}
+  - name: learned_router_v2
+    kind: python
+    entry: learned_router_v2
+    params: {k_neighbors: 5}
+
+seeds: [11, 12, 13]

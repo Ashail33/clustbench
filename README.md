@@ -244,6 +244,22 @@ numbers come from `runs/paper_demo` and `runs/scaling`; the diagnosis
 (*what's holding it back*) is the actionable line per algorithm — the
 specific component that would need to change to lift the score.
 
+## Methodology
+
+[`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) distills the v1 → v4
+empirical-iteration loop into a transferable pattern: synthesise from
+primitives that won on each axis, benchmark and identify the specific
+new failure mode, ship a targeted fix as v2, dispatch between v1 and v2
+in v3, then let a learned router (v4) discover the dispatch rule from
+the benchmark data. Three honest caveats are documented at the end —
+v2 doesn't always lift, v3 doesn't always help, and the learned router
+needs held-out evaluation.
+
+For honest generalisation testing, run
+[`configs/benchmark.holdout.yaml`](configs/benchmark.holdout.yaml) —
+same dataset shapes as the demo benchmark but disjoint seeds
+[11, 12, 13] so the learned router can't memorise.
+
 ## Dashboard
 
 `docs/index.html` is a static, dependency-free dashboard (Chart.js from

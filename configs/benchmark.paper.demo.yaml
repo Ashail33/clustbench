@@ -189,5 +189,9 @@ algorithms:
     kind: python
     entry: learned_router
     params: {k_neighbors: 5}
+  - name: learned_router_v2
+    kind: python
+    entry: learned_router_v2
+    params: {k_neighbors: 5}
 
 seeds: [1, 2]
