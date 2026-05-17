@@ -72,6 +72,83 @@
         "compactness": [
           1.0
         ]
+      },
+      {
+        "id": "iris",
+        "n_samples": [
+          150
+        ],
+        "n_features": [
+          4
+        ],
+        "k_targets": [
+          3
+        ],
+        "compactness": [
+          1.0
+        ]
+      },
+      {
+        "id": "wine",
+        "n_samples": [
+          178
+        ],
+        "n_features": [
+          13
+        ],
+        "k_targets": [
+          3
+        ],
+        "compactness": [
+          1.0
+        ]
+      },
+      {
+        "id": "breast_cancer",
+        "n_samples": [
+          500
+        ],
+        "n_features": [
+          10
+        ],
+        "k_targets": [
+          2
+        ],
+        "compactness": [
+          1.0
+        ]
+      },
+      {
+        "id": "digits",
+        "n_samples": [
+          500
+        ],
+        "n_features": [
+          16
+        ],
+        "k_targets": [
+          10
+        ],
+        "compactness": [
+          1.0
+        ]
+      },
+      {
+        "id": "inverse_pca",
+        "n_samples": [
+          400
+        ],
+        "n_features": [
+          50,
+          200
+        ],
+        "k_targets": [
+          3,
+          5
+        ],
+        "compactness": [
+          1.0
+        ]
       }
     ],
     "algorithms": [
@@ -351,10 +428,11 @@
     ],
     "seeds": [
       1,
-      2
+      2,
+      3
     ]
   },
-  "generated_at": "2026-05-17 12:54:34",
+  "generated_at": "2026-05-17 13:16:44",
   "env": {
     "python": "3.11.15",
     "platform": "Linux-6.18.5-x86_64-with-glibc2.39"

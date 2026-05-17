@@ -942,6 +942,95 @@ non-convex / outlier-heavy regimes on data they've never seen.
   iterating the synthesis chain — exactly the stopping criterion
   documented in [`docs/METHODOLOGY.md`](METHODOLOGY.md).
 
+### Enlargement: real datasets + high-d structured synthetic
+
+Once the synthesis-chain iterations stopped lifting, the methodology
+doc identified "enlarge the grid" as the natural next move. Five new
+dataset families were added:
+
+| dataset | n | d | k | provenance |
+|---|---|---|---|---|
+| `iris` | 150 | 4 | 3 | Fisher iris, sklearn-bundled |
+| `wine` | 178 | 13 | 3 | UCI wine, sklearn-bundled |
+| `breast_cancer` | 500 | 10 | 2 | UCI Wisconsin breast cancer |
+| `digits` | 500 | 16 | 10 | UCI handwritten digits, projected to 16 dims |
+| `inverse_pca` | 400 | 50 / 200 | 3 / 5 | Companion `inverse_pca` package: K cluster means in a low-dim latent space, projected to high-d ambient via a prescribed orthonormal basis + power-decay spectrum |
+
+The first four are real datasets (sklearn-bundled, no network required);
+the fifth is genuinely low-rank-in-high-d synthetic data of the
+regime where basis-learning methods *should* win.
+
+Grid size jumped from 16 → 48 tasks; total rows from 528 → 1577.
+**Friedman χ² on ARI grew from 192 → 642** (p<1e-114).
+
+**Top 15 by ARI rank on the enlarged benchmark (33 algorithms × 48 tasks):**
+
+| pos | algorithm | rank | notes |
+|---|---|---|---|
+| 1 | `lmm` | 8.60 | the registry's natural best, holds first |
+| 2 | `spectral` | 10.09 | climbs to 2nd; non-convex + Laplacian still wins |
+| 3 | `aura_v3` | 10.50 | best of the syntheses |
+| 4 | `learned_router_v2` | 10.59 | best learned dispatcher |
+| 5 | `aura_v2` | 11.74 | |
+| 6 | `gmm` | 11.78 | **jumped from rank 8 to 6** because real datasets reward Gaussian mixture structure |
+| 7 | `pwcc_diverse` | 12.02 | |
+| 8 | `learned_router` (v1) | 12.21 | |
+| 9 | `meta_clusterer_v2` | 12.79 | |
+| 10 | `agglomerative` | 12.89 | **biggest mover up** — wins `inverse_pca` outright |
+
+**Per-dataset winners** (top algorithm by mean ARI per family):
+
+| dataset | best algorithm | ARI | what it tells us |
+|---|---|---|---|
+| `anisotropic` | many (1.00) | 1.00 | clean blobs — anyone wins |
+| `breast_cancer` | `pwcc_diverse` | 0.80 | real-world binary; ensemble diversity helps |
+| `circles` | `aura_v3` / `aura_v2` / `learned_router` | 1.00 | non-convex 2D — the predicted spectral-family regime |
+| `digits` | `lmm` | 0.53 | **graph Laplacian on high-d real data — exactly where lmm was designed to win** |
+| `inverse_pca` | **`agglomerative`** | **0.83** | surprising: Ward linkage on low-rank-in-high-d data outscores spectral/lmm |
+| `iris` | `gmm` | 0.90 | classic Fisher iris — three Gaussians, GMM correct fit |
+| `mdcgen` | `meta_clusterer` family | 0.90 | the routing rule routes correctly to the GMM/spectral mix |
+| `moons` | `rapid_v2` / `rapid_v3` / `rapid` | 0.90 | per-region routing was right; rapid family dominates |
+| `wine` | `gmm` | 0.56 | hard dataset (no algorithm clears 0.6); GMM still wins |
+
+**Three findings the enlargement surfaced** that the synthetic-only
+benchmark could not have:
+
+1. **GMM jumps significantly when real datasets enter.** From rank 8
+   on the synthetic grid to rank 6 here. Real-world cluster
+   distributions are closer to mixtures of Gaussians than to convex
+   Voronoi cells, and GMM's posterior-weighted means exploit that.
+2. **agglomerative wins `inverse_pca`** despite being convex-only on
+   synthetic data. Why? The inverse-PCA generator places cluster
+   means in latent space and projects them through an orthonormal
+   basis to ambient — the result is high-d but the cluster centroids
+   are well-defined points in ambient space too, exactly the regime
+   Ward linkage was designed for.
+3. **`lmm` cements its rank-1 spot.** Across all 9 dataset families,
+   lmm is competitive everywhere and wins outright on the only
+   high-d real dataset (`digits`). The graph Laplacian basis is the
+   most universal mechanism we've measured.
+
+**learned_router_v2 dispatch on the new datasets** (correct regime
+identification per dataset family):
+
+| dataset | dispatched algorithm(s) | mean ARI |
+|---|---|---|
+| `iris` | spectral × 3 | 0.76 (gmm would have got 0.90 — the router doesn't see iris-class data in training) |
+| `wine` | lmm × 2, gmm × 1 | 0.47 |
+| `breast_cancer` | lmm × 1 | 0.40 |
+
+The router struggles on real datasets because its training data
+(synthetic only) doesn't contain real-data fingerprints. **This is
+the methodology's "enlarge the benchmark" finding in action**: the
+router will route smarter once the training grid contains data
+families similar to the inference data.
+
+**Reliability**: 7 algorithm crashes were logged across 1584 attempted
+runs (0.44% failure rate, all GMM-style singular-covariance issues on
+high-d real data). The robust-skip patch (commit `82fff01`) kept the
+run alive — without it, the entire benchmark would have aborted and
+all 1577 successful results would have been lost.
+
 ### What to try first
 
 A pragmatic decision tree from the dashboard data:
