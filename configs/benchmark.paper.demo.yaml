@@ -152,4 +152,18 @@ algorithms:
     entry: rapid
     params: {}
 
+  # v2 iterations — fix the specific failure modes observed on v1
+  - name: aura_v2
+    kind: python
+    entry: aura_v2
+    params: {}
+  - name: meta_clusterer_v2
+    kind: python
+    entry: meta_clusterer_v2
+    params: {}
+  - name: rapid_v2
+    kind: python
+    entry: rapid_v2
+    params: {}
+
 seeds: [1, 2]
