@@ -170,6 +170,81 @@
         ]
       },
       {
+        "id": "ts_ecg200",
+        "n_samples": [
+          200
+        ],
+        "n_features": [
+          16
+        ],
+        "k_targets": [
+          2
+        ],
+        "compactness": [
+          1.0
+        ]
+      },
+      {
+        "id": "ts_trace",
+        "n_samples": [
+          200
+        ],
+        "n_features": [
+          16
+        ],
+        "k_targets": [
+          4
+        ],
+        "compactness": [
+          1.0
+        ]
+      },
+      {
+        "id": "ts_synth",
+        "n_samples": [
+          200
+        ],
+        "n_features": [
+          16
+        ],
+        "k_targets": [
+          3
+        ],
+        "compactness": [
+          1.0
+        ]
+      },
+      {
+        "id": "graph_karate",
+        "n_samples": [
+          34
+        ],
+        "n_features": [
+          16
+        ],
+        "k_targets": [
+          2
+        ],
+        "compactness": [
+          1.0
+        ]
+      },
+      {
+        "id": "graph_sbm",
+        "n_samples": [
+          200
+        ],
+        "n_features": [
+          16
+        ],
+        "k_targets": [
+          4
+        ],
+        "compactness": [
+          1.0
+        ]
+      },
+      {
         "id": "inverse_pca",
         "n_samples": [
           400
@@ -518,7 +593,7 @@
       3
     ]
   },
-  "generated_at": "2026-05-17 17:08:38",
+  "generated_at": "2026-05-17 17:36:51",
   "env": {
     "python": "3.11.15",
     "platform": "Linux-6.18.5-x86_64-with-glibc2.39"
