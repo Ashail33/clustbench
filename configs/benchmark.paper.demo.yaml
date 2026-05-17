@@ -60,6 +60,23 @@ datasets:
     k_targets: [10]
     compactness: [1.0]
 
+  # Gap-finder-proposed datasets — regimes the registry was missing,
+  # surfaced by scripts/find_gaps.py. The two below target moderately
+  # convex clusters and high-outlier-fraction regimes (no algorithm in
+  # the registry scored above 0.65 in the theoretical predictions).
+  - id: anisotropic
+    n_samples: [1000]
+    n_features: [2]
+    k_targets: [2]
+    compactness: [1.25]
+  - id: extreme_outliers
+    n_samples: [1000]
+    n_features: [10]
+    k_targets: [5]
+    compactness: [1.25]
+    outliers: [250]
+    outlier_extremity: [1.8]
+
   # High-ambient-dim synthetic data with controlled low-intrinsic-dim
   # structure (powered by the companion inverse_pca package). Tests
   # whether basis-learning methods (spectral, lmm) discover the latent
@@ -228,5 +245,17 @@ algorithms:
     kind: python
     entry: learned_router_v2
     params: {k_neighbors: 5}
+  - name: learned_router_v3
+    kind: python
+    entry: learned_router_v3
+    params: {k_neighbors: 5}
+
+  # Mutator-proposed crossover: kmeans + meta_clusterer_v2 hybrid.
+  # The algorithm_mutator predicted ARI 0.926 (+0.138 over best
+  # existing); the benchmark below will tell us how close we get.
+  - name: mutant_kmeans_meta
+    kind: python
+    entry: mutant_kmeans_meta
+    params: {}
 
 seeds: [1, 2, 3]
