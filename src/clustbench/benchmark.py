@@ -61,6 +61,7 @@ def run_task(
     outliers: int = 0,
     noise: int = 0,
     density: float = 1.0,
+    outlier_extremity: float = 1.0,
 ):
     gen = DATASETS[dataset_id]
     X, y = gen(
@@ -73,6 +74,7 @@ def run_task(
             outliers=outliers,
             noise=noise,
             density=density,
+            outlier_extremity=outlier_extremity,
         )
     )
     task_stub = dict(
@@ -85,13 +87,14 @@ def run_task(
         outliers=outliers,
         noise=noise,
         density=density,
+        outlier_extremity=outlier_extremity,
     )
     artifacts = outdir / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
     records = []
     task_suffix = (
         f"{dataset_id}_n{n}_d{d}_k{k}_c{compactness}"
-        f"_o{outliers}_z{noise}_g{density}_s{seed}"
+        f"_o{outliers}_z{noise}_g{density}_x{outlier_extremity}_s{seed}"
     )
     for cfg in algos:
         if cfg.kind == "python":

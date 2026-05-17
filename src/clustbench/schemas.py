@@ -45,6 +45,9 @@ class StepRecord(BaseModel):
     outliers: int | None = None
     noise: int | None = None
     density: float | None = None
+    outlier_extremity: float | None = None
+    dataset_source: str | None = None
+    dataset_domain: str | None = None
     step_idx: int
     cost: float
     delta_cost: float | None = None
@@ -64,6 +67,9 @@ class Record(BaseModel):
     outliers: int | None = None
     noise: int | None = None
     density: float | None = None
+    outlier_extremity: float | None = None
+    dataset_source: str | None = None
+    dataset_domain: str | None = None
     wall_time_s: float
     rss_delta_mb: float
     cpu_user_s: float

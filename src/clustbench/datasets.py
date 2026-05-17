@@ -25,21 +25,29 @@ class DataSpec:
     outliers: int = 0
     noise: int = 0
     density: float = 1.0
+    # How far outliers are placed from the cluster envelope. 1.0 reproduces
+    # the original ``_inject_outliers`` behaviour (uniform box at 1.5x data
+    # range); higher values move outliers exponentially further out.
+    outlier_extremity: float = 1.0
 
 
-def _inject_outliers(X: np.ndarray, y: np.ndarray, n_outliers: int, rng: np.random.Generator):
+def _inject_outliers(X: np.ndarray, y: np.ndarray, n_outliers: int, rng: np.random.Generator,
+                     extremity: float = 1.0):
     """Append uniform-random outliers far from the cluster envelope.
 
-    Outliers are drawn from a uniform box that sits at 1.5x the data range,
-    so they're well outside the cluster cloud. Their ground-truth label is
-    ``-1`` (the de-facto noise label used by DBSCAN-style algorithms).
+    Outliers are drawn from a uniform box that sits at ``extremity * 1.5x``
+    the data range, so they're well outside the cluster cloud. Their
+    ground-truth label is ``-1`` (the de-facto noise label used by
+    DBSCAN-style algorithms). ``extremity=1.0`` reproduces the original
+    behaviour; ``extremity=3.0`` puts outliers 3x further from the data.
     """
     if n_outliers <= 0:
         return X, y
     lo, hi = X.min(axis=0), X.max(axis=0)
     span = (hi - lo) + 1e-9
-    box_lo = lo - 0.5 * span
-    box_hi = hi + 0.5 * span
+    pad = 0.5 * float(extremity)
+    box_lo = lo - pad * span
+    box_hi = hi + pad * span
     extra = rng.uniform(box_lo, box_hi, size=(n_outliers, X.shape[1])).astype(X.dtype)
     extra_y = -np.ones(n_outliers, dtype=y.dtype)
     return np.vstack([X, extra]), np.concatenate([y, extra_y])
@@ -127,7 +135,7 @@ def gen_mdcgen(spec: DataSpec):
     X, y = X[perm], y[perm]
 
     X, y = _inject_noise(X, y, spec.noise, rng)
-    X, y = _inject_outliers(X, y, spec.outliers, rng)
+    X, y = _inject_outliers(X, y, spec.outliers, rng, extremity=getattr(spec, "outlier_extremity", 1.0))
 
     # Final shuffle so cluster, noise and outlier rows are interleaved.
     perm = rng.permutation(len(X))
@@ -269,7 +277,7 @@ def _from_sklearn_loader(loader, spec: DataSpec):
     y = y_full.astype(np.int64)
 
     X, y = _inject_noise(X, y, spec.noise, rng)
-    X, y = _inject_outliers(X, y, spec.outliers, rng)
+    X, y = _inject_outliers(X, y, spec.outliers, rng, extremity=getattr(spec, "outlier_extremity", 1.0))
     perm = rng.permutation(len(X))
     return X[perm].astype(np.float32), y[perm]
 
@@ -359,7 +367,7 @@ def gen_inverse_pca(spec: DataSpec):
     X, y = X[perm], y[perm]
 
     X, y = _inject_noise(X, y, spec.noise, rng)
-    X, y = _inject_outliers(X, y, spec.outliers, rng)
+    X, y = _inject_outliers(X, y, spec.outliers, rng, extremity=getattr(spec, "outlier_extremity", 1.0))
     perm = rng.permutation(len(X))
     return X[perm].astype(np.float32), y[perm]
 
@@ -404,3 +412,19 @@ DATASETS = {
     "digits": gen_digits,
     "inverse_pca": gen_inverse_pca,
 }
+
+# Wire in the shape generators from datasets_shapes.py.
+from .datasets_shapes import SHAPE_DATASETS  # noqa: E402
+DATASETS.update(SHAPE_DATASETS)
+
+# Wire in the curated real-world datasets from datasets_real.py. These
+# include sklearn-bundled (iris/wine/breast_cancer/digits/olivetti_faces)
+# and OpenML fetches (glass/vehicle/segment/yeast/ecoli) that fall back
+# to a synthetic shape when offline. The metadata dict is exposed for
+# the dashboard / analysis.
+from .datasets_real import REAL_DATASETS, REAL_METADATA  # noqa: E402
+# Only register real-dataset ids that aren't already in DATASETS (so the
+# original sklearn loaders here keep their precedence). The OpenML
+# additions (glass, vehicle, ...) come along for free.
+for _name, _gen in REAL_DATASETS.items():
+    DATASETS.setdefault(_name, _gen)

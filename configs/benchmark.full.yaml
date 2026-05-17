@@ -1,0 +1,225 @@
+# Comprehensive experimental grid. Covers every axis the methodology
+# doc identifies as worth varying (shape, mix, noise, density, outlier
+# ratio, outlier extremity, k, d, n, real-world data) while keeping
+# the cross-product tractable: each axis is varied in *focused*
+# sub-grids rather than one massive full-factorial.
+#
+# Run locally:
+#   clustbench --config configs/benchmark.full.yaml --out runs/full
+# Then refresh the dashboard:
+#   python scripts/build_site.py --run runs/full --out docs/data
+
+datasets:
+  # =========================================================
+  # Cluster-shape coverage (one entry per shape; non-convex
+  # shapes get the dimensions they were designed for).
+  # =========================================================
+  - id: mdcgen
+    n_samples: [500]
+    n_features: [10]
+    k_targets: [3, 5, 10]
+    compactness: [1.0]
+  - id: anisotropic
+    n_samples: [500]
+    n_features: [10]
+    k_targets: [3, 5]
+    compactness: [1.0]
+  - id: moons
+    n_samples: [500]
+    n_features: [2, 8]
+    k_targets: [2]
+    compactness: [0.5, 1.0]
+  - id: circles
+    n_samples: [500]
+    n_features: [2, 8]
+    k_targets: [2]
+    compactness: [0.5, 1.0]
+  - id: spiral
+    n_samples: [500]
+    n_features: [2]
+    k_targets: [3, 5]
+    compactness: [0.5, 1.0]
+  - id: swiss_roll
+    n_samples: [500]
+    n_features: [3]
+    k_targets: [3, 5]
+    compactness: [1.0]
+  - id: s_curve
+    n_samples: [500]
+    n_features: [3]
+    k_targets: [3]
+    compactness: [1.0]
+  - id: rings
+    n_samples: [500]
+    n_features: [2]
+    k_targets: [3]
+    compactness: [0.5, 1.0]
+  - id: varying_density
+    n_samples: [500]
+    n_features: [10]
+    k_targets: [3, 5]
+    compactness: [1.0]
+  - id: imbalanced
+    n_samples: [500]
+    n_features: [10]
+    k_targets: [3, 5]
+    compactness: [1.0]
+  - id: mixed_shapes
+    n_samples: [500]
+    n_features: [2, 10]
+    k_targets: [5]
+    compactness: [1.0]
+
+  # =========================================================
+  # Outlier-ratio + extremity stress (mdcgen only — the other
+  # shapes don't need a separate outlier sweep).
+  # =========================================================
+  - id: mdcgen
+    n_samples: [500]
+    n_features: [10]
+    k_targets: [3]
+    compactness: [1.0]
+    outliers: [50, 100, 200]
+    outlier_extremity: [1.0, 5.0, 20.0]
+
+  # =========================================================
+  # Noise ratio (in-cloud noise) + density variation.
+  # =========================================================
+  - id: mdcgen
+    n_samples: [500]
+    n_features: [10]
+    k_targets: [3]
+    compactness: [1.0]
+    noise: [25, 100]
+    density: [0.1, 1.0]
+
+  # =========================================================
+  # Dimension / sample-size scaling (mdcgen sweep).
+  # =========================================================
+  - id: mdcgen
+    n_samples: [200, 500, 1500]
+    n_features: [4, 25, 100]
+    k_targets: [3]
+    compactness: [1.0]
+
+  # =========================================================
+  # Low-rank-in-high-d (inverse_pca companion).
+  # =========================================================
+  - id: inverse_pca
+    n_samples: [400]
+    n_features: [50, 200]
+    k_targets: [3, 5]
+    compactness: [1.0]
+
+  - id: extreme_outliers
+    n_samples: [500]
+    n_features: [10]
+    k_targets: [3]
+    compactness: [1.0]
+    outliers: [100]
+    outlier_extremity: [3.0, 10.0]
+
+  # =========================================================
+  # Real datasets — sklearn-bundled + OpenML fetches.
+  # =========================================================
+  - id: iris
+    n_samples: [150]
+    n_features: [4]
+    k_targets: [3]
+    compactness: [1.0]
+  - id: wine
+    n_samples: [178]
+    n_features: [13]
+    k_targets: [3]
+    compactness: [1.0]
+  - id: breast_cancer
+    n_samples: [569]
+    n_features: [30]
+    k_targets: [2]
+    compactness: [1.0]
+  - id: digits
+    n_samples: [500]
+    n_features: [16]
+    k_targets: [10]
+    compactness: [1.0]
+  - id: olivetti_faces
+    n_samples: [400]
+    n_features: [50]
+    k_targets: [10]
+    compactness: [1.0]
+  - id: glass
+    n_samples: [214]
+    n_features: [9]
+    k_targets: [6]
+    compactness: [1.0]
+  - id: vehicle
+    n_samples: [846]
+    n_features: [18]
+    k_targets: [4]
+    compactness: [1.0]
+  - id: segment
+    n_samples: [1500]
+    n_features: [19]
+    k_targets: [7]
+    compactness: [1.0]
+  - id: yeast
+    n_samples: [1484]
+    n_features: [8]
+    k_targets: [10]
+    compactness: [1.0]
+  - id: ecoli
+    n_samples: [336]
+    n_features: [7]
+    k_targets: [8]
+    compactness: [1.0]
+
+algorithms:
+  # Convex baselines
+  - {name: kmeans, kind: python, entry: kmeans, params: {max_iter: 100, n_init: 3}}
+  - {name: minibatch_kmeans, kind: python, entry: minibatch_kmeans, params: {batch_size: 200, max_iter: 100}}
+  - {name: parallel_kmeans, kind: python, entry: parallel_kmeans, params: {max_iter: 50, n_init: 2, n_workers: 1}}
+  - {name: birch_algo, kind: python, entry: birch_algo, params: {threshold: 1.0}}
+  - {name: clarans, kind: python, entry: clarans, params: {numlocal: 2, maxneigh: 30}}
+
+  # Hierarchical / density
+  - {name: agglomerative, kind: python, entry: agglomerative, params: {linkage: ward}}
+  - {name: dbscan, kind: python, entry: dbscan, params: {eps: 0.8, min_samples: 5}}
+  - {name: optics, kind: python, entry: optics, params: {min_samples: 5, xi: 0.05}}
+
+  # EM / mixture
+  - {name: gmm, kind: python, entry: gmm, params: {max_iter: 100, n_init: 1, reg_covar: 1e-4}}
+  - {name: spectral, kind: python, entry: spectral, params: {n_neighbors: 10}}
+  - {name: meanshift, kind: python, entry: meanshift, params: {bin_seeding: true}}
+
+  # Research mixture / paper-taxonomy
+  - {name: pwcc, kind: python, entry: pwcc, params: {base: [kmeans, minibatch_kmeans, birch_algo]}}
+  - {name: s5c, kind: python, entry: s5c, params: {sample_size: 200, n_nonzero_coefs: 5}}
+  - {name: chameleon, kind: python, entry: chameleon, params: {}}
+  - {name: mri, kind: python, entry: mri, params: {n_neighbors: 15, n_echoes: 6, n_gradient_axes: 3}}
+  - {name: fmm, kind: python, entry: fmm, params: {n_frequencies: 64, n_scales: 3, max_iter: 40}}
+  - {name: lmm, kind: python, entry: lmm, params: {}}
+  - {name: consensus, kind: python, entry: consensus, params: {base: [kmeans, minibatch_kmeans, birch_algo]}}
+
+  # Improvements
+  - {name: kmeans_trimmed, kind: python, entry: kmeans_trimmed, params: {trim: 0.1, n_init: 3, max_iter: 100}}
+  - {name: clarans_pp, kind: python, entry: clarans_pp, params: {numlocal: 2, maxneigh: 80}}
+  - {name: dbscan_auto, kind: python, entry: dbscan_auto, params: {min_samples: 5}}
+  - {name: meanshift_robust, kind: python, entry: meanshift_robust, params: {trim: 0.2, quantile: 0.2}}
+  - {name: pwcc_diverse, kind: python, entry: pwcc_diverse, params: {base: [kmeans, spectral, gmm]}}
+
+  # Synthesised (v1 → v3)
+  - {name: aura, kind: python, entry: aura, params: {}}
+  - {name: meta_clusterer, kind: python, entry: meta_clusterer, params: {}}
+  - {name: rapid, kind: python, entry: rapid, params: {}}
+  - {name: aura_v2, kind: python, entry: aura_v2, params: {}}
+  - {name: meta_clusterer_v2, kind: python, entry: meta_clusterer_v2, params: {}}
+  - {name: rapid_v2, kind: python, entry: rapid_v2, params: {}}
+  - {name: aura_v3, kind: python, entry: aura_v3, params: {}}
+  - {name: meta_clusterer_v3, kind: python, entry: meta_clusterer_v3, params: {}}
+  - {name: rapid_v3, kind: python, entry: rapid_v3, params: {}}
+
+  # Learned routers
+  - {name: learned_router, kind: python, entry: learned_router, params: {k_neighbors: 5}}
+  - {name: learned_router_v2, kind: python, entry: learned_router_v2, params: {k_neighbors: 5}}
+
+seeds: [1, 2]
