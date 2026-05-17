@@ -668,6 +668,85 @@ v2 of each synthesis based on the data signature, OR an explicit
 choose-the-better-of-v1-and-v2 wrapper that runs both on a subsample
 and picks the silhouette winner.
 
+### Iteration: v3 (meta-of-meta routing between v1 and v2)
+
+Every v2 closed its targeted bottleneck but opened a new one. The
+natural next step is a *meta-of-meta* layer: dispatch between v1 and
+v2 of each synthesis based on a cheap data signature, so the right
+version runs per regime instead of one fixed choice across all data.
+Three more parallel worktree-isolated agents built v3:
+
+| algo | v3 dispatch rule |
+|---|---|
+| `aura_v3` | effective rank of the embedding's column std-devs. `effective_rank ≥ 2` → v2 path (z-scored k-means); `< 2` → v1 path (raw GMM). |
+| `meta_clusterer_v3` | runs v1 and v2 routers in parallel. Agree → route once. Disagree → fit both candidates on a 20% subsample and pick the silhouette winner. |
+| `rapid_v3` | LOF outlier-fraction estimate up front. `outlier_frac > 5%` → v2 path (stage-0 LOF prefilter); else → v1 path. |
+
+**Empirical v1 vs v2 vs v3 (mean ARI across all 16 tasks):**
+
+| algorithm | v1 ARI | v2 ARI | v3 ARI | Δ(v3 - v1) | rank (of 31) |
+|---|---|---|---|---|---|
+| `aura_v3` | 0.733 | 0.764 | **0.875** | **+0.142** | **2 / 31** |
+| `meta_clusterer_v3` | 0.774 | 0.879 | 0.827 | +0.053 | 8 / 31 |
+| `rapid_v3` | 0.843 | 0.774 | 0.843 | +0.001 | 7 / 31 |
+
+For comparison the top 10 across the whole registry:
+
+| pos | algorithm | rank |
+|---|---|---|
+| 1 | `lmm` | 7.53 |
+| **2** | **`aura_v3`** ← new | **8.78** |
+| 3 | `spectral` | 9.25 |
+| 4 | `meta_clusterer_v2` | 10.72 |
+| 5 | `rapid` (v1) | 11.03 |
+| 6 | `pwcc_diverse` | 11.09 |
+| 7 | `rapid_v3` | 11.16 |
+| 8 | `meta_clusterer_v3` | 11.22 |
+| 9 | `meta_clusterer` (v1) | 11.72 |
+| 10 | `gmm` | 12.47 |
+
+**Per-shape ARI for the v3s:**
+
+| algorithm | mdcgen | anisotropic | moons | circles |
+|---|---|---|---|---|
+| `aura_v3` | 0.86 | 1.00 | **0.55** | **1.00** |
+| `meta_clusterer_v3` | 0.90 | 1.00 | 0.42 | 0.58 |
+| `rapid_v3` | 0.77 | 1.00 | 0.85 | 0.84 |
+
+**What this round taught us about meta-of-meta dispatch:**
+
+- **`aura_v3` is the unambiguous win — second place in the registry**,
+  passing `spectral`, `meta_clusterer_v2`, and every other algorithm
+  except `lmm`. The effective-rank dispatch successfully picks GMM
+  for moons (1D-effective embedding) and z-scored k-means for circles
+  (2D-effective embedding). Both predecessors' weaknesses are gone.
+  *Lesson: meta-dispatch is powerful when v1 and v2 are genuinely
+  complementary on identifiable data regimes.*
+- **`meta_clusterer_v3` slightly regressed (-0.052 from v2).** The
+  silhouette probe sometimes overrules v2 when v2 alone was already
+  correct, e.g. on circles v2 routes to spectral and gets ARI 1.00,
+  but v3's probe occasionally picks v1's `pwcc_diverse` because the
+  subsample silhouette doesn't always track ARI. *Lesson: when one
+  version is already correct, probing introduces noise. The right
+  application of meta-dispatch is only when neither version dominates
+  globally.*
+- **`rapid_v3` matched v1 exactly (Δ +0.001).** v2 doesn't have any
+  data regime where it beats v1 in this benchmark grid, so the
+  conditional dispatch ends up always picking v1. *Lesson: meta-
+  dispatch can't help if one version dominates everywhere; the dispatch
+  rule needs an actual quality difference to arbitrate.*
+
+**The meta-pattern across three iterations.** v2 fixes the targeted
+bottleneck but opens a new failure mode. v3 dispatches between v1 and
+v2 to capture each version's regime. v3 wins when v1 and v2 are
+genuinely complementary (AURA), is neutral when one version
+dominates (RAPID), and slightly loses when the dispatch criterion
+itself is noisier than the v2 it's trying to refine (META). This is
+the natural empirical limit of binary-meta-dispatch — the next
+generation would learn the dispatch rule from past `(data, ARI)`
+pairs across the full benchmark, which is exactly the training data
+the trajectory layer keeps producing.
+
 ### What to try first
 
 A pragmatic decision tree from the dashboard data:

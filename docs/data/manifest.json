@@ -313,6 +313,24 @@
         "kind": "python",
         "entry": "rapid_v2",
         "params": {}
+      },
+      {
+        "name": "aura_v3",
+        "kind": "python",
+        "entry": "aura_v3",
+        "params": {}
+      },
+      {
+        "name": "meta_clusterer_v3",
+        "kind": "python",
+        "entry": "meta_clusterer_v3",
+        "params": {}
+      },
+      {
+        "name": "rapid_v3",
+        "kind": "python",
+        "entry": "rapid_v3",
+        "params": {}
       }
     ],
     "seeds": [
@@ -320,7 +338,7 @@
       2
     ]
   },
-  "generated_at": "2026-05-17 11:51:04",
+  "generated_at": "2026-05-17 12:28:19",
   "env": {
     "python": "3.11.15",
     "platform": "Linux-6.18.5-x86_64-with-glibc2.39"
