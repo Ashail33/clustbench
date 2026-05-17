@@ -370,9 +370,115 @@ exactly the kind of state-action data needed to learn those replacements:
   is a natural fit: a learned step-size schedule or basis-component
   selector could cut EM iterations dramatically.
 
-The dashboard's trajectory viewer is the rawest form of that training
-data. The natural next step is a notebook in `notebooks/` that trains
-an autoencoder over the serialized state column and a value model
-over `(state, action) → delta_cost`, then plays the learned policy
-back against the trajectory dataset to measure how many steps it
-saves vs. the baseline algorithm.
+---
+
+## Overcoming the bottlenecks
+
+The diagnoses above all reduce to six recurring failure modes. Each
+one has a small menu of concrete fixes, ordered from cheapest (a
+config change) to most ambitious (a learned component on top of the
+trajectory layer).
+
+### 1. Outlier sensitivity
+
+*Affects: kmeans, parallel_kmeans, minibatch_kmeans, agglomerative-Ward,
+clarans, meanshift, chameleon, lmm.*
+
+The shared root cause is that each of these algorithms computes a
+*mean* (or a sum) at some step, and the mean has unbounded influence
+per point. GMM is the natural counter-example — its mean update is
+weighted by posterior responsibility, so an outlier gets near-zero
+weight.
+
+| fix | applies to | effort | expected lift |
+|---|---|---|---|
+| Replace mean with median or medoid | kmeans → k-medians / k-medoids (CLARANS variant); agglomerative-Ward → average linkage | one-line swap | recovers most of the -32% drop on kmeans-family |
+| Trimmed-mean update (drop top α% by distance per step) | every centroid-based method | ~10 lines per algo | ~half the drop, no medoid cost |
+| Outlier pre-filter (LOF, IsolationForest, DBSCAN-as-detector) then cluster | every algo | independent step | depends on detector recall |
+| Posterior-weighted update | borrow GMM's trick — soft assignment in the M-step | algorithmic | matches GMM (-15% instead of -30%) |
+| Bandwidth estimator: trimmed sample | **meanshift specifically** — fixes the -59% collapse | one line | most of the meanshift gap |
+| Initialise away from outliers | clarans / kmeans++ | one line | fixes CLARANS's -40% surprise |
+
+### 2. Non-convex shape failure
+
+*Affects: every centroid-based method (kmeans, parallel_kmeans,
+minibatch_kmeans, gmm, agglomerative-Ward, birch, pwcc, consensus,
+fmm).*
+
+| fix | applies to | effort | expected lift |
+|---|---|---|---|
+| **Use the right tool**: spectral / lmm / chameleon / gmm | choose by data | none — config change | spectral & lmm: 0 → 1.00 on circles |
+| Pre-embed with diffusion maps / Laplacian eigenmaps / UMAP / kernel PCA, then run a fast convex method | every centroid-based algo | one preprocessing step | typically lifts moons from 0.26 → 0.6+ |
+| Replace L2 with a kernel (kernel k-means) | kmeans-family | a new algo class | equivalent to spectral but without the eigen step |
+| Mix a non-convex-capable base into the consensus | PWCC — currently 3 k-means-style bases | one config line in `base: [...]` | PWCC starts solving circles |
+| Use a graph Laplacian basis (LMM-style) | any EM mixture (FMM → LMM) | already in the repo | what LMM does — solves circles |
+
+### 3. Quadratic scaling
+
+*Affects: agglomerative (1.33), chameleon (1.45), lmm (1.45),
+spectral (0.83 at this n; → 2 at higher n), optics (~2), meanshift
+(0.77; → 2 at higher n), mri (1.78).*
+
+| fix | applies to | effort | expected lift |
+|---|---|---|---|
+| **Spatial indices** (ball-tree / kd-tree / HNSW) for neighbour queries | DBSCAN, OPTICS, meanshift, chameleon | sklearn already supports `algorithm="ball_tree"` | linear-ish up to high d |
+| **Nyström approximation** of the Laplacian / kernel | spectral, lmm | ~50 LOC | O(n·m²) where m=samples |
+| **Sampling + projection** (S5C's strategy applied elsewhere) | agglomerative, spectral, gmm | wrap-around | O(m³) on the sample, O(n) projection |
+| **Mini-batch / streaming variants** | gmm → online GMM, agglomerative → BIRCH | use BIRCH/MBK first to compress | n → L ≪ n |
+| **Coreset construction** (constant-factor approx) | kmeans-family, gmm | published algorithms (Bachem, Lucic, Krause) | provable bounds, linear |
+| **Reduce ambient dim first** (PCA, UMAP) | every algo with d in inner loop | preprocessing | gmm's d² → m² for m ≪ d |
+| **MapReduce / multi-process** | already done for `parallel_kmeans`; same shape works for GMM, BIRCH | replicate the pattern | k× speedup on k cores |
+
+### 4. Hyperparameter brittleness
+
+*Affects: DBSCAN (eps), OPTICS (min_samples, xi), BIRCH (threshold),
+S5C (sample_size, n_nonzero_coefs), meanshift (bandwidth), spectral
+(n_neighbors), FMM/LMM/AMM (basis size, regularisation).*
+
+| fix | applies to | effort |
+|---|---|---|
+| **k-distance plot** to pick eps (Ester 1996 §4.2) | DBSCAN | one helper function |
+| **HDBSCAN** — parameter-free DBSCAN variant | replaces DBSCAN | `pip install hdbscan` + a wrapper |
+| **Silverman's rule on trimmed sample** for bandwidth | meanshift | one line |
+| **Auto-threshold by silhouette sweep** | BIRCH, S5C | wrap-around |
+| **Bayesian optimization over hyperparameter space** | any algo | optuna / scikit-optimize integration |
+| **Stability selection** (cluster ensemble across hyperparameters, pick the most stable partition) | any algo | medium |
+
+### 5. Local-minimum search
+
+*Affects: clarans (random local search), kmeans (random init), GMM
+(EM is a local optimiser), FMM/LMM/AMM (same).*
+
+| fix | applies to | effort |
+|---|---|---|
+| **k-means++ initialisation** | already used for kmeans, missing for CLARANS | one line — closes most of CLARANS's gap |
+| **n_init restarts** | already done for kmeans, GMM; not for CLARANS | n_init in config |
+| **Simulated annealing / tabu** instead of greedy swap | clarans | medium rewrite |
+| **Warm-start from a cheaper algo** (kmeans → CLARANS, BIRCH → kmeans) | any iterative algo | wire one to the next |
+| **Learned proposal distribution** (state-action research) | clarans, GMM-EM, FMM-EM, LMM-EM | needs trajectory data → policy model |
+
+### 6. Wrong data assumption
+
+*Affects: S5C (assumes union-of-subspaces; fails on blobs), MRI
+(relaxation signature is lossy for sharp boundaries), FMM (random
+basis is shape-agnostic), DBSCAN at default eps in d=10 (density
+never reached).*
+
+| fix | applies to |
+|---|---|
+| **Don't run them on the wrong data** — match algorithm to data structure (the lookup table in [Cross-cutting findings](#cross-cutting-findings) below) |
+| **Test the assumption first**: estimate intrinsic dim before S5C; estimate local geometry before MRI; check density before DBSCAN |
+| **Replace the fixed component with a learned one** — FMM → LMM (graph Laplacian basis) → AMM (autoencoder basis). This is already the natural progression in the repo |
+| **Combine algorithms**: use a density-based algo to find dense regions, then run a centroid-based algo within each region |
+
+### What to try first
+
+A pragmatic decision tree from the dashboard data:
+
+1. **Big data, convex clusters, need k known** → `parallel_kmeans` (slope 1.23, ARI 1.00 clean). Add `n_workers > 1` for real parallelism.
+2. **Big data, convex, k unknown** → `birch_algo` then a cheap final k-means on the leaf CFs. Birch is the only honest-linear algo at quality.
+3. **Suspected non-convex shape** → `spectral` first; `lmm` if you want soft EM-style assignments; `chameleon` if k is uncertain.
+4. **Outlier-heavy data** → `gmm` (most robust empirically) or robust k-medoids; **never meanshift with the default bandwidth**.
+5. **High-d sparse data (text, gene expression)** → `amm` (autoencoder basis) or LMM with `n_neighbors` tuned per d.
+6. **Don't know what the data looks like** → run `pwcc` with a *diverse* ensemble: `[kmeans, spectral, gmm]` instead of three k-means variants. The weighted vote gives you robustness across regimes.
+7. **Want to push the research direction** → start collecting trajectories for the iterative algos. Every per-step record in `artifacts/trajectory_*.parquet` is training data for a learned step proposer or value model that, in principle, lets a "smarter version of the same algorithm" run with fewer iterations. The natural first notebook in `notebooks/` is an autoencoder over the serialized state column plus a value model over `(state, action) → delta_cost`, then playing the learned policy back against the trajectory dataset to measure step savings.
