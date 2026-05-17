@@ -1275,6 +1275,75 @@ current best learned dispatcher.
 The benchmark itself still has 36 algorithms × 52 tasks; v3 at rank
 1 is the empirical answer for what to dispatch to right now.
 
+### Round 7: probe-based v6 and the stacker that found one win
+
+Two routers shipped this round: v5 (stacker over v3+v4) and v6
+(subsample-probe dispatcher). v5 degenerated to always-v3 because v4
+never strictly beat v3 on any task (a real per-task dominance result,
+not a bug). v6 was designed to break the v3 monopoly by making
+qualitatively different picks via actual data response — instead of
+fingerprint similarity to past tasks, run a few candidate algorithms
+on a small subsample and dispatch by the highest silhouette.
+
+| pos | algorithm | mean ARI |
+|---|---|---|
+| **1** | **`learned_router_v5`** | **0.855** (tied with v3, picks v3 always) |
+| **1** | **`learned_router_v3`** | **0.855** |
+| 3 | `learned_router_v2` | 0.838 |
+| 4 | `learned_router` (v1) | 0.821 |
+| 5 | `learned_router_v4` | 0.836 |
+| 6 | `lmm` | — |
+| ... | | |
+| 28 | `learned_router_v6` | **0.633** |
+
+**v6 is mid-pack rank 28.** Silhouette as the probe metric is biased
+toward compact partitions, so v6 over-dispatches to `dbscan_auto`
+(24/54 tasks) and `kmeans` (18/54). `dbscan_auto` often wins the
+probe but collapses on full data because its auto-eps from the
+subsample doesn't generalise.
+
+**But v6 has one genuine win.** Per-task comparison across 52
+shared tasks:
+
+| outcome | count |
+|---|---|
+| v6 wins by ≥ 0.02 ARI | **1** |
+| ties (within ± 0.02) | 10 |
+| v3 wins by ≥ 0.02 ARI | 41 |
+
+The one v6 win: `inverse_pca, seed=3` — v3's pick got ARI 0.00
+(complete failure), v6's probe dispatch found something at ARI 0.38.
+Low-rank-in-high-d data is exactly the regime where past-task
+fingerprints don't help but actually probing reveals what works.
+
+**The stacker thesis is now testable.** v5 over {v3, v4} degenerated
+because v4 never won; a v7 over {v3, v6} would activate on this one
+case and improve the stacker's mean ARI by a tiny but real amount.
+More generally, **probe-based and fingerprint-based routers are
+complementary**: they fail on different tasks. The combined ceiling
+is the union of their wins.
+
+**Three findings sharpened in this round:**
+
+1. **v3's per-task dominance over v4 is the architecturally-distinct
+   version's fault, not a stacker design flaw.** v4 was "same shape,
+   different model" (kNN → GradientBoost on the same features).
+   v6 is genuinely different (probe response vs fingerprint
+   similarity), and even though it loses overall, it has the win
+   on a task v3 misses.
+
+2. **Silhouette is a biased probe metric on non-convex data.** It
+   prefers compact partitions, mistakenly favouring kmeans on
+   moons/circles where the right answer is spectral. A v7 probe
+   should use multiple internal-validity metrics (silhouette +
+   Calinski-Harabasz + a connectivity-aware criterion) and aggregate.
+
+3. **v5's "always v3" outcome is mathematically right and a useful
+   safety net.** The stacker framework guarantees we never regress
+   below v3's per-task floor. When a future router (v6, v7, v8)
+   produces wins on some subset, the stacker activates without
+   needing to rebuild anything.
+
 ### What to try first
 
 A pragmatic decision tree from the dashboard data:
