@@ -1,0 +1,446 @@
+{
+  "n_evaluated": 200,
+  "n_beat_existing": 22,
+  "best_existing_card": {
+    "name": "kmeans_trimmed",
+    "predicted_mean_ari": 0.7879999999999998
+  },
+  "fingerprint_sample_size": 50,
+  "margin": 0.02,
+  "seed": 0,
+  "top": [
+    {
+      "name": "mutant_99_kmeansxmeta_clusterer_v2_cross",
+      "parents": [
+        "kmeans",
+        "meta_clusterer_v2"
+      ],
+      "op": "crossover",
+      "predicted_mean_ari": 0.9260000000000004,
+      "delta_vs_best_existing": 0.13800000000000057,
+      "best_existing_compared_to": "kmeans_trimmed",
+      "near_duplicate_of_existing": false,
+      "card": {
+        "name": "mutant_99_kmeansxmeta_clusterer_v2_cross",
+        "family": "hybrid",
+        "mechanism_tags": [
+          "fingerprint_dispatch",
+          "kpp_init",
+          "mean_centroid",
+          "silhouette_probe"
+        ],
+        "inductive_biases": [
+          "convex_clusters",
+          "ensemble",
+          "isotropic_clusters",
+          "meta",
+          "needs_k",
+          "non_convex_capable",
+          "scales_linear"
+        ],
+        "handles_k_directly": true,
+        "hyperparameters": {
+          "max_iter": [
+            10,
+            500
+          ],
+          "n_init": [
+            1,
+            20
+          ]
+        },
+        "time_complexity_at_1000x10x5": 500000.0,
+        "memory_complexity_at_1000x10x5": 10050.0,
+        "notes": "crossover(kmeans, meta_clusterer_v2)"
+      },
+      "next_implementation_step": "Implement a hybrid kmeans + meta_clusterer_v2 clusterer that uses kmeans's primary mechanism to produce candidate assignments and meta_clusterer_v2's mechanism to refine them; start with the union of their hyperparameter grids."
+    },
+    {
+      "name": "mutant_0_aura_v3_then_parallel_kmeans_stack",
+      "parents": [
+        "aura_v3",
+        "parallel_kmeans"
+      ],
+      "op": "stack",
+      "predicted_mean_ari": 0.8819999999999993,
+      "delta_vs_best_existing": 0.09399999999999953,
+      "best_existing_compared_to": "kmeans_trimmed",
+      "near_duplicate_of_existing": false,
+      "card": {
+        "name": "mutant_0_aura_v3_then_parallel_kmeans_stack",
+        "family": "pipeline",
+        "mechanism_tags": [
+          "em_update",
+          "mapreduce",
+          "mean_centroid",
+          "nystrom_laplacian",
+          "rank_dispatch",
+          "zscored_kmeans_or_gmm"
+        ],
+        "inductive_biases": [
+          "convex_clusters",
+          "isotropic_clusters",
+          "meta",
+          "needs_k",
+          "non_convex_capable",
+          "outlier_robust",
+          "scales_linear"
+        ],
+        "handles_k_directly": true,
+        "hyperparameters": {
+          "max_iter": [
+            10,
+            500
+          ],
+          "n_workers": [
+            1,
+            16
+          ]
+        },
+        "time_complexity_at_1000x10x5": 825000.0,
+        "memory_complexity_at_1000x10x5": 120050.0,
+        "notes": "stack(aura_v3 -> parallel_kmeans)"
+      },
+      "next_implementation_step": "Implement a aura_v3 -> parallel_kmeans pipeline: run aura_v3 to produce an embedding / pre-partition, then feed that representation into parallel_kmeans for the final assignment (reg_covar=1e-3 if parallel_kmeans is a mixture model to absorb rank-deficient blocks)."
+    },
+    {
+      "name": "mutant_13_clarans_pp_then_aura_stack",
+      "parents": [
+        "clarans_pp",
+        "aura"
+      ],
+      "op": "stack",
+      "predicted_mean_ari": 0.8819999999999993,
+      "delta_vs_best_existing": 0.09399999999999953,
+      "best_existing_compared_to": "kmeans_trimmed",
+      "near_duplicate_of_existing": false,
+      "card": {
+        "name": "mutant_13_clarans_pp_then_aura_stack",
+        "family": "pipeline",
+        "mechanism_tags": [
+          "gmm_in_embed",
+          "kpp_init",
+          "medoid",
+          "nystrom_laplacian",
+          "random_swap_search"
+        ],
+        "inductive_biases": [
+          "convex_clusters",
+          "meta",
+          "needs_k",
+          "non_convex_capable",
+          "outlier_robust",
+          "scales_linear"
+        ],
+        "handles_k_directly": true,
+        "hyperparameters": {
+          "maxneigh": [
+            20,
+            500
+          ]
+        },
+        "time_complexity_at_1000x10x5": 1250000.0,
+        "memory_complexity_at_1000x10x5": 120005.0,
+        "notes": "stack(clarans_pp -> aura)"
+      },
+      "next_implementation_step": "Implement a clarans_pp -> aura pipeline: run clarans_pp to produce an embedding / pre-partition, then feed that representation into aura for the final assignment (reg_covar=1e-3 if aura is a mixture model to absorb rank-deficient blocks)."
+    },
+    {
+      "name": "mutant_52_kmeans_trimmed_then_aura_v3_stack",
+      "parents": [
+        "kmeans_trimmed",
+        "aura_v3"
+      ],
+      "op": "stack",
+      "predicted_mean_ari": 0.8819999999999993,
+      "delta_vs_best_existing": 0.09399999999999953,
+      "best_existing_compared_to": "kmeans_trimmed",
+      "near_duplicate_of_existing": false,
+      "card": {
+        "name": "mutant_52_kmeans_trimmed_then_aura_v3_stack",
+        "family": "pipeline",
+        "mechanism_tags": [
+          "em_update",
+          "kpp_init",
+          "nystrom_laplacian",
+          "rank_dispatch",
+          "trimmed_mean",
+          "zscored_kmeans_or_gmm"
+        ],
+        "inductive_biases": [
+          "convex_clusters",
+          "meta",
+          "needs_k",
+          "non_convex_capable",
+          "outlier_robust",
+          "scales_linear"
+        ],
+        "handles_k_directly": true,
+        "hyperparameters": {
+          "trim": [
+            0.0,
+            0.3
+          ]
+        },
+        "time_complexity_at_1000x10x5": 925000.0,
+        "memory_complexity_at_1000x10x5": 120050.0,
+        "notes": "stack(kmeans_trimmed -> aura_v3)"
+      },
+      "next_implementation_step": "Implement a kmeans_trimmed -> aura_v3 pipeline: run kmeans_trimmed to produce an embedding / pre-partition, then feed that representation into aura_v3 for the final assignment (reg_covar=1e-3 if aura_v3 is a mixture model to absorb rank-deficient blocks)."
+    },
+    {
+      "name": "mutant_174_rapid_v2xkmeans_trimmed_cross",
+      "parents": [
+        "rapid_v2",
+        "kmeans_trimmed"
+      ],
+      "op": "crossover",
+      "predicted_mean_ari": 0.8819999999999993,
+      "delta_vs_best_existing": 0.09399999999999953,
+      "best_existing_compared_to": "kmeans_trimmed",
+      "near_duplicate_of_existing": false,
+      "card": {
+        "name": "mutant_174_rapid_v2xkmeans_trimmed_cross",
+        "family": "hybrid",
+        "mechanism_tags": [
+          "dbscan_partition",
+          "em_update",
+          "kpp_init",
+          "lof_prefilter"
+        ],
+        "inductive_biases": [
+          "convex_clusters",
+          "meta",
+          "needs_k",
+          "non_convex_capable",
+          "outlier_robust",
+          "scales_linear"
+        ],
+        "handles_k_directly": true,
+        "hyperparameters": {
+          "trim": [
+            0.0,
+            0.3
+          ]
+        },
+        "time_complexity_at_1000x10x5": 600000.0,
+        "memory_complexity_at_1000x10x5": 10050.0,
+        "notes": "crossover(rapid_v2, kmeans_trimmed)"
+      },
+      "next_implementation_step": "Implement a hybrid rapid_v2 + kmeans_trimmed clusterer that uses rapid_v2's primary mechanism to produce candidate assignments and kmeans_trimmed's mechanism to refine them; start with the union of their hyperparameter grids."
+    },
+    {
+      "name": "mutant_192_clarans_ppxrapid_v3_cross",
+      "parents": [
+        "clarans_pp",
+        "rapid_v3"
+      ],
+      "op": "crossover",
+      "predicted_mean_ari": 0.8819999999999993,
+      "delta_vs_best_existing": 0.09399999999999953,
+      "best_existing_compared_to": "kmeans_trimmed",
+      "near_duplicate_of_existing": false,
+      "card": {
+        "name": "mutant_192_clarans_ppxrapid_v3_cross",
+        "family": "hybrid",
+        "mechanism_tags": [
+          "conditional_prefilter",
+          "dbscan_partition",
+          "medoid",
+          "random_swap_search"
+        ],
+        "inductive_biases": [
+          "convex_clusters",
+          "meta",
+          "needs_k",
+          "non_convex_capable",
+          "outlier_robust"
+        ],
+        "handles_k_directly": true,
+        "hyperparameters": {
+          "maxneigh": [
+            20,
+            500
+          ]
+        },
+        "time_complexity_at_1000x10x5": 400000.0,
+        "memory_complexity_at_1000x10x5": 10005.0,
+        "notes": "crossover(clarans_pp, rapid_v3)"
+      },
+      "next_implementation_step": "Implement a hybrid clarans_pp + rapid_v3 clusterer that uses clarans_pp's primary mechanism to produce candidate assignments and rapid_v3's mechanism to refine them; start with the union of their hyperparameter grids."
+    },
+    {
+      "name": "mutant_120_minibatch_kmeansxlearned_router_cross",
+      "parents": [
+        "minibatch_kmeans",
+        "learned_router"
+      ],
+      "op": "crossover",
+      "predicted_mean_ari": 0.8759999999999993,
+      "delta_vs_best_existing": 0.08799999999999952,
+      "best_existing_compared_to": "kmeans_trimmed",
+      "near_duplicate_of_existing": false,
+      "card": {
+        "name": "mutant_120_minibatch_kmeansxlearned_router_cross",
+        "family": "hybrid",
+        "mechanism_tags": [
+          "dispatch",
+          "mean_centroid",
+          "minibatch"
+        ],
+        "inductive_biases": [
+          "convex_clusters",
+          "isotropic_clusters",
+          "learned",
+          "meta",
+          "needs_k",
+          "scales_sublinear"
+        ],
+        "handles_k_directly": true,
+        "hyperparameters": {
+          "batch_size": [
+            50,
+            2000
+          ],
+          "max_iter": [
+            10,
+            500
+          ]
+        },
+        "time_complexity_at_1000x10x5": 220000.0,
+        "memory_complexity_at_1000x10x5": 10000.0,
+        "notes": "crossover(minibatch_kmeans, learned_router)"
+      },
+      "next_implementation_step": "Implement a hybrid minibatch_kmeans + learned_router clusterer that uses minibatch_kmeans's primary mechanism to produce candidate assignments and learned_router's mechanism to refine them; start with the union of their hyperparameter grids."
+    },
+    {
+      "name": "mutant_176_aura_v2_then_kmeans_stack",
+      "parents": [
+        "aura_v2",
+        "kmeans"
+      ],
+      "op": "stack",
+      "predicted_mean_ari": 0.8759999999999993,
+      "delta_vs_best_existing": 0.08799999999999952,
+      "best_existing_compared_to": "kmeans_trimmed",
+      "near_duplicate_of_existing": false,
+      "card": {
+        "name": "mutant_176_aura_v2_then_kmeans_stack",
+        "family": "pipeline",
+        "mechanism_tags": [
+          "em_update",
+          "kpp_init",
+          "mean_centroid",
+          "nystrom_laplacian",
+          "zscored_kmeans"
+        ],
+        "inductive_biases": [
+          "convex_clusters",
+          "isotropic_clusters",
+          "meta",
+          "needs_k",
+          "non_convex_capable",
+          "scales_linear"
+        ],
+        "handles_k_directly": true,
+        "hyperparameters": {
+          "max_iter": [
+            10,
+            500
+          ],
+          "n_init": [
+            1,
+            20
+          ]
+        },
+        "time_complexity_at_1000x10x5": 750000.0,
+        "memory_complexity_at_1000x10x5": 120050.0,
+        "notes": "stack(aura_v2 -> kmeans)"
+      },
+      "next_implementation_step": "Implement a aura_v2 -> kmeans pipeline: run aura_v2 to produce an embedding / pre-partition, then feed that representation into kmeans for the final assignment (reg_covar=1e-3 if kmeans is a mixture model to absorb rank-deficient blocks)."
+    },
+    {
+      "name": "mutant_37_agglomerativexmeta_clusterer_v2_cross",
+      "parents": [
+        "agglomerative",
+        "meta_clusterer_v2"
+      ],
+      "op": "crossover",
+      "predicted_mean_ari": 0.8360000000000007,
+      "delta_vs_best_existing": 0.04800000000000093,
+      "best_existing_compared_to": "kmeans_trimmed",
+      "near_duplicate_of_existing": false,
+      "card": {
+        "name": "mutant_37_agglomerativexmeta_clusterer_v2_cross",
+        "family": "hybrid",
+        "mechanism_tags": [
+          "fingerprint_dispatch",
+          "silhouette_probe",
+          "ward_linkage"
+        ],
+        "inductive_biases": [
+          "convex_clusters",
+          "ensemble",
+          "meta",
+          "needs_k",
+          "non_convex_capable",
+          "scales_quadratic"
+        ],
+        "handles_k_directly": true,
+        "hyperparameters": {
+          "linkage": [
+            "ward",
+            "single",
+            "complete",
+            "average"
+          ]
+        },
+        "time_complexity_at_1000x10x5": 10000000.0,
+        "memory_complexity_at_1000x10x5": 1000000.0,
+        "notes": "crossover(agglomerative, meta_clusterer_v2)"
+      },
+      "next_implementation_step": "Implement a hybrid agglomerative + meta_clusterer_v2 clusterer that uses agglomerative's primary mechanism to produce candidate assignments and meta_clusterer_v2's mechanism to refine them; start with the union of their hyperparameter grids."
+    },
+    {
+      "name": "mutant_20_pwcc_then_clarans_pp_stack",
+      "parents": [
+        "pwcc",
+        "clarans_pp"
+      ],
+      "op": "stack",
+      "predicted_mean_ari": 0.8350000000000007,
+      "delta_vs_best_existing": 0.04700000000000093,
+      "best_existing_compared_to": "kmeans_trimmed",
+      "near_duplicate_of_existing": false,
+      "card": {
+        "name": "mutant_20_pwcc_then_clarans_pp_stack",
+        "family": "pipeline",
+        "mechanism_tags": [
+          "hungarian_align",
+          "kpp_init",
+          "medoid",
+          "purity_weights",
+          "random_swap_search",
+          "weighted_vote"
+        ],
+        "inductive_biases": [
+          "convex_clusters",
+          "ensemble",
+          "needs_k",
+          "outlier_robust"
+        ],
+        "handles_k_directly": true,
+        "hyperparameters": {
+          "maxneigh": [
+            20,
+            500
+          ]
+        },
+        "time_complexity_at_1000x10x5": 1900000.0,
+        "memory_complexity_at_1000x10x5": 13055.0,
+        "notes": "stack(pwcc -> clarans_pp)"
+      },
+      "next_implementation_step": "Implement a pwcc -> clarans_pp pipeline: run pwcc to produce an embedding / pre-partition, then feed that representation into clarans_pp for the final assignment (reg_covar=1e-3 if clarans_pp is a mixture model to absorb rank-deficient blocks)."
+    }
+  ]
+}
