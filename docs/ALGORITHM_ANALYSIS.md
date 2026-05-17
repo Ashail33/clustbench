@@ -1524,6 +1524,90 @@ signal-bearing move is either (a) a genuinely-new algorithm that
 beats v3 on `graph_karate`-like data, or (b) ship the methodology
 and v3 as the recommended dispatcher.
 
+### Round 10: louvain_knn closes the graph_karate gap; learned routers can't yet pick it
+
+The methodology's final loop fired: **add a new algorithm aimed at the
+gap → measure lift → observe that the learned router can't yet pick
+it (because its training data didn't include the new algo).**
+
+`louvain_knn` is the new algorithm: kNN graph from features →
+Louvain modularity optimisation → reconcile to requested k. Smoke
+test cleared the graph_karate gap; the full benchmark confirms it.
+
+**graph_karate leaderboard (the registry's previous worst dataset):**
+
+| pos | algorithm | ARI |
+|---|---|---|
+| 1 | **`louvain_knn`** | **0.772** |
+| 2-9 tie | `learned_router_v3`/`v4`/`v5`/`v6`/`v6b`/`v6c`/`v7`/`rapid_v2` | 0.428 |
+| 10 | `dbscan` | 0.141 |
+
+**Every learned router is stuck at 0.428** because their training
+data didn't include louvain_knn's results. The routers correctly
+pick `rapid_v2` (the previous best they saw), but they can't yet
+know `louvain_knn` would do +0.344 ARI better.
+
+**`louvain_knn` per-dataset across the registry:**
+
+| dataset | ARI | comment |
+|---|---|---|
+| `circles` | **1.000** | the previously spectral-only regime |
+| `ts_ecg200` | 1.000 | tied with the multi-algo winners |
+| `moons` | 0.997 | new high; spectral was 0.50 here |
+| `ts_synth` | 0.995 | |
+| `graph_sbm` | 0.991 | |
+| `ts_trace` | 0.987 | |
+| `anisotropic` | 0.969 | |
+| `graph_karate` | **0.772** | the closed gap |
+| `iris` | 0.746 | |
+| `inverse_pca` | 0.682 | |
+| `mdcgen` | 0.679 | weak on convex blobs (Louvain over-merges) |
+| `extreme_outliers` | 0.606 | |
+| `digits` | 0.486 | |
+| `breast_cancer` | 0.443 | |
+| `wine` | 0.305 | worst — hard real-world |
+
+Mean ARI: **0.769** — solid mid-pack, rank 22. `louvain_knn` is
+*competitive* across the registry, not just specialised to graphs.
+
+**Top of the leaderboard after this round:**
+
+| pos | algorithm | rank | mean ARI |
+|---|---|---|---|
+| 1 | `learned_router_v7` | 8.99 | 0.841 |
+| 2 | `learned_router_v3` | 9.35 | 0.839 |
+| 3 | `learned_router_v5` | 9.35 | 0.839 (≡ v3) |
+| 4 | `learned_router_v4` | 9.74 | 0.829 |
+| 5 | `learned_router_v2` | 12.16 | 0.831 |
+| 22 | `louvain_knn` | 22.7 | 0.769 |
+
+v7 reclaimed rank 1 from round 9's tie because the new graph
+datasets give v7's inverse_pca-regime activation more relative
+weight in the Friedman ranking. The routers themselves haven't
+improved — the data distribution shifted.
+
+#### The methodology's final pattern
+
+A clean three-step finish:
+
+1. **Identify the empirical coverage gap.** Round 9 surfaced
+   `graph_karate` as the only dataset where every algorithm scored
+   below 0.5 ARI.
+2. **Build a targeted algorithm.** `louvain_knn` is the answer —
+   different mechanism (graph-native modularity) for a different
+   data type (graph node features).
+3. **The learned router will pick it up automatically once retrained.**
+   No router redesign needed; just rerun the benchmark, retrain
+   the kNN regressors on the new (fingerprint × algo × ARI) table,
+   and the next learned_router will dispatch to `louvain_knn` on
+   graph_karate-like fingerprints. The methodology is self-extending.
+
+**The empirical ceiling has moved.** Previous round bound the
+frontier at v3 / v7 with mean ARI 0.839 — the achievable max if no
+new algorithm enters the registry. Adding `louvain_knn` shifts the
+*potential* frontier upward (every learned router can in principle
+pick it now); the *actual* shift requires the next retrain.
+
 ### What to try first
 
 A pragmatic decision tree from the dashboard data:

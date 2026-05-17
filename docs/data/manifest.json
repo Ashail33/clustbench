@@ -585,6 +585,12 @@
         "kind": "python",
         "entry": "mutant_kmeans_meta",
         "params": {}
+      },
+      {
+        "name": "louvain_knn",
+        "kind": "python",
+        "entry": "louvain_knn",
+        "params": {}
       }
     ],
     "seeds": [
@@ -593,7 +599,7 @@
       3
     ]
   },
-  "generated_at": "2026-05-17 17:36:51",
+  "generated_at": "2026-05-17 18:13:18",
   "env": {
     "python": "3.11.15",
     "platform": "Linux-6.18.5-x86_64-with-glibc2.39"
