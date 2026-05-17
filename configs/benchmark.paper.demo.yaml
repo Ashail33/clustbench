@@ -77,6 +77,36 @@ datasets:
     outliers: [250]
     outlier_extremity: [1.8]
 
+  # New modalities: time-series feature stacks and graph node-feature
+  # matrices. See src/clustbench/datasets_domains.py. Each is a (n, 16)
+  # matrix derived from a non-Euclidean object — tests whether the
+  # registry's algorithms generalise across modality boundaries.
+  - id: ts_ecg200
+    n_samples: [200]
+    n_features: [16]
+    k_targets: [2]
+    compactness: [1.0]
+  - id: ts_trace
+    n_samples: [200]
+    n_features: [16]
+    k_targets: [4]
+    compactness: [1.0]
+  - id: ts_synth
+    n_samples: [200]
+    n_features: [16]
+    k_targets: [3]
+    compactness: [1.0]
+  - id: graph_karate
+    n_samples: [34]
+    n_features: [16]
+    k_targets: [2]
+    compactness: [1.0]
+  - id: graph_sbm
+    n_samples: [200]
+    n_features: [16]
+    k_targets: [4]
+    compactness: [1.0]
+
   # High-ambient-dim synthetic data with controlled low-intrinsic-dim
   # structure (powered by the companion inverse_pca package). Tests
   # whether basis-learning methods (spectral, lmm) discover the latent

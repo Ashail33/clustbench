@@ -423,6 +423,9 @@ DATASETS.update(SHAPE_DATASETS)
 # to a synthetic shape when offline. The metadata dict is exposed for
 # the dashboard / analysis.
 from .datasets_real import REAL_DATASETS, REAL_METADATA  # noqa: E402
+from .datasets_domains import DOMAIN_DATASETS, DOMAIN_METADATA  # noqa: E402, F401
+for _name, _gen in DOMAIN_DATASETS.items():
+    DATASETS.setdefault(_name, _gen)
 # Only register real-dataset ids that aren't already in DATASETS (so the
 # original sklearn loaders here keep their precedence). The OpenML
 # additions (glass, vehicle, ...) come along for free.
