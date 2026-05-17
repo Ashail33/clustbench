@@ -597,6 +597,77 @@ to spectral). The negative result is itself the next experimental
 direction: *the choice of "what to put after the embedding" matters
 more than the embedding quality.*
 
+### Iteration: v2 of the synthesised algorithms
+
+The three synthesised algorithms each had a specific empirical
+weakness identified in the previous round. Three more parallel
+worktree-isolated agents built v2 versions targeting those weaknesses
+(complete code in `src/clustbench/algorithms/aura_v2.py`,
+`meta_clusterer_v2.py`, `rapid_v2.py`).
+
+**v2 changes per algorithm:**
+
+| algorithm | v1 weakness | v2 intervention |
+|---|---|---|
+| `aura_v2` | ARI 0.00 on circles — GMM's full covariance absorbed both rings into one elongated Gaussian | (a) raise Nyström threshold so benchmark-scale n uses full eigendecomp, (b) z-score the embedding before k-means (the v1 eigenvectors had std 0.05 vs 0.93 — k-means weighted only the high-variance column), (c) add a trimmed-mean k-means track + tied-covariance GMM track gated on LOF outlier signal |
+| `meta_clusterer_v2` | ARI 0.16 on circles — `eigengap < 0.05` rule never fired (the Laplacian gap is *large* at k for clean circles) | replace eigengap with `convexity_ratio = clip(1.2 - 2·CV, 0, 1)` of centroid distances (separates blobs ~0.65 from circles ~0.24) plus `knn_modularity` of the kmeans partition; add a probe stage that fits 3 candidates on a 20% subsample and picks by silhouette when the rule fires by a narrow margin |
+| `rapid_v2` | ARI delta -0.145 with outliers — the k-distance knee in stage 1 was contaminated by the outliers it was meant to ignore | add a stage 0 LOF outlier prefilter; remove top-10% LOF score points before stage 1's density partition; reassign held-aside outliers by 1-NN at the end |
+
+**Empirical v1 vs v2 (mean ARI across all 16 tasks):**
+
+| algorithm | v1 ARI | v2 ARI | Δ | ARI rank (of 28) |
+|---|---|---|---|---|
+| `meta_clusterer_v2` | 0.774 | **0.879** | **+0.105** | **3 / 28** ↑ from 5 / 25 |
+| `aura_v2` | 0.733 | 0.764 | +0.032 | 10 / 28 (vs v1 at 9) |
+| `rapid_v2` | 0.843 | 0.774 | -0.069 | 13 / 28 (vs v1 at 5) |
+
+**Per-shape delta (v2 minus v1):**
+
+| algorithm | mdcgen | anisotropic | moons | circles |
+|---|---|---|---|---|
+| `aura_v2` | -0.10 | 0.00 | **-0.36** | **+1.00** |
+| `meta_clusterer_v2` | 0.00 | 0.00 | 0.00 | **+0.84** |
+| `rapid_v2` | -0.03 | -0.09 | 0.00 | -0.27 |
+
+**Outlier robustness delta (v2 minus v1):**
+
+| algorithm | v1 ARI delta | v2 ARI delta | improvement |
+|---|---|---|---|
+| `aura_v2` | +0.029 | -0.043 | regressed |
+| `meta_clusterer_v2` | +0.057 | -0.084 | regressed in relative terms (the clean baseline went up so absolute drop is bigger) |
+| `rapid_v2` | -0.145 | **-0.050** | **closed the gap by 95 ARI points** — the intervention worked |
+
+**What this round taught us.** The iteration outcomes are uneven, and
+that's the lesson:
+
+- **META v2 is the unambiguous win.** It cracked the top 3 by replacing
+  one brittle heuristic (eigengap) with two cheap robust ones
+  (convexity ratio + knn modularity) and adding a silhouette-based
+  probe for borderline cases. The architecture lesson generalises:
+  *brittle single-rule routing beats fixed strategy; probe-based
+  refinement beats brittle routing.*
+- **AURA v2 traded moons for circles.** The z-score-then-kmeans pipeline
+  perfectly recovers circles (the eigenvectors' loop structure is now
+  metric-correct), but the moons embedding has near-zero variance in
+  the relevant eigen-direction and z-scoring amplifies noise that
+  k-means then partitions arbitrarily. Fix: choose between v1's
+  raw-GMM and v2's z-scored-kmeans dynamically based on the LOF
+  signal *and* the embedding rank — not yet implemented.
+- **RAPID v2 closed the outlier delta but broke shape.** Stage 0's LOF
+  prefilter pulls real cluster points along with outliers when the
+  cluster density is comparable to the outlier density. The +95 ARI
+  point lift on outlier robustness is real but the base quality
+  regression means v1 is still the best RAPID variant overall. Fix:
+  conditional stage 0 — only run LOF when outlier_frac (estimated
+  cheaply) exceeds a threshold.
+
+**The combined message** — every "fix the bottleneck" intervention
+opens a new failure mode. The next iteration should be a
+*meta-algorithm-over-meta-algorithms* that dispatches between v1 and
+v2 of each synthesis based on the data signature, OR an explicit
+choose-the-better-of-v1-and-v2 wrapper that runs both on a subsample
+and picks the silhouette winner.
+
 ### What to try first
 
 A pragmatic decision tree from the dashboard data:
