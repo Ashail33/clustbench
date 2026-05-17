@@ -1,0 +1,118 @@
+# Unseen-data evaluation. Every (n, d, k, seed, parameter) combo here
+# is outside the routers' training distribution (which used seeds 1-3
+# on a fixed set of n/d/k tuples from benchmark.paper.demo.yaml).
+#
+# The routers compute fingerprints from data + parameters and look up
+# the nearest training-set neighbours. With seeds in the 100s and
+# parameter values not seen in training, the routers can't trivially
+# match a memorised fingerprint — this is a real generalisation test.
+#
+# Run:
+#   clustbench --config configs/benchmark.unseen.yaml --out runs/unseen
+#   python scripts/build_site.py --run runs/unseen --out docs/data_unseen
+#   python scripts/annotate_predictions.py --run runs/unseen
+
+datasets:
+  # Convex blobs at an unseen (n, d, k) — d=25 not in training
+  - id: mdcgen
+    n_samples: [750]
+    n_features: [25]
+    k_targets: [7]
+    compactness: [0.75]
+    outliers: [0]
+    noise: [0]
+    density: [1.0]
+    outlier_extremity: [1.0]
+
+  # Non-convex moons at higher ambient dim than training (d=5 vs d=2/8)
+  - id: moons
+    n_samples: [800]
+    n_features: [5]
+    k_targets: [2]
+    compactness: [1.5]
+
+  # Low-rank in high-d at an unseen (n, d, k) combo
+  - id: inverse_pca
+    n_samples: [600]
+    n_features: [150]
+    k_targets: [4]
+    compactness: [1.0]
+
+  # Extreme outliers at extremity=10 (training had 1, 5, 20 but not 10)
+  - id: extreme_outliers
+    n_samples: [600]
+    n_features: [10]
+    k_targets: [4]
+    compactness: [1.0]
+    outliers: [300]
+    outlier_extremity: [10.0]
+
+  # New synthetic shape at unseen (n, d, k)
+  - id: varying_density
+    n_samples: [800]
+    n_features: [15]
+    k_targets: [4]
+    compactness: [1.0]
+
+  # Time-series with unseen k (training had k=2 for ECG and k=3 synth)
+  - id: ts_synth
+    n_samples: [300]
+    n_features: [16]
+    k_targets: [5]
+    compactness: [1.0]
+
+  # Graph SBM at unseen (n, k) combo
+  - id: graph_sbm
+    n_samples: [300]
+    n_features: [16]
+    k_targets: [5]
+    compactness: [1.0]
+
+algorithms:
+  # All 42 algorithms — copy from paper.demo.yaml
+  - {name: kmeans, kind: python, entry: kmeans, params: {max_iter: 100, n_init: 3}}
+  - {name: minibatch_kmeans, kind: python, entry: minibatch_kmeans, params: {batch_size: 200, max_iter: 100}}
+  - {name: parallel_kmeans, kind: python, entry: parallel_kmeans, params: {max_iter: 50, n_init: 2, n_workers: 1}}
+  - {name: birch_algo, kind: python, entry: birch_algo, params: {threshold: 1.0}}
+  - {name: clarans, kind: python, entry: clarans, params: {numlocal: 2, maxneigh: 30}}
+  - {name: agglomerative, kind: python, entry: agglomerative, params: {linkage: ward}}
+  - {name: dbscan, kind: python, entry: dbscan, params: {eps: 0.8, min_samples: 5}}
+  - {name: optics, kind: python, entry: optics, params: {min_samples: 5, xi: 0.05}}
+  - {name: gmm, kind: python, entry: gmm, params: {max_iter: 100, n_init: 1, reg_covar: 1e-4}}
+  - {name: spectral, kind: python, entry: spectral, params: {n_neighbors: 10}}
+  - {name: meanshift, kind: python, entry: meanshift, params: {bin_seeding: true}}
+  - {name: pwcc, kind: python, entry: pwcc, params: {base: [kmeans, minibatch_kmeans, birch_algo]}}
+  - {name: s5c, kind: python, entry: s5c, params: {sample_size: 200, n_nonzero_coefs: 5}}
+  - {name: chameleon, kind: python, entry: chameleon, params: {}}
+  - {name: mri, kind: python, entry: mri, params: {n_neighbors: 15, n_echoes: 6, n_gradient_axes: 3}}
+  - {name: fmm, kind: python, entry: fmm, params: {n_frequencies: 64, n_scales: 3, max_iter: 40}}
+  - {name: lmm, kind: python, entry: lmm, params: {}}
+  - {name: consensus, kind: python, entry: consensus, params: {base: [kmeans, minibatch_kmeans, birch_algo]}}
+  - {name: kmeans_trimmed, kind: python, entry: kmeans_trimmed, params: {trim: 0.1, n_init: 3, max_iter: 100}}
+  - {name: clarans_pp, kind: python, entry: clarans_pp, params: {numlocal: 2, maxneigh: 80}}
+  - {name: dbscan_auto, kind: python, entry: dbscan_auto, params: {min_samples: 5}}
+  - {name: meanshift_robust, kind: python, entry: meanshift_robust, params: {trim: 0.2, quantile: 0.2}}
+  - {name: pwcc_diverse, kind: python, entry: pwcc_diverse, params: {base: [kmeans, spectral, gmm]}}
+  - {name: aura, kind: python, entry: aura, params: {}}
+  - {name: meta_clusterer, kind: python, entry: meta_clusterer, params: {}}
+  - {name: rapid, kind: python, entry: rapid, params: {}}
+  - {name: aura_v2, kind: python, entry: aura_v2, params: {}}
+  - {name: meta_clusterer_v2, kind: python, entry: meta_clusterer_v2, params: {}}
+  - {name: rapid_v2, kind: python, entry: rapid_v2, params: {}}
+  - {name: aura_v3, kind: python, entry: aura_v3, params: {}}
+  - {name: meta_clusterer_v3, kind: python, entry: meta_clusterer_v3, params: {}}
+  - {name: rapid_v3, kind: python, entry: rapid_v3, params: {}}
+  - {name: learned_router, kind: python, entry: learned_router, params: {k_neighbors: 5}}
+  - {name: learned_router_v2, kind: python, entry: learned_router_v2, params: {k_neighbors: 5}}
+  - {name: learned_router_v3, kind: python, entry: learned_router_v3, params: {k_neighbors: 5}}
+  - {name: learned_router_v4, kind: python, entry: learned_router_v4, params: {}}
+  - {name: learned_router_v5, kind: python, entry: learned_router_v5, params: {}}
+  - {name: learned_router_v6, kind: python, entry: learned_router_v6, params: {}}
+  - {name: learned_router_v6b, kind: python, entry: learned_router_v6b, params: {}}
+  - {name: learned_router_v6c, kind: python, entry: learned_router_v6c, params: {}}
+  - {name: learned_router_v7, kind: python, entry: learned_router_v7, params: {}}
+  - {name: mutant_kmeans_meta, kind: python, entry: mutant_kmeans_meta, params: {}}
+  - {name: louvain_knn, kind: python, entry: louvain_knn, params: {}}
+
+# Far-from-training seeds — none of these appear in benchmark.paper.demo.yaml
+seeds: [100, 101, 102]
