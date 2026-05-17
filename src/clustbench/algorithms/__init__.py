@@ -26,3 +26,5 @@ from . import rapid  # noqa: F401
 from . import aura_v2  # noqa: F401
 from . import meta_clusterer_v2  # noqa: F401
 from . import rapid_v2  # noqa: F401
+from . import meta_clusterer_v3  # noqa: F401
+from . import rapid_v3  # noqa: F401
