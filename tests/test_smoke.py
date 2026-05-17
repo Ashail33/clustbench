@@ -52,6 +52,9 @@ EXPECTED_ALGOS = {
     "aura_v2",
     "meta_clusterer_v2",
     "rapid_v2",
+    "aura_v3",
+    "meta_clusterer_v3",
+    "rapid_v3",
 }
 
 

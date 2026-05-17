@@ -166,4 +166,20 @@ algorithms:
     entry: rapid_v2
     params: {}
 
+  # v3 iterations — meta-of-meta routing between v1 and v2 based on
+  # cheap data signatures (effective rank, outlier fraction, fingerprint
+  # disagreement + silhouette probe).
+  - name: aura_v3
+    kind: python
+    entry: aura_v3
+    params: {}
+  - name: meta_clusterer_v3
+    kind: python
+    entry: meta_clusterer_v3
+    params: {}
+  - name: rapid_v3
+    kind: python
+    entry: rapid_v3
+    params: {}
+
 seeds: [1, 2]
