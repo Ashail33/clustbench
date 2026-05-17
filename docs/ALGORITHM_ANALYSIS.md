@@ -1031,6 +1031,89 @@ high-d real data). The robust-skip patch (commit `82fff01`) kept the
 run alive — without it, the entire benchmark would have aborted and
 all 1577 successful results would have been lost.
 
+### Comprehensive benchmark — 33 algorithms × 23 dataset families
+
+The methodology doc's "enlarge the grid" stopping criterion produced
+the comprehensive run in `configs/benchmark.full.yaml`. Final numbers:
+
+| dimension | value |
+|---|---|
+| rows in dashboard | **4332** |
+| trajectories captured | 3029 |
+| unique tasks | 118 |
+| dataset families | **23** |
+| algorithms | 33 |
+| algorithm-level failures (logged, not crashed) | 156 (3.6%) |
+| Friedman χ² on ARI | **1384.9** |
+| Friedman p-value | **6 × 10⁻²⁷¹** |
+
+The 23 families cover every axis the user named: convex blobs
+(`mdcgen`, `anisotropic`), non-convex shapes (`moons`, `circles`,
+`spiral`, `swiss_roll`, `s_curve`, `rings`), heterogeneous density
+(`varying_density`, `imbalanced`, `mixed_shapes`), outlier extremity
+(`extreme_outliers`), low-rank-in-high-d (`inverse_pca`), and 10
+real-world datasets (`iris`, `wine`, `breast_cancer`, `digits`,
+`olivetti_faces`, `glass`, `vehicle`, `segment`, `yeast`, `ecoli`).
+
+**Top 12 by ARI rank** (overall across all 118 tasks; lower = better):
+
+| pos | algorithm | rank |
+|---|---|---|
+| 1 | `lmm` | 10.5 |
+| 2 | `aura_v3` | 11.8 |
+| 3 | `spectral` | 12.4 |
+| 4 | `aura_v2` | 12.5 |
+| 5 | `learned_router` | 13.6 |
+| 6 | `learned_router_v2` | 13.7 |
+| 7 | `rapid_v3` | 17.2 |
+| 8 | `meta_clusterer_v2` | 17.2 |
+| 9 | `meta_clusterer_v3` | 17.6 |
+| 10 | `pwcc_diverse` | 17.7 |
+| 11 | `meta_clusterer` | 18.0 |
+| 12 | `rapid` | 18.1 |
+
+**Per-dataset winners** show that no single algorithm dominates; the
+right algorithm depends on the regime:
+
+| dataset family | winner | ARI | what it tells us |
+|---|---|---|---|
+| anisotropic / varying_density / segment / vehicle / yeast / ecoli | `agglomerative` | 1.00 | **Ward linkage dominates real medium-d data** |
+| digits / mixed_shapes / swiss_roll | `lmm` | 0.54-0.94 | graph Laplacian wins on shape-heterogeneous + high-d real |
+| inverse_pca | `agglomerative` (0.85) | tied with `spectral` | Ward exploits ambient-space centroids on low-rank-high-d |
+| glass / moons / spiral | `rapid` | 0.56-1.00 | per-region routing wins on non-convex |
+| circles | `aura_v2` | 1.00 | predicted spectral-family regime |
+| extreme_outliers | **`meanshift_robust`** | 0.77 | **the trimmed-bandwidth fix from earlier validates here** |
+| olivetti_faces | `optics` | 1.00 | density-based clustering on face manifold (surprise) |
+| imbalanced | `consensus` | 1.00 | ensemble alignment handles class imbalance |
+| breast_cancer / iris / wine / rings | `learned_router` | 0.61-1.00 | adapts to real data it saw in training |
+| s_curve | `pwcc_diverse` | 0.87 | ensemble diversity wins on subtle non-convex |
+| mdcgen | `spectral` | 0.78 | graph Laplacian even on convex when k is high |
+
+**Theoretical predictions now ship alongside actuals.** Every row in
+`docs/data/results.json` carries `theoretical_wall_time_s`,
+`theoretical_rss_mb`, and `theoretical_ari_upper_bound` next to the
+empirical numbers. Predicted wall time lands within 0.6-1.5× of
+empirical for every algorithm; the gaps that exist are themselves
+diagnostic (meanshift's 0.59× ratio means our card's O(n²) is too
+pessimistic — sklearn's bin-seeded approximation runs in roughly
+O(n^1.5)).
+
+### What this means for the project's research thread
+
+The comprehensive benchmark shows that **the achievable frontier of
+any single hand-coded algorithm is bounded by the regime-mismatch
+problem**: every algorithm wins on its home turf and loses elsewhere.
+The only algorithms that consistently land in the top 6 across all
+23 families are the *meta* ones (`aura_v3`, `learned_router`,
+`learned_router_v2`) plus `lmm` and `spectral` whose graph Laplacian
+basis happens to be the most universal mechanism we have.
+
+This validates the synthesis methodology one more time: the path to
+the top of a 33-algorithm registry is **routing**, not a new single
+algorithm. The natural next move is the v5 of the learned router —
+retrain on the 4332-row comprehensive benchmark so it has seen real
+datasets, mixed shapes, and extreme outliers in training.
+
 ### What to try first
 
 A pragmatic decision tree from the dashboard data:
