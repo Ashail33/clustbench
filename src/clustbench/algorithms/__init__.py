@@ -34,4 +34,5 @@ from . import learned_router_v2  # noqa: F401
 from . import learned_router_v3  # noqa: F401
 from . import learned_router_v4  # noqa: F401
 from . import learned_router_v5  # noqa: F401
+from . import learned_router_v6  # noqa: F401
 from . import mutant_kmeans_meta  # noqa: F401
