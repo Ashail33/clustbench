@@ -39,9 +39,15 @@ moons / circles). The full data is at [`docs/data/results.json`](data/results.js
 | **dbscan** | 0.23* | 0.00 | 0.00 | none (returns 1 cluster) | `eps=0.8` wrong for d=10 — density never reached |
 | **optics** | n/a | 0.18 | -0.09 | best on anisotropic / moons | O(n²) reachability dominates wall time |
 | **meanshift** | 0.77 | 0.76 | -0.59 | strong on moons / anisotropic | bandwidth estimate collapses on outliers |
+| **chameleon** | 1.45 | 0.52 | -0.26 | best non-spectral on moons (0.71) | graph-build cost dominates; agglomerative merging step is still O(n²) |
+| **lmm** | 1.45 | 0.64 | -0.31 | **also solves circles (ARI 1.00)** | Laplacian eigendecomp is O(n²); EM step is light |
+| **fmm** | 1.28 | 0.47 | -0.20 | weak on non-convex | random Fourier basis is shape-agnostic; needs many components for sharp boundaries |
+| **mri** | 1.78 | 0.35 | **+0.06** | strong on anisotropic; weak on moons | per-point relaxation signature is O(n²); pipeline depth costs but absorbs outliers |
+| **amm** | n/a | (varies by data) | — | designed for high-d sparse text / image | autoencoder training cost; needs more pretraining data than CI provides |
 
 \* DBSCAN's 0.23 slope is misleading — it short-circuits to one cluster, so wall time grows only with the index build.
 OPTICS is omitted from the scaling run (O(n²) reachability dominates the wall time and adds nothing the slope can't infer).
+AMM scaling isn't measured here — it's specialised for high-d sparse data (`gen_text20news`), not the synthetic grid.
 
 ---
 
@@ -65,6 +71,10 @@ Slope is the log-log fit of `wall_time` vs `n`:
 | kmeans | 0.010 | — | — | 0.192 | 1.28 | 19.5× |
 | clarans | 0.008 | — | — | 0.160 | 1.29 | 20.2× |
 | agglomerative | 0.010 | — | — | 0.217 | **1.33** | 22.6× |
+| fmm | 0.089 | 0.230 | 0.331 | 0.947 | 1.28 | 10.6× |
+| chameleon | 0.056 | 0.240 | 0.280 | 0.781 | **1.45** | 13.9× |
+| lmm | 0.040 | 0.064 | 0.117 | 0.498 | **1.45** | 12.5× |
+| mri | 0.027 | 0.200 | 0.285 | 0.956 | **1.78** | 35.4× |
 
 **Reading the slopes.** An exponent of 1.0 is "actually O(n)"; 0.5 is
 "work doesn't scale with n at all" (constant-batch algorithms). The
@@ -79,14 +89,17 @@ The deceptively low slopes for `minibatch_kmeans` (0.33), `s5c` (0.41),
 phase that dominates at small n; they'll converge toward 1.0 as n
 grows beyond the regime in this sweep.
 
-## Shape adaptability (ARI at n=2000)
+## Shape adaptability (ARI across datasets)
 
 | algo | mdcgen (blobs) | anisotropic (sheared) | moons (non-convex) | circles (concentric) |
 |---|---|---|---|---|
 | **spectral** | 0.964 | 0.897 | **0.500** | **1.000** |
+| **lmm** | 0.425 | 0.855 | 0.651 | **1.000** |
 | **gmm** | 0.880 | 1.000 | **0.504** | 0.000 |
+| **chameleon** | 0.382 | 0.872 | **0.708** | 0.025 |
 | **meanshift** | 0.632 | 0.891 | 0.421 | 0.007 |
 | **clarans** | 0.651 | 0.869 | 0.390 | 0.025 |
+| **fmm** | 0.395 | 0.911 | 0.292 | 0.000 |
 | birch_algo | 0.968 | 1.000 | 0.263 | 0.000 |
 | parallel_kmeans | 0.941 | 1.000 | 0.262 | 0.000 |
 | consensus | 0.966 | 1.000 | 0.262 | 0.000 |
@@ -94,21 +107,26 @@ grows beyond the regime in this sweep.
 | agglomerative | 0.967 | 1.000 | 0.169 | 0.006 |
 | kmeans | 0.900 | 1.000 | 0.262 | 0.000 |
 | minibatch_kmeans | 0.893 | 1.000 | 0.243 | 0.000 |
+| mri | 0.393 | 0.678 | 0.262 | -0.001 |
 | s5c | 0.096 | 0.640 | 0.002 | 0.000 |
 | dbscan | 0.000 | 0.000 | 0.000 | 0.000 |
 
-**Three populations emerge.** (a) **Convex-only algorithms** —
+**Four populations emerge.** (a) **Convex-only algorithms** —
 kmeans, parallel_kmeans, minibatch_kmeans, birch, agglomerative,
 pwcc/consensus — get ~1.0 on mdcgen / anisotropic and ~0 on circles.
-(b) **Non-convex-capable algorithms** — spectral, gmm, meanshift —
-score above 0.4 on moons. (c) **spectral is the only algorithm that
-solves circles** — the eigen-embedding turns the concentric topology
-into a linearly separable problem, and nothing else in the registry
-does anything comparable.
+(b) **Non-convex-capable algorithms** — spectral, gmm, meanshift,
+chameleon — score above 0.4 on moons. (c) **spectral and lmm both
+solve circles** (ARI 1.00) — they both use a graph Laplacian
+embedding, which turns the concentric topology into a linearly
+separable problem; the other 17 algorithms get ~0. (d) **chameleon
+wins moons** (0.71) without solving circles — its graph-merging step
+captures the connectivity along the half-moon arcs but can't bridge
+the gap between two equally-connected concentric loops.
 
 If your data is suspected to have non-convex clusters, the dashboard
-already tells you what to reach for: spectral as primary, gmm as a
-robust runner-up, meanshift if you can't pre-specify k.
+already tells you what to reach for: spectral / lmm as primary, gmm
+as a robust runner-up, chameleon when k is uncertain, meanshift if
+you can't pre-specify k at all.
 
 ---
 
@@ -257,6 +275,55 @@ robust runner-up, meanshift if you can't pre-specify k.
 - **k-sensitivity.** Very high — doesn't take k. With 5 true clusters, bandwidth tuned for 3 over-merges them.
 - **What's holding it back.** **The bandwidth estimator**. Trimmed-mean or median-based bandwidth estimation would fix the outlier robustness problem. The O(n²) cost is the secondary bottleneck.
 
+## chameleon
+
+**Mechanism.** Two-phase: build a k-nearest-neighbours graph and partition it into many fine micro-clusters (mini-batch k-means on the graph nodes), then merge micro-clusters bottom-up using *relative closeness* between partitions (an agglomerative step on the inter-partition similarity).
+
+- **Scaling.** Empirical slope **1.45** — the kNN graph build is roughly O(n·log n), but the agglomerative merge over the L micro-clusters is O(L²) and L grows with n. Already 8.5s at n=10k in our data.
+- **Performance.** ARI 0.52 mean — middling on blobs because the graph step adds noise that pure k-means avoids.
+- **Outlier robustness.** -26% drop, comparable to birch.
+- **Shape adaptability.** **Best non-spectral algorithm on moons (ARI 0.71)** — the kNN graph naturally tracks the half-moon connectivity. Can't bridge circles though.
+- **What's holding it back.** **The merging criterion's hyperparameters** (`closeness_weight`, `min_partition_size`). At default settings the merge step terminates before fully assembling concentric circles. A learned merging policy is a natural trajectory-layer target.
+
+## lmm
+
+**Mechanism.** Like FMM but the basis is the bottom eigenvectors of the normalised k-NN graph Laplacian (the same spectral embedding used by `spectral`). The EM step learns per-cluster heat-kernel parameters.
+
+- **Scaling.** Empirical slope **1.45** — dominated by the O(n²) eigendecomposition of the Laplacian. The EM step is light.
+- **Performance.** ARI 0.64 mean — quality drops on convex blobs where the graph Laplacian doesn't help, but lifts dramatically on non-convex shapes.
+- **Outlier robustness.** -31% drop — similar to spectral; outliers disconnect the kNN graph and pollute the eigenvectors.
+- **Shape adaptability.** **Solves circles (ARI 1.000)** — second algorithm in the registry to do so, alongside spectral. Strong on moons (0.65) too.
+- **What's holding it back.** **The Laplacian eigendecomposition is the bottleneck for both speed and outlier sensitivity.** Nyström approximation of the Laplacian would help speed; robust spectral methods (Bojchevski et al.) would help outlier sensitivity.
+
+## fmm
+
+**Mechanism.** Mixture model whose component log-densities are linear combinations of random Fourier features. EM updates each cluster's basis weights; the self-normalising trick avoids the partition-function integral.
+
+- **Scaling.** Empirical slope **1.28** — EM iterations are O(n·M) where M = number of Fourier components. Similar growth to kmeans-family.
+- **Performance.** ARI 0.47 mean — weaker than FMM-on-circles would suggest, because the random Fourier basis is shape-agnostic; it doesn't know to align with the data's curvature.
+- **Outlier robustness.** -20% drop — better than centroid-based methods because the log-density absorbs an outlier as a small per-component contribution.
+- **Shape adaptability.** **Strong on anisotropic (0.91)** but middling on moons (0.29) — random Fourier features in d=10 don't sharpen non-convex boundaries.
+- **What's holding it back.** **The basis is random, not learned.** Increasing the number of components helps but quickly hits the curse of dimensionality. LMM and AMM replace the random basis with a data-driven one — that's the natural progression.
+
+## mri
+
+**Mechanism.** Treats every data point as a "spin" relaxing in a synthetic magnetic-resonance pipeline: a per-point relaxation signature is computed from local neighbourhood statistics (analogous to T1/T2 relaxation), then k-means runs on the signatures.
+
+- **Scaling.** Empirical slope **1.78** — the worst in the registry. The per-point signature requires a neighbourhood pass per point, effectively O(n²) at this size before any pruning.
+- **Performance.** ARI 0.35 mean — the lowest among non-failure algorithms; the relaxation signature is an indirect representation of structure.
+- **Outlier robustness.** **Actually IMPROVES (+0.06) with outliers.** Counter-intuitive: outliers get a distinctive relaxation signature (high T2, low T1) and get pulled into their own cluster, leaving the bulk clusters cleaner.
+- **Shape adaptability.** Strong on anisotropic (0.68) but weak on moons (0.26) and circles (0).
+- **What's holding it back.** **The relaxation signature is too lossy for sharp cluster boundaries.** Tuning the relaxation time constants per dataset (i.e. learning them) is a clear extension; right now the defaults compress useful geometric information.
+
+## amm
+
+**Mechanism.** Like LMM but the basis is the bottleneck activations of a shallow autoencoder trained on the data. Designed for high-dimensional sparse inputs (TF-IDF text, count data) where k-NN distances stop being informative.
+
+- **Scaling.** Not measured on the synthetic scaling grid — AMM is specialised for the 20-newsgroups TF-IDF dataset (`gen_text20news`). The autoencoder training cost dominates at small n.
+- **Performance.** Quality varies by data — on synthetic blobs the autoencoder bottleneck under-utilises the dimensionality; on text features it's the regime AMM is built for.
+- **Outlier robustness, shape, k.** Limited data in the current sweep.
+- **What's holding it back.** **The autoencoder needs more pretraining samples than CI provides.** AMM's natural home is `gen_text20news` (or any real high-d sparse dataset) — running it in the synthetic grid is using a hammer on a screw.
+
 ---
 
 ## Cross-cutting findings
@@ -293,6 +360,15 @@ exactly the kind of state-action data needed to learn those replacements:
 - **pwcc** — the weighted vote uses purity weights derived from an
   unweighted vote; a learned weighting over `(base_partition_features) → optimal_weight`
   could outperform purity on heterogeneous bases.
+- **chameleon** — every merge step in phase 2 is a decision: accept or
+  reject. The trajectory could log each candidate merge with the
+  relative-closeness and inter-connectivity features, and a learned
+  classifier could replace the hand-tuned merging criterion entirely.
+- **fmm / lmm / amm** — these are EM-based mixture models, so every
+  iteration produces a state (per-cluster log-density parameters) and
+  a delta (negative log-likelihood improvement). The trajectory layer
+  is a natural fit: a learned step-size schedule or basis-component
+  selector could cut EM iterations dramatically.
 
 The dashboard's trajectory viewer is the rawest form of that training
 data. The natural next step is a notebook in `notebooks/` that trains
