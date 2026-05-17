@@ -137,4 +137,19 @@ algorithms:
     params:
       base: [kmeans, spectral, gmm]
 
+  # Synthesized algorithms built from analysis of which mechanisms won
+  # on which dimension (see docs/ALGORITHM_ANALYSIS.md).
+  - name: aura
+    kind: python
+    entry: aura
+    params: {}
+  - name: meta_clusterer
+    kind: python
+    entry: meta_clusterer
+    params: {}
+  - name: rapid
+    kind: python
+    entry: rapid
+    params: {}
+
 seeds: [1, 2]

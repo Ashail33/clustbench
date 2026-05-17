@@ -20,3 +20,6 @@ from . import lmm  # noqa: F401
 from . import amm  # noqa: F401
 from . import sklearn_extras  # noqa: F401
 from . import improvements  # noqa: F401
+from . import aura  # noqa: F401
+from . import meta_clusterer  # noqa: F401
+from . import rapid  # noqa: F401

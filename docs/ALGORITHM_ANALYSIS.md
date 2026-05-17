@@ -536,6 +536,67 @@ intervention is logged as an extra (state, action, delta_cost) tuple
 that a meta-policy can learn from to choose the right *combination*
 of fixes per data regime.
 
+### Synthesised algorithms — combining what works
+
+Three new algorithms were designed by composing the winning mechanisms from
+the empirical analysis (rather than tweaking one existing algorithm):
+
+- **`rapid`** — two-stage pipeline. Stage 1: `dbscan_auto` with the
+  k-distance knee partitions the data into density-connected regions.
+  Stage 2: per region, route to kmeans++ (convex regions) or spectral
+  (non-convex regions). Stage 3: 1-NN reassign DBSCAN-noise points.
+- **`meta_clusterer`** — inspect four data fingerprints first
+  (effective dim via PCA, Laplacian eigengap, LOF outlier fraction,
+  kNN density skew) then dispatch to the right existing algorithm in
+  the registry with the right hyperparameters. Encodes the "What to
+  try first" decision tree as code.
+- **`aura`** — Adaptive Unified Robust Algorithm. Nyström-approximated
+  Laplacian embedding (for non-convex shape + sub-quadratic scaling)
+  followed by posterior-weighted Gaussian-mixture EM in the embedded
+  space (for outlier robustness). A genuine synthesis trying to put
+  spectral and GMM in the same pipeline.
+
+Empirical comparison (mean across all 16 tasks, ARI rank is position
+out of 25 registered algorithms; lower rank is better):
+
+| algo | ARI mean | ARI rank | mdcgen | anisotropic | moons | circles | outlier Δ |
+|---|---|---|---|---|---|---|---|
+| **`rapid`** | **0.843** | **4 / 25** | 0.76 | 1.00 | **0.85** | **0.84** | -0.15 |
+| `meta_clusterer` | 0.774 | 5 / 25 | 0.90 | 1.00 | 0.42 | 0.16 | **+0.06** |
+| `aura` | 0.733 | 8 / 25 | 0.87 | 1.00 | 0.37 | 0.00 | +0.03 |
+
+For comparison, the previous top three were `lmm` (rank 1, ARI 1.00 on
+circles but 0.65 on moons), `spectral` (rank 2, ARI 1.00 on circles but
+0.50 on moons), and `pwcc_diverse` (rank 3).
+
+**Headline empirical finding.** *RAPID is the only algorithm in the
+registry that handles both moons (0.85) and circles (0.84) at the same
+time.* Every other algorithm that solves circles (spectral and lmm) is
+mediocre on moons; every algorithm that's strong on moons (chameleon,
+gmm) gets 0 on circles. The two-stage density-then-route pipeline
+breaks the trade-off by treating each density-connected region with
+the algorithm best suited to its local shape signature, instead of
+forcing one algorithm to handle every regime.
+
+**META-CLUSTERER's positive outlier delta (+0.057)** validates the
+routing-to-GMM rule from the "What to try first" decision tree — when
+the LOF outlier fraction is high, the meta-algorithm picks GMM, which
+*does* improve under contamination (the only base algorithm with that
+property). The rule fires correctly and lifts overall ARI.
+
+**Where AURA fell short** — the Nyström-Laplacian embedding followed
+by GMM-in-embedded-space *should* solve circles in theory (the
+Laplacian eigenvectors separate concentric loops into distinct
+clusters in eigen-space, where they look like ordinary blobs). In
+practice the GMM step finds a different local optimum than spectral's
+final k-means: GMM's full-covariance fits absorb both rings into one
+elongated Gaussian. Fixes to investigate: tied covariance, smaller
+embedding dimension, or replace GMM with k-means in the embedded
+space (which is what `spectral` already does — and AURA would collapse
+to spectral). The negative result is itself the next experimental
+direction: *the choice of "what to put after the embedding" matters
+more than the embedding quality.*
+
 ### What to try first
 
 A pragmatic decision tree from the dashboard data:

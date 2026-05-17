@@ -46,11 +46,33 @@ EXPECTED_ALGOS = {
     "dbscan_auto",
     "meanshift_robust",
     "pwcc_diverse",
+    "aura",
+    "meta_clusterer",
+    "rapid",
 }
 
 
 def test_registry_contains_all_algos():
     assert EXPECTED_ALGOS.issubset(ALGO_REGISTRY.keys())
+
+
+def test_synthesized_algos_run():
+    """AURA / META-CLUSTERER / RAPID smoke test on three dataset shapes."""
+    from clustbench.datasets import gen_mdcgen, gen_moons, gen_circles, DataSpec
+
+    cases = [
+        ("mdcgen", lambda: gen_mdcgen(DataSpec(n_samples=200, n_features=8, centers=3, compactness=1.0, seed=1, outliers=20)), 3),
+        ("moons", lambda: gen_moons(DataSpec(n_samples=200, n_features=4, centers=2, compactness=1.0, seed=1)), 2),
+        ("circles", lambda: gen_circles(DataSpec(n_samples=200, n_features=4, centers=2, compactness=1.0, seed=1)), 2),
+    ]
+    for dataset_name, gen, k in cases:
+        X, _ = gen()
+        for algo_name in ("aura", "meta_clusterer", "rapid"):
+            res = ALGO_REGISTRY[algo_name]().fit_predict(X, k=k)
+            assert res.labels.shape == (len(X),), f"{algo_name} on {dataset_name}: bad label shape"
+            assert res.trajectory is not None and len(res.trajectory) >= 1, (
+                f"{algo_name} on {dataset_name}: expected non-empty trajectory"
+            )
 
 
 def test_improved_variants_lift_their_bottleneck():

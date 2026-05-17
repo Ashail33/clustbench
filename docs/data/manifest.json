@@ -277,6 +277,24 @@
             "gmm"
           ]
         }
+      },
+      {
+        "name": "aura",
+        "kind": "python",
+        "entry": "aura",
+        "params": {}
+      },
+      {
+        "name": "meta_clusterer",
+        "kind": "python",
+        "entry": "meta_clusterer",
+        "params": {}
+      },
+      {
+        "name": "rapid",
+        "kind": "python",
+        "entry": "rapid",
+        "params": {}
       }
     ],
     "seeds": [
@@ -284,7 +302,7 @@
       2
     ]
   },
-  "generated_at": "2026-05-17 11:15:26",
+  "generated_at": "2026-05-17 11:31:24",
   "env": {
     "python": "3.11.15",
     "platform": "Linux-6.18.5-x86_64-with-glibc2.39"
