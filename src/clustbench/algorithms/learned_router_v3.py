@@ -57,7 +57,20 @@ _REGRESSORS_V3: Optional[Dict[str, Any]] = None
 
 # All router variants are blocked as dispatch targets to prevent
 # any pathological recursive routing chains.
-_BLOCKED_TARGETS_V3 = {"learned_router", "learned_router_v2", "learned_router_v3"}
+# any pathological recursive routing chains. Block every existing
+# router-family member so v3 can't dispatch to a v4/v5/v6/v7/... that
+# then dispatches back to v3.
+_BLOCKED_TARGETS_V3 = {
+    "learned_router",
+    "learned_router_v2",
+    "learned_router_v3",
+    "learned_router_v4",
+    "learned_router_v5",
+    "learned_router_v6",
+    "learned_router_v6b",
+    "learned_router_v6c",
+    "learned_router_v7",
+}
 
 
 # ---------------------------------------------------------------------------
