@@ -339,6 +339,14 @@
         "params": {
           "k_neighbors": 5
         }
+      },
+      {
+        "name": "learned_router_v2",
+        "kind": "python",
+        "entry": "learned_router_v2",
+        "params": {
+          "k_neighbors": 5
+        }
       }
     ],
     "seeds": [
@@ -346,7 +354,7 @@
       2
     ]
   },
-  "generated_at": "2026-05-17 12:37:29",
+  "generated_at": "2026-05-17 12:54:34",
   "env": {
     "python": "3.11.15",
     "platform": "Linux-6.18.5-x86_64-with-glibc2.39"
