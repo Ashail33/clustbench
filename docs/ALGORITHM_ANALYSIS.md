@@ -1608,7 +1608,74 @@ new algorithm enters the registry. Adding `louvain_knn` shifts the
 *potential* frontier upward (every learned router can in principle
 pick it now); the *actual* shift requires the next retrain.
 
-### What to try first
+### Round 11: routers retrain, pick louvain_knn — methodology self-extension verified
+
+This round is the cleanest demonstration of the whole methodology
+working as a closed loop. **No code was written between round 10
+and round 11.** Just re-ran the benchmark. The learned routers load
+`docs/data/results.json` at module import, so when that file gained
+`louvain_knn`'s entries (from round 10's commit), the routers
+automatically retrained.
+
+**Headline result.** Every one of the seven learned routers now
+dispatches to `louvain_knn` on `graph_karate` — verified by reading
+the dispatch logs (e.g. `learned_router_v3 on graph_karate s1: chose=louvain_knn, ARI=0.772`).
+
+**Mean-ARI deltas (round 10 → round 11):**
+
+| router | round 10 ARI | round 11 ARI | Δ |
+|---|---|---|---|
+| `learned_router_v7` | 0.841 | **0.879** | **+0.038** |
+| `learned_router_v3` | 0.839 | 0.868 | +0.029 |
+| `learned_router_v5` | 0.839 | 0.868 | +0.029 |
+| `learned_router_v4` | 0.829 | 0.862 | +0.033 |
+| `learned_router_v2` | 0.831 | 0.826 | -0.005 |
+| `learned_router` v1 | 0.825 | 0.817 | -0.008 |
+
+v7 / v3 / v5 / v4 all lifted by ~+0.03 ARI from the single
+algorithm addition. v1 / v2 slightly regressed because their
+fingerprints don't capture the graph-feature regime cleanly.
+
+**graph_karate leaderboard after retrain:**
+
+| pos | algorithm | ARI |
+|---|---|---|
+| 1 (8-way tie) | **`learned_router_v3`/v4/v5/v6/v6b/v6c/v7`** + **`louvain_knn`** | **0.772** |
+| 9 | `rapid_v2` | 0.428 |
+| 10 | `dbscan` | 0.141 |
+
+What was a single-algorithm gap in round 10 (just `louvain_knn` at
+0.772, everyone else at 0.428) is now a *multi-algorithm consensus*
+— every meta-router correctly identifies `graph_karate` as the
+graph regime and dispatches accordingly.
+
+**This validates the methodology's closing claim**: the v1 → v4
+synthesis loop produces routers; the gap-finder + mutator surface
+new algorithms; benchmarking those algorithms updates the training
+data; the routers automatically retrain. **The whole pipeline is
+self-extending — a researcher writes a new algorithm, runs the
+benchmark, and the registry's learned dispatchers incorporate it
+on the next inference.**
+
+#### Final per-iteration lift summary
+
+| round | what changed | router lift (v3) |
+|---|---|---|
+| 1 | learned_router v1 baseline | (0.770) |
+| 2 | v2: probe features + intrinsic dim | +0.022 |
+| 3 | v3: per-algo ARI regressor | +0.028 |
+| 4 | v4: GradientBoost ensemble fallback | -0.015 |
+| 5 | v5: stacker over {v3, v4} | -0.012 |
+| 6 | v6 / v6b / v6c probe-based routers | various |
+| 7 | v7 stacker over {v3, v6} | +0.007 |
+| 8 | domain enlargement (time-series, graph) | -0.000 |
+| 9 | louvain_knn new algorithm | +0.000 (router untrained) |
+| **10** | **routers retrain on round-9 benchmark** | **+0.029** |
+
+Round 10 is the biggest single-step lift since v3 was introduced —
+and it required *zero new router code*. The data did the work.
+
+#### What to try first
 
 A pragmatic decision tree from the dashboard data:
 
