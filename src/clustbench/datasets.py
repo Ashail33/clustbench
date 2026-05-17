@@ -232,6 +232,164 @@ def gen_text20news(spec: DataSpec):
     return X, y_full
 
 
+def _from_sklearn_loader(loader, spec: DataSpec):
+    """Adapter: wrap a sklearn ``load_*`` bunch so it honours ``DataSpec``.
+
+    The synthetic generators all return ``(X, y)`` shaped by ``spec`` —
+    real datasets have a fixed shape, so this adapter:
+
+    - Loads the bunch once.
+    - Optionally subsamples to ``spec.n_samples`` (with a per-seed RNG).
+    - Optionally truncates feature columns via random projection if the
+      caller asked for fewer dims than the dataset has. (Keeps the
+      benchmark grid's ``n_features`` axis honest.)
+    - Injects ``spec.outliers`` and ``spec.noise`` points the same way
+      ``gen_mdcgen`` does.
+
+    Always returns ``np.float32`` X and ``np.int64`` y, label ``-1`` for
+    injected outliers / noise.
+    """
+    bunch = loader()
+    X_full, y_full = bunch.data, bunch.target
+
+    rng = np.random.default_rng(spec.seed)
+
+    # Subsample to spec.n_samples if smaller than the dataset (else use all).
+    if 0 < spec.n_samples < len(X_full):
+        idx = rng.choice(len(X_full), size=spec.n_samples, replace=False)
+        X_full, y_full = X_full[idx], y_full[idx]
+
+    # Trim or random-project to spec.n_features if requested.
+    d_actual = X_full.shape[1]
+    if 0 < spec.n_features < d_actual:
+        proj = rng.normal(size=(d_actual, spec.n_features)) / np.sqrt(d_actual)
+        X_full = X_full.astype(np.float32) @ proj.astype(np.float32)
+
+    X = X_full.astype(np.float32)
+    y = y_full.astype(np.int64)
+
+    X, y = _inject_noise(X, y, spec.noise, rng)
+    X, y = _inject_outliers(X, y, spec.outliers, rng)
+    perm = rng.permutation(len(X))
+    return X[perm].astype(np.float32), y[perm]
+
+
+def gen_inverse_pca(spec: DataSpec):
+    """High-ambient-dim data with a controlled low-intrinsic-dim structure.
+
+    Uses the ``inverse_pca`` library to *prescribe* an orthonormal basis +
+    spectrum + noise, then samples cluster blobs in the low-dim latent
+    space before projecting them up to ``spec.n_features`` ambient
+    dimensions.
+
+    Concretely:
+
+    1. Build an ``InversePCAGenerator`` with ``n_features = spec.n_features``
+       ambient, ``n_components = max(2, min(spec.centers, spec.n_features //
+       4))`` latent dims. Spectrum is power-decay (alpha 1.5) so the first
+       latent component carries the most variance — realistic for things
+       like text TF-IDF or expression data.
+    2. Sample ``spec.centers`` cluster means uniformly in the latent space
+       (scaled by sqrt(n_components) so they're well-separated relative to
+       intra-cluster spread).
+    3. For each cluster, draw a Dirichlet-imbalanced number of latent
+       vectors centred on the cluster mean with intra-cluster std =
+       ``compactness * 0.4`` (lower density → looser clusters per the
+       MDCGen analogy).
+    4. Project everything to ambient via ``generator.transform(Z)`` and
+       add the generator's isotropic noise.
+    5. Inject ``spec.outliers`` and ``spec.noise`` points the same way
+       ``gen_mdcgen`` does.
+
+    Returns a regime that exposes the *gap* between dense centroid-based
+    methods (kmeans family, gmm) and basis-learning methods (lmm, amm,
+    s5c) — the latter should win because the data is genuinely low-rank.
+    """
+    from inverse_pca import InversePCAGenerator
+
+    rng = np.random.default_rng(spec.seed)
+    d_amb = max(2, int(spec.n_features))
+    k = max(1, int(spec.centers))
+    # Latent dimensionality: enough to separate k clusters, capped by
+    # ambient dim. Floor at 2 so the latent space is non-trivial.
+    n_latent = max(2, min(int(k), d_amb // 4))
+
+    gen = InversePCAGenerator(
+        n_features=d_amb,
+        n_components=n_latent,
+        spectrum="power",
+        spectrum_decay=1.5,
+        latent_dist="gaussian",
+        noise_std=0.05 * float(spec.compactness),
+        random_state=spec.seed,
+    )
+
+    # Cluster means in the latent space.
+    centers_lat = rng.uniform(
+        -1.0, 1.0, size=(k, n_latent)
+    ) * np.sqrt(n_latent)
+    # Cluster sizes — Dirichlet-imbalanced like gen_mdcgen.
+    proportions = rng.dirichlet(np.ones(k) * 4.0)
+    sizes = (proportions * spec.n_samples).astype(int)
+    sizes[-1] = spec.n_samples - sizes[:-1].sum()
+
+    intra_std = max(0.05, 0.4 * float(spec.compactness)) / np.sqrt(
+        max(0.01, float(spec.density))
+    )
+
+    Z_parts = []
+    y_parts = []
+    for j in range(k):
+        Zj = centers_lat[j] + rng.normal(
+            scale=intra_std, size=(sizes[j], n_latent)
+        )
+        Z_parts.append(Zj)
+        y_parts.append(np.full(sizes[j], j, dtype=np.int64))
+    Z = np.vstack(Z_parts).astype(np.float32)
+    y = np.concatenate(y_parts)
+
+    # Project to ambient via the generator's basis, then add its noise.
+    X = gen.transform(Z).astype(np.float32)
+    if gen.noise_std > 0:
+        X = X + rng.normal(
+            scale=gen.noise_std, size=X.shape
+        ).astype(np.float32)
+
+    perm = rng.permutation(len(X))
+    X, y = X[perm], y[perm]
+
+    X, y = _inject_noise(X, y, spec.noise, rng)
+    X, y = _inject_outliers(X, y, spec.outliers, rng)
+    perm = rng.permutation(len(X))
+    return X[perm].astype(np.float32), y[perm]
+
+
+def gen_iris(spec: DataSpec):
+    """Fisher's iris dataset (n=150, d=4, k=3). Classic clustering benchmark."""
+    from sklearn.datasets import load_iris
+    return _from_sklearn_loader(load_iris, spec)
+
+
+def gen_wine(spec: DataSpec):
+    """UCI Wine dataset (n=178, d=13, k=3). Higher dim than iris, similar k."""
+    from sklearn.datasets import load_wine
+    return _from_sklearn_loader(load_wine, spec)
+
+
+def gen_breast_cancer(spec: DataSpec):
+    """UCI Wisconsin breast-cancer (n=569, d=30, k=2). Binary, high-d."""
+    from sklearn.datasets import load_breast_cancer
+    return _from_sklearn_loader(load_breast_cancer, spec)
+
+
+def gen_digits(spec: DataSpec):
+    """UCI handwritten digits (n=1797, d=64, k=10). Higher k, higher d.
+    Use a smaller ``n_features`` to project down; otherwise some O(n*d²)
+    algos get slow."""
+    from sklearn.datasets import load_digits
+    return _from_sklearn_loader(load_digits, spec)
+
+
 DATASETS = {
     "blobs": gen_blobs,
     "mixed": gen_mixed,
@@ -240,4 +398,9 @@ DATASETS = {
     "circles": gen_circles,
     "anisotropic": gen_anisotropic,
     "text20news": gen_text20news,
+    "iris": gen_iris,
+    "wine": gen_wine,
+    "breast_cancer": gen_breast_cancer,
+    "digits": gen_digits,
+    "inverse_pca": gen_inverse_pca,
 }

@@ -11,6 +11,7 @@
 # locally and push the regenerated docs/data/.
 
 datasets:
+  # Synthetic regimes
   - id: mdcgen
     n_samples: [500]
     n_features: [10]
@@ -33,6 +34,40 @@ datasets:
     n_samples: [500]
     n_features: [2]
     k_targets: [2]
+    compactness: [1.0]
+
+  # Real datasets — sklearn-bundled, no network required. Real data has
+  # different cluster geometry than any synthetic generator. The four
+  # below were chosen to span ambient dimensions (4 → 30) and k (2 → 10).
+  - id: iris
+    n_samples: [150]
+    n_features: [4]
+    k_targets: [3]
+    compactness: [1.0]
+  - id: wine
+    n_samples: [178]
+    n_features: [13]
+    k_targets: [3]
+    compactness: [1.0]
+  - id: breast_cancer
+    n_samples: [500]
+    n_features: [10]
+    k_targets: [2]
+    compactness: [1.0]
+  - id: digits
+    n_samples: [500]
+    n_features: [16]
+    k_targets: [10]
+    compactness: [1.0]
+
+  # High-ambient-dim synthetic data with controlled low-intrinsic-dim
+  # structure (powered by the companion inverse_pca package). Tests
+  # whether basis-learning methods (spectral, lmm) discover the latent
+  # structure that dense centroid methods cannot.
+  - id: inverse_pca
+    n_samples: [400]
+    n_features: [50, 200]
+    k_targets: [3, 5]
     compactness: [1.0]
 
 algorithms:
@@ -194,4 +229,4 @@ algorithms:
     entry: learned_router_v2
     params: {k_neighbors: 5}
 
-seeds: [1, 2]
+seeds: [1, 2, 3]
