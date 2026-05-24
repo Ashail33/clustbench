@@ -1,7 +1,7 @@
 ---
 title: "I Rebuilt My Master's Thesis as a Benchmark Anyone Can Run"
 subtitle: "Clustering papers are almost impossible to compare. So I built the boring infrastructure that fixes the lower half of that problem."
-series: "Benchmarking 44 Clustering Algorithms — Part 1"
+series: "Benchmarking 44 Clustering Algorithms, Part 1"
 tags: [machine-learning, clustering, benchmarking, data-science, reproducibility]
 ---
 
@@ -11,12 +11,12 @@ In 2024 I submitted a master's review titled *Review of Big Data
 Clustering Methods*. Like most reviews, it ended with a table: this
 method is fast, that one handles outliers, this other one needs you to
 know the number of clusters in advance. And like most reviews, the
-table was a snapshot — true on the day I wrote it, frozen forever after.
+table was a snapshot: true on the day I wrote it, frozen forever after.
 
 The problem with that table is the problem with most of the clustering
 literature: **the results are almost impossible to compare across
 papers.** Different authors report different metrics, on different
-datasets, at different sample sizes, with different hyperparameters —
+datasets, at different sample sizes, with different hyperparameters,
 and almost nobody reports runtime or memory in a way you can reproduce.
 If you want to know "should I use spectral clustering or a Gaussian
 mixture for my data," the literature gives you a hundred partial
@@ -33,14 +33,14 @@ thesis *described* and makes it something you can actually *run*.
 Clustbench is deliberately boring infrastructure. It does four things:
 
 1. **Generates synthetic datasets with known ground truth** at sample
-   sizes you control — convex blobs, moons, concentric circles,
+   sizes you control: convex blobs, moons, concentric circles,
    anisotropic clusters, high-outlier regimes, low-rank-in-high-d
    structure, and more. Known ground truth means we can compute the
    Adjusted Rand Index (ARI) honestly instead of squinting at a
    scatter plot.
 
 2. **Wraps real datasets** (iris, wine, breast cancer, digits) plus
-   time-series feature stacks and graph node-feature matrices — so the
+   time-series feature stacks and graph node-feature matrices, so the
    benchmark spans modality boundaries, not just Gaussian toys.
 
 3. **Runs every registered algorithm** through the same harness, the
@@ -50,7 +50,7 @@ Clustbench is deliberately boring infrastructure. It does four things:
 
 4. **Publishes a live dashboard.** Every push to the repo re-runs the
    benchmark in CI and redeploys the charts to GitHub Pages. The
-   numbers you see are never hand-curated — they're whatever the code
+   numbers you see are never hand-curated. They're whatever the code
    produced on the last commit.
 
 That last point matters more than it sounds. A benchmark you can't
@@ -60,13 +60,13 @@ re-runs itself on every commit is one you can *audit*.
 ## The shape of the current run
 
 The canonical config runs **43 algorithms across 15 dataset
-configurations at 3 seeds each** — roughly 2,900 individual
+configurations at 3 seeds each**, roughly 2,900 individual
 (algorithm, dataset, seed) results. That includes the classic
 baselines (k-means, DBSCAN, GMM, spectral, agglomerative, BIRCH,
 mean-shift, OPTICS), several big-data methods from the review, and a
 growing set of algorithms I synthesized later in the series.
 
-Here's the headline you'd expect — and the one you wouldn't:
+Here's the headline you'd expect, and the one you wouldn't:
 
 | algorithm | mean ARI |
 |---|---|
@@ -79,7 +79,7 @@ Here's the headline you'd expect — and the one you wouldn't:
 | optics | 0.145 |
 | dbscan | 0.078 |
 
-DBSCAN and OPTICS at the bottom is not a bug — it's the cost of a
+DBSCAN and OPTICS at the bottom is not a bug. It's the cost of a
 fixed `eps` across 15 very different dataset geometries. Density
 methods are exquisitely sensitive to their bandwidth, and a benchmark
 that uses one config across all regimes punishes them for it. That's a
@@ -89,7 +89,7 @@ an untuned benchmark.** We come back to that tension repeatedly.
 ## The part that isn't boring: the trajectory layer
 
 Most benchmarks record one row per run: which algorithm, which
-dataset, final score. Clustbench records that — but it also records,
+dataset, final score. Clustbench records that, but it also records,
 for every *iterative* algorithm, a per-step trajectory:
 
 ```
@@ -103,7 +103,7 @@ trajectory table. The optimization *process* itself becomes data.
 I didn't fully appreciate why this mattered when I built it. The point
 of this series is to find out. If every step of every algorithm is
 captured as a state-action record, then in principle you can *learn* a
-better version of that step — an outlier-robust centroid update, a
+better version of that step: an outlier-robust centroid update, a
 smarter swap proposal, a learned merge criterion. By the final part of
 this series I'll have tried exactly that: a reinforcement-learning
 agent that clusters by chaining primitive actions, trained on these
@@ -116,7 +116,7 @@ that's Part 6. We have a lot of ground to cover first.
 
 In **Part 2**, I go algorithm by algorithm and ask a single question:
 *what, specifically, is holding this method back?* Not "k-means is bad
-at non-convex shapes" — everyone knows that — but *which line of the
+at non-convex shapes" (everyone knows that) but *which line of the
 algorithm* causes it, and what you'd have to change to fix it.
 
 The whole thing is open. Clone it, run it, break it:

@@ -1,24 +1,24 @@
 # clustbench content strategy
 
 A 7-part series for Medium (long-form canon) syndicated to LinkedIn
-(hooks + distribution). Each Medium article spawns 2–4 LinkedIn posts —
+(hooks + distribution). Each Medium article spawns 2–4 LinkedIn posts:
 write once, atomize once.
 
 ## Core thesis
 "I turned my master's thesis on clustering into a living benchmark that
-builds, breaks, and routes between 44 algorithms — then tried to teach
+builds, breaks, and routes between 44 algorithms, then tried to teach
 an RL agent to cluster from scratch."
 
 The credibility comes from the honest negative results, not the wins.
 
 ## The series
-1. `01-the-setup.md` — paper → reproducible benchmark
-2. `02-where-algorithms-break.md` — per-family bottleneck reference
-3. `03-synthesizing-algorithms.md` — composing new methods from analysis
-4. `04-the-learned-router.md` — meta-learning algorithm selection
-5. `05-my-best-model-overfit.md` — the OOD humility post (viral candidate)
-6. `06-teaching-an-rl-agent-to-cluster.md` — Framing C / rl_pipeline
-7. `07-lessons-building-a-self-extending-benchmark.md` — capstone
+1. `01-the-setup.md`: paper → reproducible benchmark
+2. `02-where-algorithms-break.md`: per-family bottleneck reference
+3. `03-synthesizing-algorithms.md`: composing new methods from analysis
+4. `04-the-learned-router.md`: meta-learning algorithm selection
+5. `05-my-best-model-overfit.md`: the OOD humility post (viral candidate)
+6. `06-teaching-an-rl-agent-to-cluster.md`: Framing C / rl_pipeline
+7. `07-lessons-building-a-self-extending-benchmark.md`: capstone
 
 `linkedin-posts.md` holds the atomized hooks for each article.
 

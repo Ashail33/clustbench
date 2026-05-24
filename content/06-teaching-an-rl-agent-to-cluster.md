@@ -1,7 +1,7 @@
 ---
 title: "Teaching a Reinforcement-Learning Agent to Cluster From Primitives"
-subtitle: "I broke clustering into 8 primitive moves and tried to teach an agent to chain them. It learned the spectral trick from imitation alone — then hit a wall on bigger data. Here's exactly where, and why."
-series: "Benchmarking 44 Clustering Algorithms — Part 6"
+subtitle: "I broke clustering into 8 primitive moves and tried to teach an agent to chain them. It learned the spectral trick from imitation alone, then hit a wall on bigger data. Here's exactly where, and why."
+series: "Benchmarking 44 Clustering Algorithms: Part 6"
 tags: [machine-learning, reinforcement-learning, clustering, behavior-cloning, data-science]
 ---
 
@@ -15,7 +15,7 @@ mattered.
 
 This is the payoff. If clustering algorithms are just *sequences of
 primitive operations*, then maybe we don't need to pick an algorithm at
-all. Maybe an agent can learn to **chain the primitives itself** —
+all. Maybe an agent can learn to **chain the primitives itself**,
 choosing the right move at each step based on the state of the
 clustering so far. A learned algorithm, composed on the fly.
 
@@ -24,7 +24,7 @@ how far I got, and exactly where it broke.
 
 ## The action ontology
 
-I decomposed the registry's algorithms into eight primitive actions —
+I decomposed the registry's algorithms into eight primitive actions,
 the recurring "moves" that show up across k-means, k-medoids,
 agglomerative, spectral, and density methods:
 
@@ -46,7 +46,7 @@ normalized drop in clustering cost at each step. An episode ends on a
 step cap, a silhouette threshold, or a plateau.
 
 Sanity check first: I verified that *hand-written* trajectories through
-this environment reproduce the source algorithms — a k-means-equivalent
+this environment reproduce the source algorithms. A k-means-equivalent
 sequence reaches ARI 1.0 on blobs, and a spectral-equivalent sequence
 (`kpp → eigen_embed → assign → update`) reaches ARI 1.0 on concentric
 circles. The primitives are expressive enough. Now: can an agent
@@ -55,7 +55,7 @@ circles. The primitives are expressive enough. Now: can an agent
 ## Behavior cloning: learn the moves by imitation
 
 Full reinforcement learning from scratch needs millions of rollouts.
-The cheaper, sane first step is **behavior cloning (BC)** — supervised
+The cheaper, sane first step is **behavior cloning (BC)**: supervised
 learning on demonstrations.
 
 I drove five existing algorithms (k-means, CLARANS, agglomerative,
@@ -78,8 +78,8 @@ clears a silhouette bar, otherwise the best spectral-embedded rollout.
 
 ## The win: it learned the spectral trick from imitation
 
-Here's the result that genuinely surprised me. On concentric circles —
-the canonical non-convex trap that k-means scores ~0 on — the agent
+Here's the result that genuinely surprised me. On concentric circles
+(the canonical non-convex trap that k-means scores ~0 on) the agent
 reached **ARI 1.0**.
 
 And it did it *the right way*. The chosen trajectory was:
@@ -90,7 +90,7 @@ kpp_init → eigen_embed → ward_merge → kpp_init → assign → update → .
 
 The agent had no hand-coded knowledge that spectral methods solve
 rings. It learned, from 419 imitation traces, that **when the cost
-surface refuses to drop, the move that helps is `eigen_embed`** — switch
+surface refuses to drop, the move that helps is `eigen_embed`**: switch
 to the Laplacian embedding where the rings become separable. Of its 16
 rollouts, one fired `eigen_embed` early and landed at silhouette 0.76
 in the embedded space; the selector recognized that no non-spectral
@@ -102,15 +102,15 @@ A learned policy rediscovered the core idea of spectral clustering as a
 ## The wall: it doesn't generalize to bigger data
 
 Now the honest half. Across the full benchmark, `rl_pipeline` ranked
-**36th of 43**, mean ARI **0.584** — well below the routers (0.82–0.88)
+**36th of 43**, mean ARI **0.584**, well below the routers (0.82–0.88)
 and below plain spectral (0.765).
 
-It's bimodal. On its Gaussian-mixture wheelhouse it's excellent —
+It's bimodal. On its Gaussian-mixture wheelhouse it's excellent:
 anisotropic blobs 0.996, a graph SBM 0.982. But on the same circles it
 *aced* at 300 points, it scored **−0.001 at 500 points**.
 
 I dug into why, and the failure is precise and instructive. At n=500
-the policy *still fires* `eigen_embed` at step 0 — the spectral instinct
+the policy *still fires* `eigen_embed` at step 0. The spectral instinct
 survived. But the trajectory then terminates after a few
 `update_centers` no-ops. The agent **never learned the full follow-up
 sequence** needed to turn a 500-point spectral embedding into a clean
@@ -125,7 +125,7 @@ value a move by where the *whole episode* ends up.
 
 ## What fixes it (and why I stopped here)
 
-The textbook fix is **PPO on top of the BC initialization** — let the
+The textbook fix is **PPO on top of the BC initialization**: let the
 agent explore its own rollouts and re-weight actions by the *terminal*
 silhouette rather than per-step imitation loss. BC teaches the
 vocabulary; reinforcement learning would teach the grammar. That's the
@@ -134,11 +134,11 @@ spent yet.
 
 I'm deliberately reporting the BC result on its own, because it stands
 as a finding: **a learned policy over primitive clustering operators
-can recover the spectral pipeline from imitation alone — at low overall
+can recover the spectral pipeline from imitation alone, at low overall
 accuracy, but unmistakably non-random, and not by memorization.**
 
 `rl_pipeline` is not a clustering algorithm I'd recommend you deploy. It
-is a working proof that the trajectory layer is trainable — that
+is a working proof that the trajectory layer is trainable: that
 "clustering as a sequence of learned moves" is a real, tractable
 research direction and not just a slide.
 
@@ -147,5 +147,5 @@ the repo: https://github.com/Ashail33/clustbench
 
 ---
 
-*Part 5: "My Best Model Overfit. A Simpler One Won." Next — Part 7:
+*Part 5: "My Best Model Overfit. A Simpler One Won." Next, Part 7:
 "What I Learned Building a Self-Extending ML Benchmark."*

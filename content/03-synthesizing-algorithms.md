@@ -1,7 +1,7 @@
 ---
 title: "Letting the Analysis Design the Algorithm"
 subtitle: "If GMM owns robustness and spectral owns non-convex shapes, what happens when you compose the winning mechanisms into new algorithms?"
-series: "Benchmarking 44 Clustering Algorithms — Part 3"
+series: "Benchmarking 44 Clustering Algorithms, Part 3"
 tags: [machine-learning, clustering, algorithm-design, data-science]
 ---
 
@@ -22,37 +22,37 @@ benchmark stops being a scoreboard and starts being a *design tool*.
 Before synthesizing anything new, I built "improved variants" straight
 from the fix menus in Part 2:
 
-- **`kmeans_trimmed`** — k-means with a trimmed-mean centroid update
+- **`kmeans_trimmed`**: k-means with a trimmed-mean centroid update
   (drop the farthest α% each step). Targets the outlier bottleneck.
-- **`clarans_pp`** — CLARANS with k-means++ initialization instead of
+- **`clarans_pp`**: CLARANS with k-means++ initialization instead of
   random medoids. The original's surprise weakness was that random
   initial medoids could land *on* outliers.
-- **`dbscan_auto`** — DBSCAN with an `eps` estimated from the k-distance
+- **`dbscan_auto`**: DBSCAN with an `eps` estimated from the k-distance
   graph instead of a fixed value, fixing the "punished for being
   untuned" problem from Part 1.
-- **`meanshift_robust`** — bandwidth from a *trimmed* sample, fixing the
+- **`meanshift_robust`**: bandwidth from a *trimmed* sample, fixing the
   mean-shift collapse under outliers.
-- **`pwcc_diverse`** — a consensus ensemble whose base learners are
+- **`pwcc_diverse`**: a consensus ensemble whose base learners are
   *diverse* (`[kmeans, spectral, gmm]`) instead of three k-means
   variants, so the vote can actually solve non-convex data.
 
 Each variant beats its parent on the specific failure mode it targets.
 That's the cheap, honest win: the analysis told us exactly what to
-change, and the changes paid off. The smoke tests even assert it —
+change, and the changes paid off. The smoke tests even assert it:
 every improved variant must beat its original on its designed-for
 regime or CI fails.
 
 ## Step two: synthesize new algorithms from the mechanism map
 
-Then the more ambitious move — three new algorithms designed by
+Then the more ambitious move. Three new algorithms designed by
 asking "which mechanisms should fire on which data?":
 
-- **AURA** — adaptive routing: cheaply probe the data's geometry
+- **AURA**: adaptive routing that cheaply probes the data's geometry
   (effective rank, outlier fraction, a silhouette probe) and dispatch
   to the mechanism that should win.
-- **META_CLUSTERER** — a stacker (in the Wolpert sense): run several
-  bases, featurize their *disagreement*, and learn a combiner.
-- **RAPID** — outlier-detect first, then cluster the clean core, then
+- **META_CLUSTERER**: a stacker (in the Wolpert sense) that runs several
+  bases, featurizes their *disagreement*, and learns a combiner.
+- **RAPID**: outlier-detect first, then cluster the clean core, then
   assign the rest. Built because the analysis kept showing outliers as
   the single most common failure cause.
 
@@ -75,25 +75,25 @@ The honest scorecard, mean ARI across 15 dataset configs:
 | k-means | 0.681 |
 
 The synthesized algorithms landed *competitive with the best classical
-methods* — `aura_v3` essentially ties GMM — but they did **not** blow
+methods* (`aura_v3` essentially ties GMM), but they did **not** blow
 past them. That's worth sitting with. Composing winning mechanisms
 gets you to the frontier of what the components can do; it doesn't move
 the frontier. The routing overhead and the imperfect probes eat much
 of the theoretical gain.
 
-That's not a failure — it's the result. A benchmark that only ever
+That's not a failure. It's the result. A benchmark that only ever
 produced wins would be a benchmark I'd stopped trusting.
 
 ## The reframe this forced
 
 If composition tops out at the component frontier, the leverage isn't
-in *combining* algorithms — it's in *selecting* the right one per
+in *combining* algorithms; it's in *selecting* the right one per
 dataset, faster and more accurately than a hand-coded probe. AURA's
 routing was the seed of that idea. The next step was to stop
 hand-coding the routing logic and *learn* it from the benchmark's own
 history.
 
-That's Part 4: the learned router — a model trained on every past
+That's Part 4: the learned router, a model trained on every past
 result to predict which algorithm will win on a dataset it's never
 seen. It climbs to the top of the leaderboard. And then, in Part 5, it
 falls off a cliff the moment it meets genuinely unseen data.
@@ -103,5 +103,5 @@ https://github.com/Ashail33/clustbench
 
 ---
 
-*Part 2: "Where Each Clustering Algorithm Actually Breaks." Next —
+*Part 2: "Where Each Clustering Algorithm Actually Breaks." Next,
 Part 4: "Training a Model to Pick the Right Clustering Algorithm."*
