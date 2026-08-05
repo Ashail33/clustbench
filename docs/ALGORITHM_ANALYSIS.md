@@ -1929,6 +1929,39 @@ On the general new datasets the routers actually did fine: mean ARI is roughly t
 
 3. **`rl_pipeline` returned no rows on any of the 19 datasets in this run.** Either a crash on the checkpoint load or the fresh-config path exposed something the Round 13 smoke did not. Worth investigating before Round 15 rather than trusting the Round 13 score in isolation.
 
+#### Round 15: designing from the round-14 data, and two new negative results
+
+Round 15 built two new algorithms straight from what round 14 revealed. Two parallel subagents worked in parallel: one designed `trident` from the per-dataset winners table, one designed `learned_router_v8` from the router failure modes. Both landed in the registry with clean smoke tests. The full 47-algorithm benchmark then told a more nuanced story than the smoke did.
+
+**trident** (392 LOC). Three cheap probes (kmeans, diagonal GMM, louvain_knn) gated by silhouette and pairwise-ARI agreement, with specialist escalation to `isomap_bgmm` on heavy-tail signature and to `aura_v3` on density variation or centroid-vs-graph dissent. The design bakes selection INTO the algorithm rather than at a router layer. Combines centroid, mixture, and graph winners from round 14.
+
+**learned_router_v8** (488 LOC). Addresses four specific failure modes surfaced in round 14: (1) an enriched 11-feature fingerprint adds pairwise-distance kurtosis, cluster-mass gini, kNN density variance, and covariance effective rank so the adversarial regimes are distinguishable; (2) an OOD-triggered ensemble fallback runs the top-3 candidates on real data when the input fingerprint is far from training; (3) trains directly on the current `results.csv` so the round-14 winners are in the candidate pool; (4) aggregates by mean ARI rather than mean rank so peak candidates beat consistently-mid ones. Recursion-blocks v1 through v8.
+
+**Full benchmark (47 algorithms, 19 dataset configs, 3 seeds).**
+
+| Algorithm | Mean ARI | Rank |
+|---|---|---|
+| `learned_router_v5` | 0.915 | 1 |
+| `learned_router_v3` | 0.915 | 2 |
+| `learned_router_v7` | 0.912 | 3 |
+| `learned_router_v4` | 0.904 | 4 |
+| **`learned_router_v8`** | **0.890** | **5** |
+| `learned_router_v2` | 0.856 | 6 |
+| `learned_router` | 0.854 | 7 |
+| `lmm` | 0.813 | 8 |
+| `spectral` | 0.809 | 9 |
+| **`trident`** | **0.791** | **10** |
+
+**Two negative results worth documenting plainly.**
+
+1. **`learned_router_v8` regressed on average, and on the exact regimes it was designed for.** Compared to v7, v8 dropped 0.145 on iris, 0.120 on heavy_tailed_mixture, 0.092 on VariableDensityBridges, 0.070 on ts_ecg200, and 0.045 on PowerLawStudentT (the adversarial dataset the enriched fingerprint was meant to solve). It won on breast_cancer (+0.067) and tied on 8 more. Net: minus 0.022 in mean ARI vs v7. Two mechanisms contributed. The enriched fingerprint features change what the nearest-neighbour lookup considers "similar," and on this benchmark those changes moved dispatch decisions AWAY from the algorithms that would have won. The OOD-triggered ensemble fallback fires more than intended, and running an ensemble-with-silhouette-tiebreak sometimes underperforms trusting the argmax pick. This is the round-5 lesson repeating itself: adding sophistication to a router does not help when the training distribution is already dense enough for a coarse policy to work.
+
+2. **`trident` fails on non-convex because its silhouette gate keeps picking kmeans.** On moons, trident scored 0.265 while its own louvain_knn probe reached 0.997 in isolation. On circles it hit 0.666. On graph_karate 0.506 vs louvain_knn's 0.772. The design principle (combine complementary winners inside one algorithm) is sound; the failure mode is specific and fixable, which is that raw silhouette on wrong-split clusters can score higher than the correct-split silhouette on a spectral or graph partition. A silhouette-based gate cannot distinguish "compact wrong answer" from "less compact right answer" without a shape prior. The composition-ties-the-frontier finding from round 3 also holds: trident sits mid-pack (rank 10), above the classical ensemble methods but below every learned router.
+
+**One positive result on the meta-methodology.** The routers auto-retrain on whatever `results.csv` is present at inference. When round 15 dropped in `trident`, `learned_router_v8`, and refreshed the benchmark, `learned_router_v7`'s mean ARI moved from 0.871 in round 14 to 0.912 in round 15 without any code change. The router-family top-of-board moved from 0.877 to 0.915. That is the round-11 self-extension story firing again: growing the pool grew the ceiling for free.
+
+**What this points at for round 16.** The `learned_router_v8` result suggests the router families have saturated on this benchmark; further router iterations should stop and the work should redirect to (a) more benchmark coverage (bigger n, more shape regimes, real-world datasets outside sklearn), or (b) fixing trident's gate with a shape-aware prior (e.g. penalise silhouette when the number of neighbour graph components disagrees with k). The trajectory-layer / RL direction from round 13 is still the only path that changes what the algorithms can do rather than which one gets picked.
+
 ### What to try first
 
 A pragmatic decision tree from the dashboard data:

@@ -639,6 +639,12 @@
         "params": {}
       },
       {
+        "name": "learned_router_v8",
+        "kind": "python",
+        "entry": "learned_router_v8",
+        "params": {}
+      },
+      {
         "name": "mutant_kmeans_meta",
         "kind": "python",
         "entry": "mutant_kmeans_meta",
@@ -677,6 +683,12 @@
         "kind": "python",
         "entry": "isomap_bgmm",
         "params": {}
+      },
+      {
+        "name": "trident",
+        "kind": "python",
+        "entry": "trident",
+        "params": {}
       }
     ],
     "seeds": [
@@ -685,7 +697,7 @@
       3
     ]
   },
-  "generated_at": "2026-08-05 01:26:55",
+  "generated_at": "2026-08-05 07:40:51",
   "env": {
     "python": "3.11.15",
     "platform": "Linux-6.18.5-fc-v18-x86_64-with-glibc2.39"
