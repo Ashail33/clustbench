@@ -107,15 +107,14 @@ datasets:
     k_targets: [4]
     compactness: [1.0]
 
-  # High-ambient-dim synthetic data with controlled low-intrinsic-dim
-  # structure (powered by the companion inverse_pca package). Tests
-  # whether basis-learning methods (spectral, lmm) discover the latent
-  # structure that dense centroid methods cannot.
-  - id: inverse_pca
-    n_samples: [400]
-    n_features: [50, 200]
-    k_targets: [3, 5]
-    compactness: [1.0]
+  # High-ambient-dim synthetic data via inverse_pca — temporarily
+  # disabled in Round 14 because the companion package isn't installed
+  # in this environment. Restore when inverse_pca is available.
+  # - id: inverse_pca
+  #   n_samples: [400]
+  #   n_features: [50, 200]
+  #   k_targets: [3, 5]
+  #   compactness: [1.0]
 
   # Round 14 additions from the multi-agent discovery workflow. Three
   # general regimes plus two adversarial datasets targeting centroid
