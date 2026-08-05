@@ -117,6 +117,35 @@ datasets:
     k_targets: [3, 5]
     compactness: [1.0]
 
+  # Round 14 additions from the multi-agent discovery workflow. Three
+  # general regimes plus two adversarial datasets targeting centroid
+  # and density methods (see docs/ALGORITHM_ANALYSIS.md).
+  - id: hierarchical_nested
+    n_samples: [300]
+    n_features: [10]
+    k_targets: [4]
+    compactness: [1.0]
+  - id: imbalanced_blobs
+    n_samples: [300]
+    n_features: [10]
+    k_targets: [4]
+    compactness: [1.0]
+  - id: heavy_tailed_mixture
+    n_samples: [300]
+    n_features: [10]
+    k_targets: [4]
+    compactness: [1.0]
+  - id: PowerLawStudentT
+    n_samples: [300]
+    n_features: [10]
+    k_targets: [4]
+    compactness: [1.0]
+  - id: VariableDensityBridges
+    n_samples: [300]
+    n_features: [10]
+    k_targets: [4]
+    compactness: [1.0]
+
 algorithms:
   # Paper-taxonomy quartet (one per category)
   - name: parallel_kmeans
@@ -328,5 +357,19 @@ algorithms:
     kind: python
     entry: rl_pipeline
     params: {n_rollouts: 16, exploration: 1.5, max_steps: 12}
+
+  # Round 14: multi-agent discovery workflow produced these three.
+  - name: density_peaks_bridge
+    kind: python
+    entry: density_peaks_bridge
+    params: {}
+  - name: bico_stream
+    kind: python
+    entry: bico_stream
+    params: {}
+  - name: isomap_bgmm
+    kind: python
+    entry: isomap_bgmm
+    params: {}
 
 seeds: [1, 2, 3]

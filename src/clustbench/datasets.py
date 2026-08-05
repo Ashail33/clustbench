@@ -431,3 +431,8 @@ for _name, _gen in DOMAIN_DATASETS.items():
 # additions (glass, vehicle, ...) come along for free.
 for _name, _gen in REAL_DATASETS.items():
     DATASETS.setdefault(_name, _gen)
+
+# Round 14 additions (see docs/ALGORITHM_ANALYSIS.md).
+from .datasets_new import DATASETS_R14  # noqa: E402
+for _name, _gen in DATASETS_R14.items():
+    DATASETS.setdefault(_name, _gen)

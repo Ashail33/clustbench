@@ -67,6 +67,9 @@ EXPECTED_ALGOS = {
     "mutant_kmeans_meta",
     "louvain_knn",
     "rl_pipeline",
+    "density_peaks_bridge",
+    "bico_stream",
+    "isomap_bgmm",
 }
 
 
