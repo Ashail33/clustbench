@@ -1878,6 +1878,57 @@ demonstrating that a learned policy over primitive clustering
 operators can recover the spectral pipeline from imitation — but it
 is not a recommended classifier.
 
+#### Round 14: multi-agent discovery of new algorithms, datasets, and failure modes
+
+Round 14 was run as a fan-out workflow rather than a single design pass. Three discovery agents worked in parallel: one proposed new clustering algorithms, one proposed new synthetic datasets, and one proposed adversarial datasets whose only purpose was to make the current routers wrong. Each proposal was handed to its own implementation subagent that wrote the code and ran a smoke test. One integration agent then wired everything into the registries, one benchmark agent ran the sweep, and one report agent wrote the first draft of this section. Fourteen subagents in total, roughly 17 minutes wall clock, 560k tokens.
+
+**Discovery.**
+
+| Proposer | Name | Idea |
+|---|---|---|
+| algorithms | `density_peaks_bridge` | Rodriguez-Laio density peaks with a label-spreading bridge over a kNN graph, so borderline points are reassigned while genuine outliers are kept. |
+| algorithms | `bico_stream` | BICO-style streaming coreset k-means. Bounded-radius CF tree fed by mini-batches, weighted k-means++ over the coreset at query time. |
+| algorithms | `isomap_bgmm` | Geodesic Isomap embedding into a Dirichlet-process Bayesian GMM, so clusters follow curved manifolds and effective k is inferred from variational weights. |
+| datasets | `hierarchical_nested` | Two-level Gaussians, K super-clusters of M sub-clusters, fine-grained labels. |
+| datasets | `imbalanced_blobs` | Isotropic Gaussians with geometric size decay at 10:1 max-to-min. |
+| datasets | `heavy_tailed_mixture` | Multivariate Student-t components at low degrees of freedom. |
+| adversarial | `PowerLawStudentT` | Anisotropic Student-t mixture with Zipf-distributed component masses. First and second moments look Gaussian; kurtosis and mass-imbalance are the discriminating dimensions the router fingerprints never saw. |
+| adversarial | `VariableDensityBridges` | Radially non-stationary clusters (dense core, Cauchy tail) linked by thin Poisson bridges. No single eps works. Targets density methods and density-fingerprint routers. |
+
+**Implementation.** All 8 of 8 proposals implemented and passed their smoke tests. The workflow's integration agent wrote the wiring against the base branch's older file state, so the ALGORITHM_ANALYSIS.md, __init__.py, and paper.demo.yaml edits were redone by hand against master. The three algorithm files and five dataset files themselves needed no changes.
+
+**Benchmark, new algorithms** (mean ARI across 19 dataset configurations, 3 seeds, ranked among 45 registered algorithms):
+
+| Algorithm | Mean ARI | Rank |
+|---|---|---|
+| `bico_stream` | 0.725 | 23 / 45 |
+| `isomap_bgmm` | 0.694 | 32 / 45 |
+| `density_peaks_bridge` | 0.651 | 36 / 45 |
+
+For context the top of the board is a clean sweep of learned routers: `learned_router_v4` 0.872, `learned_router_v5/v7/v3` all 0.871, `learned_router_v2` 0.828, then `lmm` 0.813 and `spectral` 0.809. Every proposed algorithm landed mid-pack. `density_peaks_bridge` in particular ranked 1 of 9 in the workflow's own mini-config but 36 of 45 in the full sweep, which is the honest read: it wins its niche and loses everywhere else.
+
+**Benchmark, per new dataset** (top algorithm, plus routers and `density_peaks_bridge` for reference):
+
+| Dataset | Best | ARI | v1 | v7 | `lmm` | `density_peaks_bridge` |
+|---|---|---|---|---|---|---|
+| `hierarchical_nested` | `aura_v3` | 0.836 | 0.647 | 0.785 | 0.821 | 0.502 |
+| `imbalanced_blobs` | `consensus` | 0.996 | 0.992 | 0.992 | 0.992 | 0.388 |
+| `heavy_tailed_mixture` | `parallel_kmeans` | 0.945 | 0.852 | 0.852 | 0.939 | 0.930 |
+| `PowerLawStudentT` (adv.) | `clarans_pp` / `density_peaks_bridge` (tied) | 0.995 | 0.758 | 0.758 | 0.993 | 0.995 |
+| `VariableDensityBridges` (adv.) | `aura` | 0.942 | 0.744 | 0.744 | 0.936 | 0.937 |
+
+**Did the adversarial datasets break the routers?** Partly. Averaged across all router versions, on the two adversarial datasets the routers underperform the non-router mean by 0.036 on `PowerLawStudentT` and 0.068 on `VariableDensityBridges`. Not catastrophic, but real, and in exactly the direction the discovery agent predicted. `lmm` and `density_peaks_bridge` are close to the top on both adversarial datasets while the routers sit around 0.74 to 0.76, so the general Round 12 pattern (simple methods generalise, learned routers don't) reproduces on these deliberately-out-of-distribution regimes too.
+
+On the general new datasets the routers actually did fine: mean ARI is roughly tied with non-routers on `heavy_tailed_mixture` and `hierarchical_nested`, and 0.14 higher on `imbalanced_blobs`. Generalisation is only hard when you deliberately push into a fingerprint region the training set never covered.
+
+**Three honest implications from round 14.**
+
+1. **A workflow-native round is now the cheapest kind.** Fourteen subagents, one integration hiccup, one commit. Every prior round took human iteration; this one produced 3 algorithms plus 5 datasets plus a first-draft report in a single 17-minute pass. The right use of this is coverage expansion, not lifting the leaderboard: none of the new algorithms cracked the top 20, but the two adversarial datasets are genuinely new evaluation surface the registry did not have.
+
+2. **The adversarial dataset design worked, at a small effect size.** The routers underperform non-routers by 0.03 to 0.07 on the two adversarial datasets, and by essentially zero on the three general ones. That is the discovery agent successfully finding the router's out-of-distribution corner, not brute-force noise. The corner is not yet a cliff, so the routers are more robust than Round 12's synthetic OOD test suggested, but the direction is consistent.
+
+3. **`rl_pipeline` returned no rows on any of the 19 datasets in this run.** Either a crash on the checkpoint load or the fresh-config path exposed something the Round 13 smoke did not. Worth investigating before Round 15 rather than trusting the Round 13 score in isolation.
+
 ### What to try first
 
 A pragmatic decision tree from the dashboard data:
