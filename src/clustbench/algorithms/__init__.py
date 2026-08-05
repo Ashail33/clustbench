@@ -38,9 +38,11 @@ from . import learned_router_v6  # noqa: F401
 from . import learned_router_v6b  # noqa: F401
 from . import learned_router_v6c  # noqa: F401
 from . import learned_router_v7  # noqa: F401
+from . import learned_router_v8  # noqa: F401
 from . import louvain_knn  # noqa: F401
 from . import mutant_kmeans_meta  # noqa: F401
 from . import rl_pipeline  # noqa: F401
 from . import density_peaks_bridge  # noqa: F401
 from . import bico_stream  # noqa: F401
 from . import isomap_bgmm  # noqa: F401
+from . import trident  # noqa: F401

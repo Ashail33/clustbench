@@ -64,12 +64,14 @@ EXPECTED_ALGOS = {
     "learned_router_v6b",
     "learned_router_v6c",
     "learned_router_v7",
+    "learned_router_v8",
     "mutant_kmeans_meta",
     "louvain_knn",
     "rl_pipeline",
     "density_peaks_bridge",
     "bico_stream",
     "isomap_bgmm",
+    "trident",
 }
 
 
