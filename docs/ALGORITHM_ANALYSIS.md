@@ -2017,3 +2017,59 @@ leave-one-dataset-family-out (LOFO) evaluation of the routers.
 for spectral, so LMM takes 6 s at n = 30k where spectral takes 297 s, both at
 ARI 1.00. `louvain_knn` keeps moons at ARI 1.00 up to n = 50k.
 Auto-epsilon DBSCAN collapses at large n on blobs.
+
+#### Round 17: combining transforms, and cycling EM between them
+
+Two questions, benchmarked under the round-16 controls on the same 140
+in-distribution and 35 unseen tasks (paired Wilcoxon, Holm-corrected).
+
+**1. Combine the three classical transforms as features (`flhmm`).**
+
+Per point:
+- **Fourier:** random Fourier features (the characteristic function).
+- **Laplace:** the Laplace transform of the point's distance distribution,
+  `mean_j exp(-s d_ij)` on a log-grid of s.
+- **Hilbert:** envelope and instantaneous phase of the analytic signal of
+  the projected density.
+
+The blocks are equal-variance scaled and concatenated, with a mixture head
+(`flhmm`) or a k-means head (`flhmm_km`).
+
+| variant | ARI in-dist | vs LMM | ARI unseen |
+|---|---|---|---|
+| `flhmm` (mixture) | 0.652 | -0.113 (Holm 9e-15) | 0.724 |
+| `flhmm_km` | 0.592 | -0.172 | 0.643 |
+| Laplace block only (k-means) | 0.241 | -0.523 | 0.290 |
+| Hilbert block only (k-means) | 0.504 | -0.261 | 0.661 |
+
+The combined transforms are significantly worse than LMM overall and fail on
+moons (0.01-0.23 vs 0.63). The one genuine win is **real ECG200**:
+`flhmm_km` reaches 0.356, the best non-router result on that family (LMM
+0.196). On real Trace they lose (0.31 vs 0.61).
+
+**2. Cycle EM between the three transform views (`flh_cycle`).**
+
+Each transform keeps its own mixture and the views share soft assignments.
+Each step runs one view's M-step and then an E-step, cycling Fourier ->
+Laplace -> Hilbert (co-EM, Nigam & Ghani 2000; Bickel & Scheffer 2004).
+
+| variant | ARI in-dist | vs its k-means start | ARI unseen |
+|---|---|---|---|
+| `flh_cycle` (E-step from one view) | 0.381 | **-0.211** (Holm 7e-18) | 0.344 |
+| `flh_cycle_product` (E-step from all views, 50% hand-off) | 0.627 | **+0.034** (Holm 2e-8) | 0.676 |
+
+Literal cycling compounds each view's errors: every single-view E-step
+overwrites the shared assignments. Cycling the parameter updates while
+computing assignments from all views (block-coordinate EM on the
+product-of-experts) does improve on its starting point. It is the best
+non-router method on `extreme_outliers` (0.772), but it stays well below LMM
+(-0.138).
+
+**Bonus: graph-Laplacian + Fourier + autoencoder bases (`tbmm`) and AMM.**
+`tbmm` is statistically tied with LMM in-distribution (0.760 vs 0.765,
+Holm 0.36). On the unseen split it has the highest mean of all 58
+algorithms (0.869 vs LMM 0.858), but that gap is not significant. The
+Fourier+Laplacian ablation `tbmm_fl` scores the same and is 5x faster.
+Concatenating bases neither helps nor hurts: the graph-Laplacian block
+carries the signal. AMM, benchmarked for the first time, ranks 40th of 57
+(0.625).

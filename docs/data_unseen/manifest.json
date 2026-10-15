@@ -564,34 +564,76 @@
   },
   "shards": [
     {
-      "run_dir": "runs/validity/unseen_a",
+      "run_dir": "runs/validity/unseen",
       "config_sha256": "e653b76ef996419644241f36f2a53452d5757acee397dbd6cc7208b162d58487",
       "generated_at": "2026-10-15 11:44:34",
       "datasets": [
         "mdcgen",
         "moons",
         "inverse_pca",
-        "extreme_outliers"
-      ]
-    },
-    {
-      "run_dir": "runs/validity/unseen_b",
-      "config_sha256": "018ee3e20adf6f34ac8f1f018a458609047ba768e74d653f1e78ecbd9dc9822f",
-      "generated_at": "2026-10-15 11:44:34",
-      "datasets": [
+        "extreme_outliers",
         "varying_density",
         "ts_synth",
         "graph_sbm"
       ]
     },
     {
-      "run_dir": "runs/validity/unseen_gmm",
-      "config_sha256": "6e55eaa9d5ed573a49878c4353954780133fbbf9d8aa37aacf6dd41fba4cadd4",
-      "generated_at": "2026-10-15 12:12:40",
+      "run_dir": "runs/validity/tbmm_unseen_0",
+      "config_sha256": "49e134f567b827f1de4115deffe3ba05a798e43245b1275ec20a49a3ae96ebbd",
+      "generated_at": "2026-10-15 19:59:00",
       "datasets": [
         "mdcgen",
         "moons",
-        "inverse_pca",
+        "inverse_pca"
+      ]
+    },
+    {
+      "run_dir": "runs/validity/tbmm_unseen_1",
+      "config_sha256": "2e1f7ba7b09c91dab47cd8ff422dd3f6995415261920d060da6d801029800845",
+      "generated_at": "2026-10-15 19:59:00",
+      "datasets": [
+        "extreme_outliers",
+        "varying_density",
+        "ts_synth",
+        "graph_sbm"
+      ]
+    },
+    {
+      "run_dir": "runs/validity/flh_unseen_0",
+      "config_sha256": "21f958bc313520d592bf39ea9636a91de3bc030a5879a3b3674c3bb19de31e9a",
+      "generated_at": "2026-10-15 20:02:35",
+      "datasets": [
+        "mdcgen",
+        "moons",
+        "inverse_pca"
+      ]
+    },
+    {
+      "run_dir": "runs/validity/flh_unseen_1",
+      "config_sha256": "c8b1e68c4031cb79263f6db73da1c092ce7ac06ebe103e862d8b23c11374094d",
+      "generated_at": "2026-10-15 20:02:36",
+      "datasets": [
+        "extreme_outliers",
+        "varying_density",
+        "ts_synth",
+        "graph_sbm"
+      ]
+    },
+    {
+      "run_dir": "runs/validity/cyc_unseen_0",
+      "config_sha256": "f012bbafde5f62f206545a381a47c9f4d0080d937d9d53abae20253255462cc9",
+      "generated_at": "2026-10-15 20:05:15",
+      "datasets": [
+        "mdcgen",
+        "moons",
+        "inverse_pca"
+      ]
+    },
+    {
+      "run_dir": "runs/validity/cyc_unseen_1",
+      "config_sha256": "6e87234e55fcc1bf134429db4501b79b7a9b0cfe00ea11d6c93fd2ea05507124",
+      "generated_at": "2026-10-15 20:05:15",
+      "datasets": [
         "extreme_outliers",
         "varying_density",
         "ts_synth",
