@@ -131,6 +131,12 @@ algorithms:
   - {name: amm, kind: python, entry: amm, params: {}}
   - {name: tbmm, kind: python, entry: tbmm, params: {}}
   - {name: tbmm_fl, kind: python, entry: tbmm, params: {blocks: [fourier, laplacian]}}
+  # Fourier / Laplace / Hilbert transform features (mixture or k-means head)
+  # and single-transform ablations.
+  - {name: flhmm, kind: python, entry: flhmm, params: {}}
+  - {name: flhmm_km, kind: python, entry: flhmm, params: {head: kmeans}}
+  - {name: flhmm_laplace_km, kind: python, entry: flhmm, params: {head: kmeans, blocks: [laplace]}}
+  - {name: flhmm_hilbert_km, kind: python, entry: flhmm, params: {head: kmeans, blocks: [hilbert]}}
 
 # Five unseen seeds (was three).
 seeds: [100, 101, 102, 103, 104]

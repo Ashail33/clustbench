@@ -153,3 +153,21 @@ def test_tbmm_concatenates_blocks_and_solves_circles():
     assert adjusted_rand_score(y, res.labels) > 0.9
     with pytest.raises(ValueError):
         ALGO_REGISTRY["tbmm"](blocks=("wavelet",))
+
+
+def test_flhmm_transform_blocks_and_heads():
+    from clustbench.algorithms.base import ALGO_REGISTRY
+    from clustbench.algorithms.flhmm import hilbert_features, laplace_features
+
+    X, y = DATASETS["blobs"](DataSpec(n_samples=120, n_features=3, centers=3, compactness=1.0, seed=1))
+    rng = np.random.default_rng(0)
+    L = laplace_features(X, rng, n_s=5)
+    assert L.shape == (len(X), 5) and np.all((L > 0) & (L <= 1))
+    H = hilbert_features(X, rng, n_dirs=2)
+    assert H.shape == (len(X), 6) and np.allclose(H[:, 1] ** 2 + H[:, 2] ** 2, 1.0)
+    for head in ("mixture", "kmeans"):
+        res = ALGO_REGISTRY["flhmm"](head=head).fit_predict(X, k=3)
+        assert len(res.labels) == len(X) and res.extra["head"] == head
+        assert set(res.extra["blocks"]) == {"fourier", "laplace", "hilbert"}
+    with pytest.raises(ValueError):
+        ALGO_REGISTRY["flhmm"](head="dbscan")
