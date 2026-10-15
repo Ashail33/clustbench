@@ -187,7 +187,7 @@ algorithms:
   - {name: optics, kind: python, entry: optics, params: {min_samples: 5, xi: 0.05}}
 
   # EM / mixture
-  - {name: gmm, kind: python, entry: gmm, params: {max_iter: 100, n_init: 1, reg_covar: 1e-4}}
+  - {name: gmm, kind: python, entry: gmm, params: {max_iter: 100, n_init: 1, reg_covar: 1.0e-4}}
   - {name: spectral, kind: python, entry: spectral, params: {n_neighbors: 10}}
   - {name: meanshift, kind: python, entry: meanshift, params: {bin_seeding: true}}
 

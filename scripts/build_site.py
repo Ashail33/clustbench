@@ -35,10 +35,13 @@ RESULT_COLS = [
     "density",
     "ari",
     "nmi",
+    "ari_inliers",
+    "nmi_inliers",
     "silhouette",
     "davies_bouldin",
     "dunn",
     "wall_time_s",
+    "wall_time_repeats",
     "rss_delta_mb",
     "cpu_user_s",
     "cpu_system_s",
@@ -74,6 +77,8 @@ def build(run_dir: pathlib.Path, out_dir: pathlib.Path) -> None:
     results = []
     for _, row in df.iterrows():
         rec = {c: _clean(row.get(c)) for c in RESULT_COLS if c in df.columns}
+        if rec.get("wall_time_repeats") is not None:
+            rec["wall_time_repeats"] = [float(t) for t in rec["wall_time_repeats"]]
         rec["compactness"] = _clean(row.get("compactness"))
         results.append(rec)
     (out_dir / "results.json").write_text(json.dumps(results, indent=2, default=str))
@@ -112,6 +117,7 @@ def build(run_dir: pathlib.Path, out_dir: pathlib.Path) -> None:
                 "outliers": _clean(row.get("outliers")),
                 "noise": _clean(row.get("noise")),
                 "density": _clean(row.get("density")),
+                "outlier_extremity": _clean(row.get("outlier_extremity")),
                 "seed": int(row["seed"]),
                 "n_steps": len(steps),
                 "final_cost": steps[-1]["cost"] if steps else None,

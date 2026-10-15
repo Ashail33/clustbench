@@ -33,6 +33,7 @@ from training and evaluate only on that slice.
 from __future__ import annotations
 
 import json
+from ..training_data import load_training_rows, training_path
 import pathlib
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
@@ -148,13 +149,13 @@ def _load_training_data() -> Tuple[Optional[np.ndarray], Optional[list], Optiona
         return _TRAINING_CACHE
 
     repo_root = pathlib.Path(__file__).resolve().parents[3]
-    results_path = repo_root / "docs" / "data" / "results.json"
+    results_path = training_path()
     if not results_path.exists():
         _TRAINING_CACHE = (None, None, None)
         return _TRAINING_CACHE
 
     try:
-        rows = json.loads(results_path.read_text())
+        rows = load_training_rows()
     except Exception:
         _TRAINING_CACHE = (None, None, None)
         return _TRAINING_CACHE

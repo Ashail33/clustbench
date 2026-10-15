@@ -30,7 +30,10 @@ jobs:
           cache-dependency-path: pyproject.toml
 
       - name: Install clustbench
-        run: pip install -e .
+        run: |
+          pip install -e .
+          # rl_pipeline needs torch; CPU wheels keep the install small.
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
 
       - name: Run benchmark
         run: clustbench --config configs/benchmark.paper.demo.yaml --out runs/dashboard

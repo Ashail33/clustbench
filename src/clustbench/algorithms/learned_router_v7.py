@@ -67,6 +67,7 @@ lazily on the first ``fit_predict`` call.
 from __future__ import annotations
 
 import json
+from ..training_data import load_training_rows, training_path
 import pathlib
 import warnings
 from collections import defaultdict
@@ -126,13 +127,13 @@ def _load_training_data_v7() -> Optional[Dict[str, Any]]:
         return _TRAINING_CACHE_V7
 
     repo_root = pathlib.Path(__file__).resolve().parents[3]
-    results_path = repo_root / "docs" / "data" / "results.json"
+    results_path = training_path()
     if not results_path.exists():
         _TRAINING_CACHE_V7 = None
         return None
 
     try:
-        rows = json.loads(results_path.read_text())
+        rows = load_training_rows()
     except Exception:
         _TRAINING_CACHE_V7 = None
         return None

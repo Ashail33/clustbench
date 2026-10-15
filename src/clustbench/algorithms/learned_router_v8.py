@@ -6,7 +6,8 @@ Targets four failure modes exposed by round 14:
    knn_density_variance, and covariance_effective_rank.
 3. When the nearest training fingerprint is OOD, v8 runs the top N
    candidates on the real data and picks by silhouette.
-4. Trains on runs/paper_demo_r14/results.csv, so the round-14 winners
+4. Trains on the shared router training table (docs/data/results.json
+   via clustbench.training_data; originally runs/paper_demo_r14/results.csv), so the round-14 winners
    are already in the candidate pool. Leave-one-out at exact
    fingerprint keeps evaluation honest.
 
@@ -17,6 +18,7 @@ dispatch target.
 from __future__ import annotations
 
 import csv
+from ..training_data import load_training_rows, training_path
 import pathlib
 import warnings
 from collections import defaultdict
@@ -163,7 +165,7 @@ def _fingerprint_v8(X: np.ndarray, k: Optional[int]) -> Dict[str, float]:
 
 
 # ---------------------------------------------------------------------------
-# Training data (reads runs/paper_demo_r14/results.csv)
+# Training data (clustbench.training_data; docs/data/results.json by default)
 # ---------------------------------------------------------------------------
 
 def _cint(v: Any, default: int = 0) -> int:
@@ -188,7 +190,7 @@ def _load_training_data_v8() -> Optional[Dict[str, Any]]:
         return _TRAINING_CACHE_V8
 
     repo_root = pathlib.Path(__file__).resolve().parents[3]
-    results_path = repo_root / "runs" / "paper_demo_r14" / "results.csv"
+    results_path = training_path()
     if not results_path.exists():
         _TRAINING_CACHE_V8 = None
         return None
@@ -196,32 +198,31 @@ def _load_training_data_v8() -> Optional[Dict[str, Any]]:
     by_task: Dict[tuple, Dict[str, float]] = defaultdict(dict)
     task_meta: Dict[tuple, dict] = {}
     try:
-        with results_path.open("r", newline="") as f:
-            for r in csv.DictReader(f):
-                key = (r.get("dataset_id"), _cint(r.get("n_samples")),
-                       _cint(r.get("n_features")), _cint(r.get("k_target")),
-                       _cint(r.get("outliers")), _cint(r.get("noise")),
-                       _cflt(r.get("density"), 1.0), _cint(r.get("seed"), 1))
-                ari_raw = r.get("ari")
-                try:
-                    ari = float(ari_raw) if ari_raw not in (None, "") else None
-                except Exception:
-                    ari = None
-                if ari is None or np.isnan(ari):
-                    continue
-                by_task[key][r["algo"]] = float(ari)
-                task_meta[key] = {
-                    "dataset_id": r.get("dataset_id"),
-                    "n_samples": _cint(r.get("n_samples")),
-                    "n_features": _cint(r.get("n_features")),
-                    "k_target": _cint(r.get("k_target")),
-                    "compactness": _cflt(r.get("compactness"), 1.0),
-                    "outliers": _cint(r.get("outliers")),
-                    "noise": _cint(r.get("noise")),
-                    "density": _cflt(r.get("density"), 1.0),
-                    "seed": _cint(r.get("seed"), 1),
-                    "outlier_extremity": _cflt(r.get("outlier_extremity"), 1.0),
-                }
+        for r in load_training_rows():
+            key = (r.get("dataset_id"), _cint(r.get("n_samples")),
+                   _cint(r.get("n_features")), _cint(r.get("k_target")),
+                   _cint(r.get("outliers")), _cint(r.get("noise")),
+                   _cflt(r.get("density"), 1.0), _cint(r.get("seed"), 1))
+            ari_raw = r.get("ari")
+            try:
+                ari = float(ari_raw) if ari_raw not in (None, "") else None
+            except Exception:
+                ari = None
+            if ari is None or np.isnan(ari):
+                continue
+            by_task[key][r["algo"]] = float(ari)
+            task_meta[key] = {
+                "dataset_id": r.get("dataset_id"),
+                "n_samples": _cint(r.get("n_samples")),
+                "n_features": _cint(r.get("n_features")),
+                "k_target": _cint(r.get("k_target")),
+                "compactness": _cflt(r.get("compactness"), 1.0),
+                "outliers": _cint(r.get("outliers")),
+                "noise": _cint(r.get("noise")),
+                "density": _cflt(r.get("density"), 1.0),
+                "seed": _cint(r.get("seed"), 1),
+                "outlier_extremity": _cflt(r.get("outlier_extremity"), 1.0),
+            }
     except Exception:
         _TRAINING_CACHE_V8 = None
         return None

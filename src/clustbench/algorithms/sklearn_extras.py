@@ -33,25 +33,37 @@ class Gmm(Algorithm):
         self.max_iter = max_iter
         self.n_init = n_init
         self.covariance_type = covariance_type
-        self.reg_covar = reg_covar
+        self.reg_covar = float(reg_covar)  # YAML 1.1 reads "1e-4" as a string
         self.random_state = random_state
 
     def fit_predict(self, X: np.ndarray, k: Optional[int] = None) -> AlgoResult:
         from sklearn.mixture import GaussianMixture
 
         assert k is not None
-        gm = GaussianMixture(
-            n_components=k,
-            covariance_type=self.covariance_type,
-            reg_covar=self.reg_covar,
-            max_iter=self.max_iter,
-            n_init=self.n_init,
-            random_state=self.random_state,
-        )
-        labels = gm.fit_predict(X)
+        # A full covariance can go singular on small or collinear clusters
+        # (e.g. Breast Cancer). Retry with 100x more diagonal regularisation,
+        # at most three times, instead of failing the run; record what was
+        # used in ``extra["reg_covar_used"]``.
+        reg = self.reg_covar
+        for attempt in range(4):
+            gm = GaussianMixture(
+                n_components=k,
+                covariance_type=self.covariance_type,
+                reg_covar=reg,
+                max_iter=self.max_iter,
+                n_init=self.n_init,
+                random_state=self.random_state,
+            )
+            try:
+                labels = gm.fit_predict(X)
+                break
+            except ValueError as e:
+                if "ill-defined empirical covariance" not in str(e) or attempt == 3:
+                    raise
+                reg *= 100.0
         return AlgoResult(
             labels=labels.astype(np.int64),
-            extra={"bic": float(gm.bic(X)), "converged": bool(gm.converged_)},
+            extra={"bic": float(gm.bic(X)), "converged": bool(gm.converged_), "reg_covar_used": reg},
         )
 
 

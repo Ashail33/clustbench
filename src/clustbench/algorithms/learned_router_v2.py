@@ -31,6 +31,7 @@ to *both* router variants to prevent recursive routing chains.
 from __future__ import annotations
 
 import json
+from ..training_data import load_training_rows, training_path
 import pathlib
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
@@ -294,13 +295,13 @@ def _load_training_data_v2() -> Tuple[Optional[np.ndarray], Optional[list], Opti
         return _TRAINING_CACHE_V2
 
     repo_root = pathlib.Path(__file__).resolve().parents[3]
-    results_path = repo_root / "docs" / "data" / "results.json"
+    results_path = training_path()
     if not results_path.exists():
         _TRAINING_CACHE_V2 = (None, None, None)
         return _TRAINING_CACHE_V2
 
     try:
-        rows = json.loads(results_path.read_text())
+        rows = load_training_rows()
     except Exception:
         _TRAINING_CACHE_V2 = (None, None, None)
         return _TRAINING_CACHE_V2

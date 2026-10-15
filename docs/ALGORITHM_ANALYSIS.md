@@ -1973,3 +1973,47 @@ A pragmatic decision tree from the dashboard data:
 5. **High-d sparse data (text, gene expression)** → `amm` (autoencoder basis) or LMM with `n_neighbors` tuned per d.
 6. **Don't know what the data looks like** → run `pwcc` with a *diverse* ensemble: `[kmeans, spectral, gmm]` instead of three k-means variants. The weighted vote gives you robustness across regimes.
 7. **Want to push the research direction** → start collecting trajectories for the iterative algos. Every per-step record in `artifacts/trajectory_*.parquet` is training data for a learned step proposer or value model that, in principle, lets a "smarter version of the same algorithm" run with fewer iterations. The natural first notebook in `notebooks/` is an autoencoder over the serialized state column plus a value model over `(state, action) → delta_cost`, then playing the learned policy back against the trajectory dataset to measure step savings.
+
+#### Round 16: validity rerun — controls, corrections, and what survives
+
+Round 16 added a control in the harness for every threat to validity listed
+in the Clustbench paper (see
+[`METHODOLOGY.md`](METHODOLOGY.md#validity-controls)), then re-ran
+everything: in-distribution with five seeds and inverse-PCA restored (48
+algorithms, 140 tasks, 6,719 runs), the unseen split for every algorithm (49
+algorithms, 35 tasks), a large-n sweep to n = 50,000, and a
+leave-one-dataset-family-out (LOFO) evaluation of the routers.
+
+**What survives.**
+
+- Routers lead in-distribution: v3/v5/v7 at 0.815, ahead of LMM (0.765).
+  The +0.051 gap is significant (paired Wilcoxon, Holm p = 2e-4).
+- LMM is the best single algorithm: rank 8 in-distribution and 2nd of 49 on
+  the unseen split (0.858), tied with spectral (0.860).
+- Every diagnosed failure mode and every lineage lesson from rounds 1-15
+  still stands; those tables are historical snapshots.
+
+**What changed.**
+
+| earlier claim | controlled result |
+|---|---|
+| Time series are easy with engineered features (ARI 1.0) | The UCR mirrors were dead, so ECG200/Trace had been synthetic fallbacks. On the real series the best ARI is 0.28 (ECG200) and 0.65 (Trace) |
+| BIRCH is the only honest-linear high-quality method | At n > 3,000 in d = 10 its log-log slope is 2.1 (143 s at n = 50k); it stays linear on 2-d moons |
+| Advanced routers collapse off-distribution (-0.11 to -0.13); v1 generalises best | Trained on the broader grid, v3 scores 0.845 on the unseen split (tied with LMM), and v1 no longer leads. Under LOFO all routers lose 0.03-0.07 and are statistically tied with LMM/spectral |
+| `rl_pipeline` 1.00 on circles (smoke) | Retraining on the identical 419 traces gives 0.16; the 1.00 depended on one training run |
+| Plain ARI ranks contaminated tasks | Inlier-only ARI reverses the order on the 15 outlier tasks: LMM rises from 0.733 to 0.990, and LMM/spectral lead |
+
+**Silent failures root-caused:**
+
+- GMM's covariance went singular on Breast Cancer (it now retries with more
+  regularisation).
+- `reg_covar: 1e-4` was parsed as a YAML string, so GMM never ran on the unseen
+  split.
+- `Consensus` had no default base set.
+- v8 and `rl_pipeline` trained from git-ignored files.
+- The Parquet writer failed and the error was swallowed.
+
+**Scaling (n up to 50,000, fit_predict only).** LMM's slope is 1.5 against 2.9
+for spectral, so LMM takes 6 s at n = 30k where spectral takes 297 s, both at
+ARI 1.00. `louvain_knn` keeps moons at ARI 1.00 up to n = 50k.
+Auto-epsilon DBSCAN collapses at large n on blobs.

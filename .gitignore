@@ -8,3 +8,10 @@ runs/
 *.ipynb_checkpoints/
 .DS_Store
 .claude/
+
+# LaTeX build by-products
+paper/**/*.aux
+paper/**/*.bbl
+paper/**/*.blg
+paper/**/*.log
+paper/**/*.out

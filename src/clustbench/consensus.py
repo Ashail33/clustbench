@@ -25,9 +25,13 @@ def _align_labels(ref: np.ndarray, lab: np.ndarray) -> np.ndarray:
 
 @register
 class Consensus(Algorithm):
-    def __init__(self, base: list[str], base_params: dict | None = None, **kwargs):
+    # Default base set matches the benchmark configs, so routers that dispatch
+    # to ``consensus`` with no arguments get a working ensemble.
+    DEFAULT_BASE = ("kmeans", "minibatch_kmeans", "birch_algo")
+
+    def __init__(self, base: list[str] | None = None, base_params: dict | None = None, **kwargs):
         self.name = "consensus"
-        self.base = base
+        self.base = list(base) if base else list(self.DEFAULT_BASE)
         self.base_params = base_params or {}
 
     def fit_predict(self, X: np.ndarray, k: int | None = None) -> AlgoResult:

@@ -25,6 +25,8 @@ class MetricBundle(BaseModel):
     dunn: float | None = None
     compactness: float | None = None
     separation: float | None = None
+    ari_inliers: float | None = None
+    nmi_inliers: float | None = None
 
 
 class StepRecord(BaseModel):
@@ -71,6 +73,7 @@ class Record(BaseModel):
     dataset_source: str | None = None
     dataset_domain: str | None = None
     wall_time_s: float
+    wall_time_repeats: list[float] | None = None
     rss_delta_mb: float
     cpu_user_s: float
     cpu_system_s: float

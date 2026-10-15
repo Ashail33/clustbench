@@ -79,4 +79,28 @@ def bundle_scores(X, labels, y_true=None):
                 else float("nan"),
             }
         )
+    if y_true is not None:
+        out.update(inlier_scores(labels, y_true))
     return out
+
+
+def inlier_scores(labels, y_true):
+    """ARI / NMI restricted to ground-truth inliers (``y_true != -1``).
+
+    Generators label injected outliers and noise points ``-1``. The plain ARI
+    and NMI treat those points as one extra ground-truth class, which rewards
+    an algorithm for lumping all outliers together and penalises it for
+    assigning them to their nearest cluster. Scoring only the inliers removes
+    that convention from the comparison. Returns ``None`` values when there
+    are no injected outliers (the scores would equal ARI / NMI) or fewer than
+    two inliers.
+    """
+    y_true = np.asarray(y_true)
+    labels = np.asarray(labels)
+    mask = y_true != -1
+    if mask.all() or mask.sum() < 2:
+        return {"ari_inliers": None, "nmi_inliers": None}
+    return {
+        "ari_inliers": float(adjusted_rand_score(y_true[mask], labels[mask])),
+        "nmi_inliers": float(normalized_mutual_info_score(y_true[mask], labels[mask])),
+    }

@@ -53,9 +53,40 @@ ACTION_LIST: List[Action] = list(Action)
 N_ACTIONS = len(ACTION_LIST)
 ACTION_TO_IDX: Dict[str, int] = {a.value: i for i, a in enumerate(ACTION_LIST)}
 
-POLICY_CKPT = Path("runs/rl_policy.pt")
-VALUE_CKPT = Path("runs/rl_value.pt")
-DEFAULT_TRACES = Path("runs/rl_traces.parquet")
+# Artefacts live under ``<repo>/runs`` (git-ignored) unless
+# ``CLUSTBENCH_RL_DIR`` points elsewhere. Paths are absolute so the
+# algorithm works from any working directory, and missing artefacts are
+# rebuilt deterministically (see ``_ensure_models``) so a fresh checkout can
+# run it.
+import os as _os
+
+_RL_DIR = Path(_os.environ.get("CLUSTBENCH_RL_DIR") or Path(__file__).resolve().parents[3] / "runs")
+POLICY_CKPT = _RL_DIR / "rl_policy.pt"
+VALUE_CKPT = _RL_DIR / "rl_value.pt"
+DEFAULT_TRACES = _RL_DIR / "rl_traces.parquet"
+
+
+def build_default_traces(out_path: Path = DEFAULT_TRACES) -> Path:
+    """Recreate the behaviour-cloning trace set used for the published agent.
+
+    Same recipe as ``clustbench.rl_env._smoke``: five demonstrators
+    (kmeans, clarans, agglomerative, spectral, dbscan) replayed through the
+    env on ten MDCGen tasks (n=200, d=4, k=3, seeds 10-19), capped at 50
+    episodes.
+    """
+    from ..datasets import DataSpec, gen_mdcgen
+    from ..rl_env import collect_traces_from_existing_algorithms
+
+    datasets = []
+    for i in range(10):
+        Xi, _ = gen_mdcgen(DataSpec(n_samples=200, n_features=4, centers=3, compactness=1.0, seed=10 + i))
+        datasets.append((f"mdcgen_{i}", Xi, 3))
+    return collect_traces_from_existing_algorithms(
+        datasets,
+        algo_names=["kmeans", "clarans", "agglomerative", "spectral", "dbscan"],
+        max_episodes=50,
+        out_path=out_path,
+    )
 
 # Block recursion: meta-routers that scan the registry must skip rl_pipeline.
 _BLOCKED_TARGETS = {"rl_pipeline"}
@@ -612,6 +643,8 @@ class Rl_pipeline(Algorithm):
         if self._policy is not None and self._value is not None:
             return
         if not POLICY_CKPT.exists() or not VALUE_CKPT.exists():
+            if not DEFAULT_TRACES.exists():
+                build_default_traces(DEFAULT_TRACES)
             train_bc(
                 traces_path=DEFAULT_TRACES,
                 n_epochs=self.n_epochs_bootstrap,

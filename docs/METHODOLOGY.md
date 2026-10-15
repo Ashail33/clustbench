@@ -227,3 +227,27 @@ requirements are:
 Given those four ingredients, the v1 → v4 loop is mechanical. The
 discipline is in writing the diagnoses honestly enough that v2 is
 actually targeted.
+
+## Validity controls
+
+Each threat to validity listed in the Clustbench paper now has a control
+in the harness. All of them are opt-in config keys or scripts, and the
+paper configs (`benchmark.paper.demo.yaml`, `benchmark.unseen.yaml`,
+`benchmark.scaling.large.yaml`) turn them on.
+
+| threat | control | where |
+|---|---|---|
+| Friedman is over-powered with ~50 algorithms; says nothing about pairs | Nemenyi critical difference, Holm-corrected pairwise Wilcoxon signed-rank tests, configuration-level bootstrap CIs, per-configuration seed spread, written to `summary.json` under `posthoc` | `src/clustbench/stats.py` |
+| Three seeds per configuration | Five seeds in the in-distribution and unseen configs; CIs resample whole configurations so correlated seeds are not counted as independent evidence | configs |
+| Wall time included scoring (silhouette is O(n²)) and label I/O | Only `fit_predict` is inside the timed window | `benchmark.run_task` |
+| Router training / checkpoint loading landed in the first task's time | Untimed warm-up call per algorithm before the sweep (`timing.warmup`) | `cli/run.py` |
+| Single noisy timing per run; BLAS thread count uncontrolled | `timing.repeats` (median of N, all kept in `wall_time_repeats`) and `timing.threads` (threadpoolctl) | `cli/run.py` |
+| Hardware context missing | Manifest records CPU model, core counts, memory, thread limits, package versions, git commit and config SHA-256 | `cli/run.py` |
+| Real datasets silently fell back to synthetic data | Every row carries `dataset_source` (`real` / `synthetic` / `synthetic_fallback`); `strict_provenance: true` refuses the task. The UCR loader now uses the archive's checksummed zips (TRAIN+TEST) | `benchmark.generate_with_provenance`, `datasets_domains.py` |
+| Injected outliers scored as their own class | `ari_inliers` / `nmi_inliers` score ground-truth inliers only | `metrics.inlier_scores` |
+| Router in-distribution scores leak through sibling seeds | Leave-one-dataset-family-out evaluation retrains every router without the test family | `scripts/router_lofo.py`, `clustbench.training_data` |
+| Routers / RL agent depended on git-ignored `runs/` files | All routers read one training table (`docs/data/results.json`, overridable); `rl_pipeline` rebuilds its traces and checkpoint deterministically | `training_data.py`, `rl_pipeline.py` |
+| Small n only | `benchmark.scaling.large.yaml` goes to n = 50,000 with logged `max_n` caps for quadratic methods | configs |
+| Rank/Friedman task key ignored `outlier_extremity` | Task identity now includes it | `benchmark.py`, `stats.py` |
+| Some algorithms never evaluated off-distribution | The unseen config runs every algorithm in the in-distribution config | `benchmark.unseen.yaml` |
+| Shards of a large sweep | `scripts/merge_runs.py` merges run directories, rejects duplicate rows, recomputes statistics | scripts |
