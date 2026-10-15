@@ -158,14 +158,13 @@ def fig_ood(rows_in: list[dict], rows_ood: list[dict]) -> None:
         ax.scatter(a_in[a], a_ood[a], s=14, c="#c0504d" if is_r else "#4f81bd",
                    marker="s" if is_r else "o", zorder=3)
     label = {
-        "learned_router": ("router v1", (6, 0)),
-        "learned_router_v3": ("v3/v5/v7", (-6, 8)),
-        "learned_router_v4": ("v4", (5, -8)),
-        "learned_router_v2": ("v2", (5, -3)),
-        "lmm": ("lmm", (-4, 6)),
-        "louvain_knn": ("louvain_knn", (-50, -4)),
-        "aura_v3": ("aura_v2/v3", (-46, 5)),
-        "spectral": ("spectral", (5, -3)),
+        "lmm": ("lmm / spectral", (-58, 5)),
+        "learned_router": ("v1", (5, -2)),
+        "learned_router_v3": ("v3/v5/v7", (5, 2)),
+        "learned_router_v4": ("v4", (5, -5)),
+        "learned_router_v2": ("v2", (5, -6)),
+        "louvain_knn": ("louvain_knn", (-50, 3)),
+        "aura_v3": ("aura_v2/v3", (5, -9)),
         "meta_clusterer_v2": ("meta_clusterer_v2/v3", (5, -3)),
         "agglomerative": ("agglomerative", (-52, 3)),
     }
@@ -221,32 +220,35 @@ def fig_trajectories(traj: list[dict]) -> None:
 
 
 def fig_router_lineage() -> None:
-    # Mean ARI of each router generation at the round it was introduced and in
-    # the final snapshot, plus the unseen benchmark. Sources: the in-tree
-    # docs/ALGORITHM_ANALYSIS.md tables (rounds 4-12) and the committed data.
+    """Router generations on three evaluations: in-distribution (task-level
+    leave-one-out), leave-one-dataset-family-out, and the unseen split."""
     rows_in = load("docs/data/results.json")
     rows_ood = load("docs/data_unseen/results.json")
     a_in, a_ood = mean_ari(rows_in), mean_ari(rows_ood)
+    lofo_path = ROOT / "docs" / "data" / "router_lofo.json"
+    lofo = json.load(open(lofo_path))["summary"] if lofo_path.exists() else {}
     gens = ["learned_router", "learned_router_v2", "learned_router_v3", "learned_router_v4",
             "learned_router_v5", "learned_router_v6", "learned_router_v6b",
             "learned_router_v6c", "learned_router_v7", "learned_router_v8"]
     short = ["v1", "v2", "v3", "v4", "v5", "v6", "v6b", "v6c", "v7", "v8"]
     x = np.arange(len(gens))
-    fig, ax = plt.subplots(figsize=(3.4, 2.2))
+    fig, ax = plt.subplots(figsize=(3.4, 2.4))
     ax.plot(x, [a_in.get(g, np.nan) for g in gens], "o-", ms=3, lw=0.8, c="#c0504d",
             label="in-distribution")
+    ax.plot(x, [(lofo.get(g) or {}).get("lofo_mean_ari", np.nan) for g in gens], "^:", ms=3,
+            lw=0.8, c="#8064a2", label="leave-one-family-out")
     ax.plot(x, [a_ood.get(g, np.nan) for g in gens], "s--", ms=3, lw=0.8, c="#4f81bd",
-            label="unseen")
-    for ref, col in (("lmm", "#9bbb59"),):
-        ax.axhline(a_in[ref], c=col, lw=0.6, ls=":")
-        ax.axhline(a_ood[ref], c=col, lw=0.6, ls="-.")
-        ax.text(len(gens) - 0.6, a_ood[ref] + 0.005, "lmm (unseen)", fontsize=5.5, color=col, ha="right")
-        ax.text(len(gens) - 0.6, a_in[ref] - 0.017, "lmm (in-dist.)", fontsize=5.5, color=col, ha="right")
+            label="unseen split")
+    col = "#9bbb59"
+    ax.axhline(a_in["lmm"], c=col, lw=0.6, ls=":")
+    ax.axhline(a_ood["lmm"], c=col, lw=0.6, ls="-.")
+    ax.text(-0.4, a_ood["lmm"] + 0.004, "lmm (unseen)", fontsize=5.5, color=col)
+    ax.text(-0.4, a_in["lmm"] + 0.004, "lmm (in-dist.)", fontsize=5.5, color=col)
     ax.set_xticks(x)
     ax.set_xticklabels(short)
     ax.set_ylabel("mean ARI")
-    ax.set_ylim(0.6, 0.95)
-    ax.legend(frameon=False, loc="lower left")
+    ax.set_ylim(0.55, 0.9)
+    ax.legend(frameon=False, loc="lower right", fontsize=5.5)
     fig.tight_layout()
     fig.savefig(OUT / "router_lineage.pdf")
     plt.close(fig)

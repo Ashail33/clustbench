@@ -78,7 +78,7 @@ algorithms:
   - {name: agglomerative, kind: python, entry: agglomerative, params: {linkage: ward}}
   - {name: dbscan, kind: python, entry: dbscan, params: {eps: 0.8, min_samples: 5}}
   - {name: optics, kind: python, entry: optics, params: {min_samples: 5, xi: 0.05}}
-  - {name: gmm, kind: python, entry: gmm, params: {max_iter: 100, n_init: 1, reg_covar: 1e-4}}
+  - {name: gmm, kind: python, entry: gmm, params: {max_iter: 100, n_init: 1, reg_covar: 1.0e-4}}
   - {name: spectral, kind: python, entry: spectral, params: {n_neighbors: 10}}
   - {name: meanshift, kind: python, entry: meanshift, params: {bin_seeding: true}}
   - {name: pwcc, kind: python, entry: pwcc, params: {base: [kmeans, minibatch_kmeans, birch_algo]}}

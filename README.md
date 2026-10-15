@@ -258,11 +258,15 @@ specific component that would need to change to lift the score.
 ## How to use clustbench on your own data
 
 If you don't know your data's regime in advance, install clustbench and
-call `Learned_router_v3().fit_predict(X, k=...)` — across nine rounds of
-benchmark iteration documented in
-[`docs/ALGORITHM_ANALYSIS.md`](docs/ALGORITHM_ANALYSIS.md) it lands at or
-near rank 1 with mean ARI 0.839 across 55 dataset tasks (time-series,
-graph nodes, 23 synthetic families, and real-world UCI sets).
+call `Learned_router_v3().fit_predict(X, k=...)`. In the controlled
+five-seed benchmark (48 algorithms, 140 tasks across 20 dataset families) it
+ranks first with mean ARI 0.815, significantly ahead of the best single
+algorithm. Its advantage depends on your data resembling a family it was
+trained on: retrained with the test family held out, it drops to 0.745 and is
+statistically tied with `lmm` and `spectral`
+([`paper/clustbench`](paper/clustbench/clustbench.pdf), "Generalisation of the learned selectors"). For data
+unlike anything in the benchmark, `lmm` is as good a default, much cheaper,
+and near-linear in n.
 
 ```python
 import numpy as np
@@ -301,11 +305,12 @@ has `handles_k_directly=False` — `dbscan_auto`, `optics`,
 `meanshift_robust`, or `rapid` (which discovers `k` from a density
 partition).
 
-**If you trust the methodology, not the model.** `learned_router_v3` is
-*trained on* this repo's benchmark grid; generalisation outside that
-distribution is not guaranteed. To retrain on a domain-specific benchmark,
-follow the recipe in [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md). A
-hands-on walkthrough lives at
+**If you trust the methodology, not the model.** The routers are trained on
+this repo's benchmark grid (`docs/data/results.json`, or any table named by
+`CLUSTBENCH_ROUTER_TRAINING`). To measure how they do on a family they have
+not seen, run `python scripts/router_lofo.py`. To retrain on a
+domain-specific benchmark, follow the recipe in
+[`docs/METHODOLOGY.md`](docs/METHODOLOGY.md). A hands-on walkthrough lives at
 [`notebooks/default_clustering.ipynb`](notebooks/default_clustering.ipynb).
 
 ## Methodology
@@ -319,10 +324,12 @@ the benchmark data. Three honest caveats are documented at the end —
 v2 doesn't always lift, v3 doesn't always help, and the learned router
 needs held-out evaluation.
 
-For honest generalisation testing, run
-[`configs/benchmark.holdout.yaml`](configs/benchmark.holdout.yaml) —
-same dataset shapes as the demo benchmark but disjoint seeds
-[11, 12, 13] so the learned router can't memorise.
+For honest generalisation testing, run the leave-one-dataset-family-out
+evaluation (`scripts/router_lofo.py`) and the unseen benchmark
+([`configs/benchmark.unseen.yaml`](configs/benchmark.unseen.yaml)). The
+validity controls (post-hoc statistics, timing method, provenance, inlier
+metrics) are listed in
+[`docs/METHODOLOGY.md`](docs/METHODOLOGY.md#validity-controls).
 
 ## Dashboard
 

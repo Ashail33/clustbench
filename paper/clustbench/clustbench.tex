@@ -37,24 +37,28 @@ configuration expands into a Cartesian grid of tasks over synthetic,
 real-world, time-series, graph and adversarial datasets with known ground
 truth. Every registered algorithm, whether native Python or any executable
 speaking a four-field JSON protocol, runs on the same data, and each run is
-recorded as one schema-validated row holding external validity (ARI, NMI),
-internal validity (silhouette, Davies--Bouldin, Dunn) and resource use (wall
-time, memory delta, CPU and I/O). Results are aggregated by average ranks and
-a Friedman test. Clustbench adds three things that existing clustering
-benchmarks do not provide together. First, a \emph{trajectory layer} logs every
-step of an iterative algorithm as a $(\text{state}, \text{action},
-\text{cost}, \Delta\text{cost})$ record, so the optimisation process becomes
-data. Second, machine-readable \emph{algorithm cards} give theoretical cost
-and quality predictions next to the measured values. Third, the benchmark's own
-output is the training set for a \emph{self-extending} layer of learned
-algorithm selectors that retrain automatically when new algorithms or datasets
-are added. On the current release (47 algorithms, 19 dataset families,
-72 tasks, 3{,}354 result rows) the Friedman test rejects equal performance
-decisively ($\chi^2 = 1189$, $p \approx 7\times10^{-219}$). No single
-algorithm wins every dataset family. A separate out-of-distribution benchmark
-shows that the selectors that rank highest in-distribution lose
-0.11--0.13 ARI on unseen regimes, which is the main methodological lesson the
-harness surfaced.
+recorded as one schema-validated row holding external validity (ARI, NMI,
+and inlier-only variants), internal validity and resource use. Clustbench adds
+three things that existing clustering benchmarks do not provide together: a
+\emph{trajectory layer} that logs every step of an iterative algorithm as a
+$(\text{state}, \text{action}, \text{cost}, \Delta\text{cost})$ record;
+machine-readable \emph{algorithm cards} with theoretical predictions; and a
+\emph{self-extending} layer of learned algorithm selectors that retrain on the
+benchmark's own output. We pair each threat to the validity of such a
+benchmark with a control in the harness: post-hoc tests and
+configuration-level confidence intervals, five seeds, repeated timing of the
+algorithm call alone, checked data provenance, inlier-only scoring, a
+large-$n$ sweep, and leave-one-dataset-family-out evaluation of the
+selectors. On the controlled release (48 algorithms, 20 dataset families,
+140 tasks, 6{,}719 runs) the Friedman test rejects equal performance
+($\chi^2 = 2062$), yet a Nemenyi critical difference cannot separate the top
+11 algorithms. The best selector beats the best single algorithm (an
+EM-trained graph-Laplacian mixture) by 0.05 ARI in-distribution, but loses
+0.03--0.07 ARI on held-out dataset families, where no selector differs
+significantly from that algorithm. The controls also corrected three earlier
+results: the ``real'' time series had silently been synthetic, BIRCH scales
+quadratically beyond $n \approx 3{,}000$ in 10 dimensions, and the treatment of
+injected outliers reorders the leaderboard on contaminated data.
 \end{abstract}
 
 \section{Introduction}
@@ -98,10 +102,14 @@ recommendation into software and keeps the grid cheap to re-run.
   outlier-heavy, low-rank high-dimensional, real tabular, time-series, graph
   and deliberately adversarial regimes, and a registry of 50 algorithm
   implementations.
-  \item \textbf{An empirical study} (\S\ref{sec:results}) that includes
-  in-distribution, held-out-seed and out-of-distribution evaluations. It
-  documents a failure mode of learned algorithm selection that only the
-  out-of-distribution split exposes.
+  \item \textbf{Validity controls} (\S\ref{sec:validity}) for each threat we
+  identified in our own earlier results: post-hoc statistics, seed count,
+  timing method, data provenance, outlier scoring, scale, and selector
+  leakage.
+  \item \textbf{An empirical study} (\S\ref{sec:results}) with
+  in-distribution, leave-one-dataset-family-out, out-of-distribution and
+  large-$n$ evaluations, including the earlier results that the controls
+  overturned (\S\ref{sec:corrections}).
 \end{enumerate}
 A companion paper~\cite{clustbenchalgos} describes the new algorithms
 developed with the harness. This paper covers the harness, the suite and what
@@ -187,24 +195,29 @@ That is the entire protocol.
 \subsection{Records and resource measurement}
 Each (algorithm, task) pair produces one record validated by a Pydantic schema
 (Appendix~\ref{app:schema}). Resource use is measured with \code{psutil}
-around the \code{fit\_predict} call: wall-clock time, resident-set-size
-delta, user and system CPU time, and read/write bytes where the platform
-exposes them. Metrics are computed by one function shared by all algorithms:
+around the \code{fit\_predict} call \emph{only}: wall-clock time,
+resident-set-size delta, user and system CPU time, and read/write bytes where
+the platform exposes them. Label saving and scoring happen outside the timed
+window (\S\ref{sec:validity}). Metrics are computed by one function shared by all algorithms:
 ARI~\cite{hubert1985comparing} and NMI~\cite{strehl2002cluster} against
 ground truth; silhouette~\cite{rousseeuw1987silhouettes} (sub-sampled above
 5{,}000 points), Davies--Bouldin~\cite{davies1979cluster} and
 Dunn~\cite{dunn1973fuzzy} as internal indices; plus compactness and
-separation. The results table is flat (one column per metric), so a
+separation. Because generators label injected outliers $-1$, we also report
+\code{ari\_inliers} and \code{nmi\_inliers}, computed on ground-truth inliers
+only. The results table is flat (one column per metric), so a
 leaderboard is a one-line query in pandas or DuckDB. A crashing algorithm is
-logged and skipped and does not abort the sweep. In the 4{,}332-row
-comprehensive run, 156 (3.6\%) runs failed this way and every other result was
-kept.
+logged and skipped and does not abort the sweep. Logged failures are not
+harmless, though: a missing row silently drops out of an algorithm's mean.
+Section~\ref{sec:corrections} lists the root causes we found this way.
 
 \subsection{Aggregation}
 For each metric, algorithms are ranked within every task (rank 1 = best,
 ties averaged). Ranks are averaged across tasks, and the Friedman
 statistic is computed over the tasks on which every algorithm produced a
-result~\cite{demsar2006statistical}. The summary is written to
+result~\cite{demsar2006statistical}. Because the Friedman test is nearly
+always significant with dozens of algorithms, the summary also carries
+post-hoc statistics (\S\ref{sec:validity}). The summary is written to
 \code{summary.json} and also recomputed in the browser by the dashboard, so
 adding an algorithm never requires changing analysis code.
 
@@ -226,9 +239,9 @@ proposals). The negative of $\Delta c_t$ is a natural reward. Concatenated
 across runs, trajectories are a dataset for value models over
 $(s, a) \mapsto \Delta c$, for learned proposal distributions, and for
 imitation learning of clustering policies. The companion
-paper~\cite{clustbenchalgos} trains such a policy. In the current release, 36
-of the 47 benchmarked algorithms emit trajectories, and the in-distribution
-run stores 2{,}569 of them. Figure~\ref{fig:traj} shows three.
+paper~\cite{clustbenchalgos} trains such a policy. In the current release, 37
+of the 48 benchmarked algorithms emit trajectories, and the in-distribution
+run stores 5{,}180 of them. Figure~\ref{fig:traj} shows three.
 
 \begin{figure}[t]
   \centering
@@ -250,11 +263,12 @@ space, and whether $k$ is an input. Cards serve three purposes.
 \begin{itemize}
   \item \textbf{Theoretical predictions.} Every result row carries three
   predicted columns (\code{theoretical\_*}: wall time, memory and an ARI
-  upper bound) next to the measured values. After
-  calibration, predicted wall time landed within $0.6$--$1.5\times$ of measured
-  for every algorithm. The deviations are diagnostic: mean shift's ratio of
-  $0.59$ shows that its card's $O(n^2)$ is pessimistic for the bin-seeded
-  implementation.
+  upper bound) next to the measured values. Against the earlier timing
+  method, which included scoring (\S\ref{sec:corrections}), predicted wall
+  time landed within $0.6$--$1.5\times$ of measured for every algorithm, and
+  the deviations were diagnostic: mean shift's ratio of 0.59 showed that its
+  card's $O(n^2)$ is pessimistic for the bin-seeded implementation. The cards
+  have not yet been recalibrated against the corrected timings.
   \item \textbf{Gap finding.} Given dataset fingerprints (effective
   dimension, convexity, outlier fraction, density skew and similar), the gap
   finder scores every card's predicted ARI upper bound and reports regimes
@@ -269,6 +283,69 @@ space, and whether $k$ is an input. Cards serve three purposes.
 The card predictions are an \emph{ordering} heuristic, not a calibrated
 estimate. The mutator predicted $0.926$ ARI for its proposed hybrid, which
 actually reached $0.747$ (\S\ref{sec:discussion}).
+
+\subsection{Validity controls}\label{sec:validity}
+An earlier version of this paper listed threats to validity without
+addressing them. Each now has a control in the harness
+(Table~\ref{tab:controls}), switched on in all configurations used below.
+
+\paragraph{Statistics.} With $k \approx 50$ algorithms the Friedman test is
+over-powered: it says that \emph{some} algorithms differ, not which. The
+\code{stats} module adds three things on top of it:
+\begin{itemize}
+  \item the Nemenyi critical difference (CD) for average
+  ranks~\cite{demsar2006statistical};
+  \item Wilcoxon signed-rank tests between pairs of algorithms with Holm
+  step-down correction, run between every pair of the top ten and between the
+  best algorithm and every other;
+  \item percentile bootstrap confidence intervals for each mean, resampling
+  dataset \emph{configurations} so that the five correlated seeds of a
+  configuration move together.
+\end{itemize}
+
+\paragraph{Timing.} Only \code{fit\_predict} is timed. Previously the timed
+window also contained label I/O and metric computation, including the
+$O(n^2)$ silhouette. An untimed warm-up call per algorithm absorbs one-off
+costs: the learned selectors train on first use, which had added up to 14\,s
+to the first task. Each run is timed three times and the median is reported
+(all three are kept). BLAS and OpenMP are pinned to one thread through
+\code{threadpoolctl}, and the manifest records CPU model, core counts,
+memory, package versions, git commit and a hash of the configuration.
+
+\paragraph{Provenance.} Every row records \code{dataset\_source}
+(\code{real}, \code{synthetic} or \code{synthetic\_fallback}), and with
+\code{strict\_provenance} the harness refuses a real dataset whose loader fell
+back to synthetic data. The UCR loader now downloads the archive's canonical
+zips, verifies a pinned SHA-256, and concatenates the TRAIN and TEST splits.
+
+\paragraph{Selector leakage.} All learned selectors read their training table
+through one module, which can exclude dataset families. A
+leave-one-dataset-family-out (LOFO) script retrains every selector without
+the test family, one family at a time.
+
+\begin{table}[t]
+  \centering\small
+  \caption{Threats to validity and the controls now in the harness.}
+  \label{tab:controls}
+  \begin{tabular}{p{0.42\linewidth}p{0.5\linewidth}}
+    \toprule
+    threat & control \\
+    \midrule
+    Friedman over-powered; no pairwise evidence & Nemenyi CD, Holm-corrected Wilcoxon, configuration bootstrap CIs \\
+    Three seeds per configuration & five seeds; per-configuration seed spread reported \\
+    Timed window included scoring and I/O & time \code{fit\_predict} only \\
+    One-off training cost in first task & untimed warm-up \\
+    Single noisy timing; threads uncontrolled & median of 3; one BLAS/OpenMP thread; hardware in manifest \\
+    Real data silently replaced by synthetic & \code{dataset\_source} per row; \code{strict\_provenance}; checksummed UCR zips \\
+    Injected outliers scored as a class & \code{ari\_inliers}, \code{nmi\_inliers} \\
+    $n \le 2000$ & sweep to $n = 50{,}000$ with logged \code{max\_n} caps \\
+    Selector leakage through sibling seeds & leave-one-dataset-family-out retraining \\
+    Selectors and agent trained from git-ignored files & one committed training table; agent rebuilds its traces \\
+    Algorithms missing from OOD split & unseen config covers every algorithm \\
+    Failed runs silently drop from means & failures root-caused (\S\ref{sec:corrections}) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \subsection{Dashboard and continuous evaluation}
 A static, dependency-free HTML dashboard served from the repository's
@@ -330,107 +407,125 @@ method, ten learned selectors and a behaviour-cloned agent.
 
 \paragraph{Evaluation splits.}
 \begin{itemize}
-  \item \emph{In-distribution} (\code{benchmark.paper.demo.yaml}): 19
-  dataset configurations, seeds $\{1,2,3\}$, $n \le 1000$; this is the split
-  the learned selectors train on.
-  \item \emph{Held-out seeds} (\code{benchmark.holdout.yaml}): the same
-  shapes with seeds $\{11,12,13\}$, which removes seed-level memorisation.
+  \item \emph{In-distribution} (\code{benchmark.paper.demo.yaml}): 28 task
+  variants from 20 dataset families (inverse-PCA restored), seeds
+  $\{1,\dots,5\}$, $n \le 1000$, giving 140 tasks.
+  \item \emph{Leave-one-family-out} (\code{scripts/router\_lofo.py}): the same
+  140 tasks, with each selector retrained without the family under test.
   \item \emph{Out-of-distribution} (\code{benchmark.unseen.yaml}): seven
   configurations with $(n, d, k)$ tuples, outlier extremities and seeds
-  ($100$--$102$) absent from training, e.g.\ MDCGen at $d{=}25, k{=}7$, moons
-  embedded in $d{=}5$, inverse-PCA at $d{=}150$, and outlier extremity 10.
+  ($100$--$104$) absent from training, e.g.\ MDCGen at $d{=}25, k{=}7$, moons
+  embedded in $d{=}5$, inverse-PCA at $d{=}150$, and outlier extremity 10,
+  giving 35 tasks for all 49 algorithms (the 48 above plus Chameleon).
+  \item \emph{Large-$n$} (\code{benchmark.scaling.large.yaml}): MDCGen
+  ($d{=}10, k{=}5$) and moons at $n \in \{10^3, 3\cdot10^3, 10^4,
+  3\cdot10^4, 5\cdot10^4\}$, two seeds, 18 algorithms.
 \end{itemize}
 
 \section{Results}\label{sec:results}
 
 All numbers below come from the data committed in the repository
-(\code{docs/data} and \code{docs/data\_unseen}). The figures are regenerated
-from those files by the script \code{make\_figures.py} in
-\code{paper/scripts}.
+under \code{docs/}: the in-distribution, unseen and scaling runs and the
+LOFO results. The figures are regenerated from those
+files by the script \code{make\_figures.py} in \code{paper/scripts}. Every real
+dataset loaded as real data: 1{,}680 rows are \code{real} and none is a
+fallback.
 
 \subsection{Overall leaderboard}
-The in-distribution run covers 47 algorithms on 72 tasks (24 task variants
-from 19 dataset configurations, $\times$ 3 seeds), giving 3{,}354 result
-rows. Figure~\ref{fig:ranks} shows average ARI ranks. Over the 64 tasks
-that every algorithm completed, the Friedman test gives $\chi^2 = 1188.8$
-($p = 7.1\times10^{-219}$). The top seven positions are learned selectors
-(\S\ref{sec:ood} qualifies this). The strongest single algorithms are the
-graph-Laplacian methods: LMM (average rank 17.0, mean ARI 0.813) and spectral
-clustering (17.6, 0.809).
+The in-distribution run covers 48 algorithms on 140 tasks, giving 6{,}719
+result rows. Over the 139 tasks every algorithm completed, the Friedman test
+gives $\chi^2 = 2062$ ($p < 10^{-300}$). Figure~\ref{fig:ranks} shows average
+ranks and Figure~\ref{fig:ci} adds confidence intervals.
+\begin{itemize}
+  \item \textbf{Nemenyi cannot separate the top of the board.} The CD is 6.7
+  ranks, and eleven algorithms are within one CD of the best: seven learned
+  selectors, LMM, spectral clustering, AURA-v3 and PWCC with diverse bases.
+  \item \textbf{Pairwise tests are sharper.} Holm-corrected Wilcoxon tests
+  distinguish 66 of the 83 pairs tested. The best selector beats LMM by 0.051
+  ARI (Holm $p = 2\times10^{-4}$), selector v3 beats selector v1
+  ($p_\text{Holm} = 0.003$), and LMM and spectral clustering are
+  indistinguishable ($p_\text{Holm} = 1$).
+  \item \textbf{Intervals are wide.} Configuration-level 95\% bootstrap
+  intervals are about $\pm 0.09$ ARI. For example, the best selector scores
+  0.815 [0.727, 0.894] and LMM 0.765 [0.661, 0.857]. Most of this width
+  is \emph{between-configuration} variability, so twenty families are not
+  enough to rank closely matched algorithms with confidence.
+  \item \textbf{Seed variability is moderate but uneven.} The mean
+  across-seed standard deviation of ARI within a configuration is 0.045 for
+  LMM, 0.081 for $k$-means and 0.144 for auto-$\varepsilon$ DBSCAN.
+\end{itemize}
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=0.55\linewidth]{rank_bars.pdf}
-  \caption{Average ARI rank over the in-distribution split. Red bars are
-  learned selectors, which are trained on this split (leave-one-out at the
-  task level).}
+  \caption{Average ARI rank over the in-distribution split (139 complete
+  tasks). Red bars are learned selectors, which are trained on benchmark
+  results (task-level leave-one-out).}
   \label{fig:ranks}
 \end{figure}
 
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{ci_forest.pdf}
+  \caption{Left: mean ARI with 95\% bootstrap intervals that resample dataset
+  configurations. Right: average rank; the grey band is one Nemenyi critical
+  difference from the best.}
+  \label{fig:ci}
+\end{figure}
+
 \subsection{No algorithm dominates}
-Figure~\ref{fig:heatmap} breaks ARI down by dataset family for sixteen
-representative algorithms. Four populations emerge.
+Figure~\ref{fig:heatmap} breaks ARI down by dataset family. Among
+non-selectors, 27 different algorithms are best or tied-best on at least one
+family.
 \begin{itemize}
-  \item \emph{Convex-only} methods ($k$-means family, BIRCH, Ward, PWCC with
-  $k$-means-style bases) score $\approx 1$ on blobs and $\approx 0$ on
-  circles.
-  \item \emph{Graph-Laplacian} methods (spectral, LMM, AURA-v3) solve
-  circles but reach only 0.52--0.61 on moons.
-  \item \emph{Graph-community} clustering (\code{louvain\_knn}) is the only
-  non-selector above 0.95 on moons, and scores 0.772 on the karate graph,
-  where the next best non-selector reaches 0.506.
-  \item \emph{Gaussian mixtures} are best on Iris (0.904) and Wine (0.559),
-  and within 0.01 of the best on Breast Cancer (0.794).
+  \item \emph{Convex-only} methods ($k$-means family, BIRCH, Ward) score
+  $\approx 0$ on circles.
+  \item \emph{Graph-Laplacian} methods (spectral, LMM, AURA) solve circles,
+  but spectral and LMM reach only about 0.63 on moons.
+  \item \code{louvain\_knn} is the only non-selector at 1.00 on moons and the
+  best on the karate graph (0.73) and Digits (0.55), but it is weak on
+  imbalanced blobs (0.57) and power-law Student-$t$ mixtures (0.50).
+  \item Gaussian mixtures win Iris (0.90) and Wine (0.58).
+  \item Real time series are hard for everyone. On ECG200 the best method
+  reaches 0.28 ARI, and on Trace 0.65.
 \end{itemize}
-Every family has a different winner, which is the regime-mismatch problem that
-motivates algorithm selection.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{heatmap.pdf}
-  \caption{Mean ARI over seeds for each dataset family (rows) and
-  representative algorithm (columns), in-distribution split. The blank cell is
-  a run that failed and was logged.}
+  \caption{Mean ARI over five seeds for each dataset family (rows) and
+  representative algorithm (columns), in-distribution split.}
   \label{fig:heatmap}
 \end{figure}
 
+\subsection{Outlier scoring changes the ranking}
+Fifteen tasks contain injected outliers (label $-1$). Plain ARI treats them as
+an extra true cluster, so an algorithm is rewarded for isolating outliers
+together and penalised for absorbing them into the nearest cluster.
+Restricted to inliers, the picture changes:
+\begin{itemize}
+  \item LMM rises from 0.733 to 0.990 and spectral from 0.723 to 0.989, while
+  GMM falls from 0.702 to 0.668.
+  \item On these tasks the inlier-only ranking is led by LMM and spectral
+  ($\chi^2 = 380$), whereas the plain-ARI ranking is led by the selectors.
+\end{itemize}
+Which convention is right depends on the application. A benchmark should
+report both, because the choice decides the winner on contaminated data.
+
 \subsection{Failure modes are few and recurrent}
 The algorithm analysis bundled with the repository diagnoses each algorithm
-along four axes: scaling, clean-data quality, outlier robustness and shape
-adaptability. Six failure modes account for almost every weakness: outlier
-sensitivity of mean-based updates, non-convex shape failure of Voronoi-cell
-methods, quadratic scaling, hyperparameter brittleness, local-minimum search,
-and wrong data assumptions. Some examples:
-\begin{itemize}
-  \item With 100 outliers injected into 500 points, $k$-means loses 32\% of its
-  ARI and mean shift loses 59\% (its bandwidth estimate is inflated by the
-  outliers). GMM loses only 15\%, because its posterior-weighted mean update
-  gives outliers little influence.
-  \item DBSCAN with a fixed $\varepsilon{=}0.8$ in $d{=}10$ returns one cluster
-  on every task (ARI 0.00).
-  \item S$^5$C scores 0.27 on isotropic blobs because it assumes a union of
-  linear subspaces, but gains $+0.36$ on sheared data where that assumption
-  holds.
-\end{itemize}
-Measured log--log wall-time slopes between $n{=}200$ and $n{=}2000$ range
-(excluding DBSCAN's degenerate one-cluster runs) from 0.33 (mini-batch
-$k$-means) through 1.01 (BIRCH, the only high-quality method
-that scales linearly in this range) to 1.78 (the MRI-inspired method).
-
-Because the harness runs originals and variants side by side, it can test
-whether a diagnosed fix helps. Table~\ref{tab:fixes} reports five one-line
-fixes. Replacing DBSCAN's constant $\varepsilon$ with the $k$-distance knee
-of Ester et al.~\cite{ester1996density} lifts mean ARI by 0.59. One fix barely
-moved: trimming 10\% of points per $k$-means iteration cannot absorb a 20\%
-outlier rate. Two fixes introduced new failures. $k$-means++ seeding of CLARANS
-is biased \emph{toward} outliers, because seeding probability is proportional
-to squared distance. The auto-$\varepsilon$ knee is itself contaminated by
-outliers.
+along scaling, clean-data quality, outlier robustness and shape adaptability.
+Six failure modes account for almost every weakness: outlier sensitivity of
+mean-based updates, non-convex shape failure of Voronoi-cell methods,
+super-linear scaling, hyperparameter brittleness, local-minimum search, and
+wrong data assumptions. Because the harness runs originals and variants side
+by side, it can test whether a diagnosed fix helps. Table~\ref{tab:fixes}
+reports five one-line fixes from the round in which they were introduced.
 
 \begin{table}[t]
   \centering
   \caption{Diagnosed one-line fixes, mean ARI over the 16-task demonstration
-  sweep (round 2 snapshot).}
+  sweep (round 2 snapshot, before the validity controls).}
   \label{tab:fixes}
   \begin{tabular}{llrrr}
     \toprule
@@ -445,98 +540,168 @@ outliers.
   \end{tabular}
 \end{table}
 
-\subsection{Generalisation: the split that changes the conclusion}\label{sec:ood}
-The learned selectors are trained on the benchmark's own results. Their
-in-distribution scores use task-level leave-one-out, which removes exact
-self-matches but still lets a sibling seed of the same configuration serve
-as a near neighbour. Clustbench therefore ships two stricter splits.
+\subsection{Scaling beyond the CI grid}\label{sec:scaling}
+Figure~\ref{fig:scaling} shows the large-$n$ sweep. Above $n = 3{,}000$ on
+10-dimensional MDCGen:
+\begin{itemize}
+  \item \textbf{BIRCH is not linear.} Its log--log slope is 2.1, and it takes
+  143\,s at $n{=}50{,}000$. With the default threshold the CF-tree grows too
+  many leaves in 10 dimensions, so the global step dominates. On 2-d moons it
+  stays linear. Our earlier claim that BIRCH was ``the only honest linear
+  scaler'' came from the $n \le 2000$ grid.
+  \item \textbf{LMM scales far better than spectral clustering on the same
+  graph Laplacian.} LMM's slope is 1.5 against 2.9 for spectral, giving 6\,s
+  against 297\,s at $n{=}30{,}000$, with ARI 1.00 for both.
+  \item \textbf{Several methods stay near-linear:} mini-batch $k$-means
+  (slope 0.5), streaming coresets (0.9), FMM (1.0), GMM (1.0) and AURA-v3's
+  Nyström path (1.1).
+  \item \textbf{Auto-$\varepsilon$ DBSCAN collapses at large $n$} (ARI 0.01
+  above $n = 30{,}000$), while \code{louvain\_knn} keeps moons at 1.00 up to
+  $n = 50{,}000$.
+\end{itemize}
+Capped runs (Ward and robust mean shift above $10^4$, OPTICS above
+$3\cdot10^3$, quadratic methods above $3\cdot10^4$) are logged as skips.
+Across the 5{,}694 in-distribution runs longer than 10\,ms, the median
+coefficient of variation of the three timing repeats is 5.4\% (90th
+percentile 15.6\%). Differences in wall time below about $1.3\times$ should
+therefore not be read as real.
 
-On the \emph{held-out-seed} split, every algorithm scored slightly
-\emph{higher} than in-distribution (the new seeds were easier), and the
-early selectors' gaps ($-0.015$, $-0.020$) matched those of non-learning
-methods (LMM $-0.027$). No seed-level memorisation was detectable.
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{scaling.pdf}
+  \caption{Wall time (fit\_predict only, one thread) against $n$ for the
+  large-$n$ sweep, median of two seeds. Lines end where an algorithm's
+  \code{max\_n} cap applies.}
+  \label{fig:scaling}
+\end{figure}
 
-The \emph{out-of-distribution} split changes the picture
-(Figure~\ref{fig:ood}). The four selectors that lead the in-distribution
-board lose between 0.115 and 0.128 ARI: v3, v5 and v7 fall from about 0.91 to
-0.753 and v4 to 0.734. The simplest selector (v1, a $k$-nearest-neighbour vote
-over seven fingerprint features) \emph{improves} to 0.840. LMM, which has no
-learned component, ranks first at 0.845, followed by v1, AURA-v2/v3 (0.837,
-0.835) and \code{louvain\_knn} (0.825). The more capacity a selector has to fit
-the training fingerprint distribution, the more it overfits it. The split that
-reveals this costs one configuration file, and we argue such a split should be
-a default part of any benchmark that also trains selectors on its own output.
+\subsection{Generalisation of the learned selectors}\label{sec:ood}
+The selectors are trained on benchmark results. Their in-distribution
+scores drop only an exact fingerprint match, so sibling seeds of the same
+configuration stay in the training set. Two stricter evaluations measure the
+cost of that leakage.
+
+\paragraph{Leave one dataset family out.} Retraining each selector without the
+family under test lowers its mean ARI over the same 140 tasks:
+\begin{itemize}
+  \item v1 from 0.788 to 0.728, and v3, v5 and v7 from 0.815 to 0.745;
+  \item v8 from 0.808 to 0.748;
+  \item v4, the most robust, from 0.814 to 0.784.
+\end{itemize}
+The losses are concentrated in families whose winner is unusual. When moons
+is held out, v3 can no longer learn to dispatch to \code{louvain\_knn} and
+loses 0.70 ARI there; the karate graph costs 0.32. Against LMM and spectral
+clustering on the same 140 tasks, no LOFO selector differs significantly
+(paired Wilcoxon, Holm $p \ge 0.07$). Their mean differences range from
+$-0.037$ to $+0.020$.
+
+\paragraph{Unseen configurations.} On the out-of-distribution split
+(Figure~\ref{fig:ood}), spectral clustering (0.860), LMM (0.858),
+\code{louvain\_knn} (0.846) and selectors v3, v5 and v7 (0.845) lead. None of
+the selector-versus-LMM, spectral or \code{louvain\_knn} differences is
+significant after Holm correction, and with 35 tasks the CD is 13.6 ranks.
+These seven configurations are on average easier than the in-distribution
+families (most algorithms sit above the diagonal in Figure~\ref{fig:ood}), so
+the split tests transfer of the dispatch rule rather than difficulty.
+
+\paragraph{Summary.} In-distribution, the best selector is significantly
+better than any single algorithm. On families or configurations it has not
+seen, it is statistically tied with LMM and spectral clustering. Its
+advantage comes from having seen a family's winner, which is exactly what LOFO
+removes.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=0.5\linewidth]{ood_scatter.pdf}
   \caption{Mean ARI in-distribution vs.\ on the out-of-distribution split for
-  the 42 algorithms run on both. Squares are learned selectors. Points below
-  the diagonal lost accuracy off-distribution; the highest-ranked selectors
-  lose the most.}
+  the 48 algorithms run on both. Squares are learned selectors.}
   \label{fig:ood}
 \end{figure}
 
 \subsection{The self-extending loop}
-Clustbench's learned selectors read the committed results file when they are
-imported, so adding an algorithm and re-running the benchmark retrains them
-with no code change. This has happened twice.
-\begin{itemize}
-  \item A domain enlargement exposed the karate graph as a regime where every
-  algorithm scored below 0.43 ARI. A graph-community algorithm,
-  \code{louvain\_knn}, was added and scored 0.772 there. On the next run, every
-  fingerprint-based selector dispatched to it on that task, and the mean ARI of
-  the best selectors rose by 0.029--0.038. No selector code changed between the
-  two runs.
-  \item Adding three discovery-agent algorithms, five datasets and two more
-  selectors raised the stacker selector's mean ARI from 0.871 to 0.912, again
-  without selector code changes.
-\end{itemize}
-The intelligence accumulates in the data, not the code.
+Clustbench's learned selectors read the committed results table when first
+used, so adding an algorithm and re-running the benchmark retrains them with
+no code change. In the development history~\cite{clustbenchalgos}, adding the
+graph-community algorithm \code{louvain\_knn} after the karate graph exposed
+a gap was enough for every fingerprint selector to dispatch to it there on
+the next run, raising the best selectors' mean ARI by 0.03--0.04. The LOFO
+result above is the other side of the same mechanism: a selector can only
+dispatch to a family's winner if it has seen that family.
+
+\section{Corrections to earlier results}\label{sec:corrections}
+The controls changed or invalidated several results reported in an earlier
+draft of this paper and in the repository's analysis notes.
+\begin{enumerate}
+  \item \textbf{The UCR time series were synthetic.} Both UCR mirrors in the
+  loader had gone dead (a 404 and a 44-byte page), so ECG200 and Trace had
+  silently been replaced by noisy sinusoids, on which most algorithms scored
+  ARI 1.0. On the real series the best algorithm reaches 0.28 on ECG200 and
+  0.65 on Trace. The conclusion that ``engineered features make time series
+  easy'' does not hold.
+  \item \textbf{BIRCH does not scale linearly} in 10 dimensions beyond
+  $n \approx 3{,}000$ (\S\ref{sec:scaling}).
+  \item \textbf{Selectors do not collapse off-distribution once trained on
+  the broader grid.} The earlier draft reported that the top selectors lost
+  0.11--0.13 ARI on unseen configurations and that the simplest selector
+  generalised best. Trained on the five-seed grid with inverse-PCA restored,
+  v3 scores 0.845 on the unseen split, level with LMM, and v1 no longer
+  leads.
+  The robust conclusion is the LOFO one: selectors are tied with the best
+  single algorithms on unseen families.
+  \item \textbf{Silent failures.} Missing rows drop out of an algorithm's mean,
+  so we root-caused every logged failure:
+  \begin{itemize}
+    \item GMM's covariance went singular on Breast Cancer. This removed GMM,
+    PWCC-diverse and every selector that dispatched to GMM on 4 of 5 seeds.
+    GMM now retries with more regularisation.
+    \item The unseen configuration wrote \code{reg\_covar: 1e-4}, which YAML 1.1
+    reads as a \emph{string}, so GMM had never produced an out-of-distribution
+    result.
+    \item Selectors that dispatched to the consensus ensemble crashed because it
+    had no default base set.
+    \item Selector v8 trained on a git-ignored file, so in a fresh checkout it
+    trained on nothing.
+    \item The behaviour-cloned agent loaded its checkpoint from a git-ignored
+    directory. This explains its missing round-14 results.
+    \item The results Parquet file failed to write (heterogeneous
+    \code{extra} column) and the error was swallowed.
+  \end{itemize}
+  \item \textbf{Timing included scoring.} Earlier wall times contained label
+  I/O and the $O(n^2)$ silhouette, and the first task of each selector
+  contained its training. Comparisons of those numbers across algorithms with
+  very different runtimes are unreliable.
+\end{enumerate}
 
 \section{Discussion}\label{sec:discussion}
 
 \paragraph{What the harness made cheap.} Re-running every algorithm on every
-task is a single command. The research loop therefore became: diagnose a
-failure, ship a variant, re-rank against everything. The companion paper's
-fifteen rounds of algorithm development each cost one configuration change
-and one sweep. The latest round, in which LLM agents proposed, implemented,
-integrated and benchmarked three algorithms and five datasets, took about 17
-minutes of wall clock.
+task is a single command, and sharded sweeps merge with one script. The
+controlled rerun reported here took about two hours on four cores. Most of the
+corrections above were found by the controls themselves: provenance tags,
+failure logs that are now read rather than counted, and stricter splits.
 
-\paragraph{Learning beats predicting from biases.} Card-based predictions are
-useful for ordering candidate mutations, but their magnitudes are not
-calibrated. The mutator's top proposal was predicted at 0.926 ARI and measured
-at 0.747. Card-predicted upper bounds also \emph{under}estimate how well
-classical methods generalise: spectral clustering's actual unseen ARI of
-0.775 exceeds its card bound of 0.614. Selectors trained on measured results
-outperform selectors driven by inductive-bias arithmetic, but only within
-their training distribution.
+\paragraph{Learning beats predicting from biases, within distribution.}
+Card-based predictions order candidate mutations but are not calibrated: the
+mutator's top proposal was predicted at 0.926 ARI and measured at 0.747.
+Selectors trained on measured results outperform both bias arithmetic and
+every single algorithm, but only on families they have seen.
 
-\paragraph{Threats to validity.}
+\paragraph{Residual threats.}
 \begin{itemize}
-  \item \emph{Scale.} Most tasks have $n \le 1000$. Wall-time slopes are
-  measured only up to $n{=}2000$, so the constant-cost phases of some methods
-  make their slopes look sub-linear. Clustbench's design does not limit $n$,
-  but the reported sweeps were sized for continuous integration.
-  \item \emph{Seeds and statistics.} There are three seeds per configuration.
-  The Friedman test is over-powered with 47 algorithms; post-hoc pairwise
-  tests (e.g.\ Nemenyi) are needed before claiming that any two adjacent
-  algorithms differ.
-  \item \emph{Timing.} Wall time and RSS deltas come from a single shared
-  machine and include Python overhead; they support order-of-magnitude
-  comparisons, not micro-benchmarks.
-  \item \emph{Selector leakage.} In-distribution selector scores are
-  optimistic by construction; only the out-of-distribution split is an
-  honest estimate.
-  \item \emph{Data provenance.} The UCR loader falls back to a synthetic
-  generator if every mirror is unreachable. The inverse-PCA generator depends
-  on a companion package and was disabled in the latest in-distribution run.
-  Rows record their \code{dataset\_source}.
-  \item \emph{Coverage.} Round-14 and later algorithms, and GMM, were not
-  re-run on the out-of-distribution split.
-  \item \emph{Ground-truth outliers.} Injected outliers carry label $-1$ in
-  the ground truth and are scored as their own class by ARI and NMI.
+  \item \emph{Breadth.} Twenty families and seven unseen configurations give
+  wide intervals. Most conclusions about closely matched algorithms are not
+  significant, and more families, not more seeds, would tighten them.
+  \item \emph{Scale.} The large-$n$ sweep stops at $n = 50{,}000$ on two
+  families and a single machine; distributed algorithms run with one worker.
+  \item \emph{Timing.} Runs share one machine; median-of-3 timing still
+  varies by 5--16\%.
+  \item \emph{Hyperparameters.} Algorithms run at fixed, hand-chosen
+  settings; a tuned comparison would change some rankings.
+  \item \emph{Unseen split.} Its configurations are synthetic and easier than
+  the in-distribution families.
+  \item \emph{CI cost.} The public dashboard workflow re-runs the controlled
+  configuration on every push, which now takes roughly four times longer than
+  before.
 \end{itemize}
 
 \section{Conclusion}
@@ -544,13 +709,14 @@ Clustbench turns ``which clustering algorithm should I use?'' into a
 reproducible, re-runnable measurement. It records full resource usage and the
 step-by-step optimisation trajectory, ships theoretical predictions next to
 measurements, and feeds its own output to selectors that improve when the
-registry grows. Its most useful result so far is a caution: selectors that
-lead the leaderboard on the distribution they were trained on can trail a
-classical graph-Laplacian mixture model on data they have not seen. Future work
-is larger-$n$ sweeps, post-hoc pairwise testing, importing external dataset
-batteries such as Gagolewski's~\cite{gagolewski2022framework}, and
-using the trajectory corpus to train learned components inside algorithms
-rather than selectors between them.
+registry grows. Adding validity controls changed what we can claim. Learned
+selection is significantly better than any single algorithm on families it
+has seen, and statistically tied with the best graph-Laplacian methods on
+families it has not. Three earlier results were artefacts of silent data
+fallbacks, small $n$, and missing rows. Future work is more dataset families,
+tuned-hyperparameter comparisons, larger-$n$ distributed runs, importing
+external dataset batteries such as Gagolewski's~\cite{gagolewski2022framework},
+and using the trajectory corpus to train components inside algorithms.
 
 \paragraph{Availability.} Code, configurations, committed results, the live
 dashboard (\url{https://ashail33.github.io/clustbench/}) and the scripts that

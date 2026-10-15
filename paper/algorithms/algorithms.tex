@@ -49,14 +49,19 @@ fingerprint-$k$NN, per-algorithm regressors, probe-based and stacked variants;
 (vii) four machine-proposed algorithms; and
 (viii) \code{rl\_pipeline}, a behaviour-cloned policy that clusters by
 chaining eight primitive operators.
-LMM is the strongest single algorithm we built: rank 8 of 47 in-distribution
-(mean ARI 0.813) and rank 1 of 42 on an out-of-distribution split (0.845). The
-best routers reach 0.915 ARI in-distribution but fall to 0.753 off-distribution,
-below the simplest router (0.840). Targeted fixes frequently traded the
-diagnosed failure for a new one. Hand-coded dispatch between versions helped only when the versions were
-complementary on detectable regimes. The RL agent independently recovered the
-spectral-embedding move from imitation, but did not learn the multi-step
-sequences needed to complete it at larger $n$.
+All results come from a rerun of the benchmark with validity controls (five
+seeds, post-hoc tests, real-data provenance checks, timing of the algorithm
+call alone). LMM is the strongest single algorithm we built: rank 8 of 48
+in-distribution (mean ARI 0.765) and rank 2 of 49 on an out-of-distribution
+split (0.858), statistically tied with spectral clustering but almost 50
+times faster at $n{=}30{,}000$. The best routers beat it by 0.05 ARI
+in-distribution, but retrained without the dataset family under test they
+lose 0.03--0.07 and are statistically tied with it. Targeted fixes
+frequently traded the diagnosed failure for a new one. Hand-coded dispatch between versions helped only when the versions were
+complementary on detectable regimes. The RL agent learned to fire the
+spectral-embedding move from imitation, but not the multi-step sequences that
+complete it, and a published smoke result on circles did not reproduce with a
+retrained checkpoint.
 \end{abstract}
 
 \section{Introduction}
@@ -316,14 +321,21 @@ tiered selector keeps the best non-embedding rollout with silhouette $\ge
 
 \section{Results}\label{sec:results}
 
-Unless stated otherwise, numbers come from the final committed benchmark
-snapshot~\cite{clustbenchharness}. The in-distribution split has 47 algorithms
-on 72 tasks over 19 dataset configurations with seeds 1--3 and $n \le 1000$.
-The out-of-distribution (OOD) split has 42 algorithms on 21 tasks with unseen
-$(n,d,k)$, outlier extremities and seeds 100--102. Lineage tables
-(Tables~\ref{tab:fixes}--\ref{tab:lineage}) come from the round in which each
-version was introduced, on the 16-task demonstration grid, and are marked as
-such.
+Unless stated otherwise, numbers come from the controlled benchmark
+rerun~\cite{clustbenchharness}:
+\begin{itemize}
+  \item an in-distribution split of 48 algorithms on 140 tasks (28 task
+  variants from 20 dataset families, seeds 1--5, $n \le 1000$);
+  \item a leave-one-dataset-family-out (LOFO) evaluation of the routers on
+  the same tasks;
+  \item an out-of-distribution (OOD) split of 49 algorithms on 35 tasks with
+  unseen $(n,d,k)$, outlier extremities and seeds 100--104;
+  \item a large-$n$ sweep up to $n = 50{,}000$.
+\end{itemize}
+Only \code{fit\_predict} is timed (median of three runs, one BLAS thread).
+Lineage tables (Tables~\ref{tab:fixes}--\ref{tab:lineage}) come from the
+round in which each version was introduced, on the 16-task demonstration grid
+and before the controls, and are marked as such.
 
 \subsection{Targeted fixes}
 Table~\ref{tab:fixes} reports the five fixes. Auto-$\varepsilon$ is the single
@@ -402,65 +414,75 @@ moons (0.85) and circles (0.84).
 \end{table}
 
 \subsection{Final standings}
-Table~\ref{tab:final} places every new algorithm in the final snapshot, and
-Figure~\ref{fig:heatmap} breaks the results down by dataset family. Four
-results stand out.
+Table~\ref{tab:final} places every new algorithm in the controlled rerun, and
+Figure~\ref{fig:heatmap} breaks the results down by dataset family.
+Configuration-level 95\% bootstrap intervals are about $\pm0.09$ ARI, and a
+Nemenyi critical difference cannot separate the top eleven algorithms
+in-distribution. Read adjacent ranks as ties unless a pairwise test says
+otherwise~\cite{clustbenchharness}. Four results stand out.
 \begin{itemize}
-  \item \textbf{LMM is the best single algorithm we built.} It ranks 8th of 47
-  in-distribution, behind only the routers. It is the most accurate method on
-  the OOD split (0.845), and among the new algorithms only two one-line
-  fixes are faster (mean 0.044\,s). It solves circles (1.00) and wins Digits outright among
-  non-routers (0.527). Of all the mechanisms we measured, the graph-Laplacian
-  basis is the most universal.
+  \item \textbf{LMM is the best single algorithm we built.} It ranks 8th of
+  48 in-distribution, behind only the routers, and 2nd of 49 OOD (0.858,
+  against 0.860 for spectral clustering; the difference is not significant).
+  It solves circles (1.00), and on the 15 contaminated tasks its inlier-only
+  ARI is 0.990. It also scales far better than spectral clustering on the same
+  graph Laplacian: a log--log slope of 1.5 against 2.9, and 6\,s against
+  297\,s at $n{=}30{,}000$. Of all the mechanisms we measured, the
+  graph-Laplacian basis is the most universal.
   \item \textbf{\code{louvain\_knn} closed the gap it was built for and
-  generalises.} It scores 0.772 on the karate graph, where the next best
-  non-router is Trident (0.506), which runs \code{louvain\_knn} internally; it reaches 0.997 on moons, and it ranks 5th on the OOD split (0.825).
-  It is weak on MDCGen convex blobs (0.679), where Louvain merges
-  communities.
-  \item \textbf{AURA-v2/v3 generalise better than they rank.} AURA-v3 and v2
-  rank 12th and 16th in-distribution but 4th and 3rd OOD (0.835 and 0.837).
+  generalises.} It is the best non-router on the karate graph (0.73), moons
+  (1.00) and Digits (0.55), ranks 3rd OOD (0.846), and keeps moons at 1.00 up
+  to $n{=}50{,}000$. It is weak on imbalanced blobs (0.57) and power-law
+  Student-$t$ mixtures (0.50), where Louvain merges or splits communities by
+  size.
+  \item \textbf{AURA-v2/v3 generalise better than they rank.} They rank 14th
+  and 10th in-distribution but 7th and 8th OOD (0.832 and 0.831), and
+  AURA-v3's Nyström path is near-linear (slope 1.1).
   \item \textbf{FMM, MRIC and the round-14 proposals are mid-pack or lower.}
-  Density peaks with a bridge won its own mini-grid but ranks 38th of 47
+  Density peaks with a bridge won its own mini-grid but ranks 41st of 48
   overall.
 \end{itemize}
 
 \begin{table}[t]
   \centering\small
-  \caption{Final snapshot. Mean ARI with rank by mean ARI, in-distribution (47
-  algorithms) and OOD (42 algorithms; round-14+ algorithms were not run OOD).
-  Mean wall time is in-distribution. Classical baselines for reference.}
+  \caption{Controlled rerun. Mean ARI with rank by mean ARI in-distribution
+  (48 algorithms) and OOD (49 algorithms); LOFO is the routers' mean ARI when
+  retrained without the family under test. Median wall time
+  (\code{fit\_predict} only) is in-distribution. Classical baselines for
+  reference.}
   \label{tab:final}
-  \begin{tabular}{lrrrrr}
+  \begin{tabular}{lrrrrrr}
     \toprule
-    algorithm & ARI (in) & rank & ARI (OOD) & rank & wall (s) \\
+    algorithm & ARI (in) & rank & LOFO & ARI (OOD) & rank & wall (s) \\
     \midrule
-    \code{lmm} & 0.813 & 8 & \textbf{0.845} & \textbf{1} & 0.044 \\
-    \code{fmm} & 0.707 & 30 & 0.735 & 18 & 0.154 \\
-    \code{mri} & 0.616 & 40 & 0.614 & 33 & 0.144 \\
-    \code{louvain\_knn} & 0.784 & 11 & 0.825 & 5 & 0.073 \\
-    \code{aura\_v3} & 0.780 & 12 & 0.835 & 4 & 0.127 \\
-    \code{aura\_v2} & 0.757 & 16 & 0.837 & 3 & 0.103 \\
-    \code{rapid} & 0.757 & 17 & 0.731 & 24 & 0.141 \\
-    \code{rapid\_v3} & 0.756 & 18 & 0.732 & 23 & 0.137 \\
-    \code{meta\_clusterer\_v2} & 0.744 & 20 & 0.573 & 36 & 0.181 \\
-    \code{pwcc\_diverse} & 0.755 & 19 & 0.760 & 9 & 0.171 \\
-    \code{mutant\_kmeans\_meta} & 0.764 & 14 & 0.698 & 29 & 0.148 \\
-    \code{trident} & 0.791 & 10 & -- & -- & 0.359 \\
-    \code{bico\_stream} & 0.725 & 25 & -- & -- & 0.106 \\
-    \code{isomap\_bgmm} & 0.694 & 34 & -- & -- & 0.217 \\
-    \code{density\_peaks\_bridge} & 0.651 & 38 & -- & -- & 0.073 \\
+    \code{lmm} & 0.765 & 8 & -- & 0.858 & 2 & 0.033 \\
+    \code{fmm} & 0.657 & 28 & -- & 0.728 & 28 & 0.152 \\
+    \code{mri} & 0.562 & 40 & -- & 0.617 & 41 & 0.032 \\
+    \code{louvain\_knn} & 0.714 & 13 & -- & 0.846 & 3 & 0.098 \\
+    \code{aura\_v3} & 0.737 & 10 & -- & 0.831 & 8 & 0.024 \\
+    \code{aura\_v2} & 0.714 & 14 & -- & 0.832 & 7 & 0.040 \\
+    \code{rapid} & 0.702 & 16 & -- & 0.727 & 29 & 0.051 \\
+    \code{rapid\_v3} & 0.699 & 21 & -- & 0.726 & 30 & 0.065 \\
+    \code{meta\_clusterer\_v2} & 0.701 & 18 & -- & 0.628 & 39 & 0.084 \\
+    \code{pwcc\_diverse} & 0.701 & 17 & -- & 0.756 & 19 & 0.069 \\
+    \code{mutant\_kmeans\_meta} & 0.719 & 12 & -- & 0.756 & 18 & 0.058 \\
+    \code{trident} & 0.725 & 11 & -- & 0.826 & 10 & 0.148 \\
+    \code{bico\_stream} & 0.677 & 25 & -- & 0.719 & 32 & 0.030 \\
+    \code{isomap\_bgmm} & 0.634 & 34 & -- & 0.766 & 16 & 0.160 \\
+    \code{density\_peaks\_bridge} & 0.546 & 41 & -- & 0.708 & 34 & 0.035 \\
+    \code{rl\_pipeline} & 0.604 & 37 & -- & 0.764 & 17 & 2.434 \\
     \midrule
-    \code{learned\_router} (v1) & 0.854 & 7 & 0.840 & 2 & 0.304 \\
-    \code{learned\_router\_v2} & 0.856 & 6 & 0.812 & 6 & 0.454 \\
-    \code{learned\_router\_v3} & \textbf{0.915} & \textbf{1} & 0.753 & 10 & 0.467 \\
-    \code{learned\_router\_v4} & 0.904 & 4 & 0.734 & 20 & 0.649 \\
-    \code{learned\_router\_v7} & 0.912 & 3 & 0.753 & 12 & 0.565 \\
-    \code{learned\_router\_v8} & 0.890 & 5 & -- & -- & 0.275 \\
+    \code{learned\_router} (v1) & 0.788 & 7 & 0.728 & 0.808 & 11 & 0.203 \\
+    \code{learned\_router\_v2} & 0.792 & 6 & 0.747 & 0.789 & 13 & 0.144 \\
+    \code{learned\_router\_v3} & \textbf{0.815} & \textbf{1} & 0.745 & 0.845 & 4 & 0.109 \\
+    \code{learned\_router\_v4} & 0.814 & 4 & \textbf{0.784} & 0.831 & 9 & 0.235 \\
+    \code{learned\_router\_v7} & 0.815 & 3 & 0.745 & 0.845 & 6 & 0.167 \\
+    \code{learned\_router\_v8} & 0.808 & 5 & 0.748 & 0.800 & 12 & 0.103 \\
     \midrule
-    \code{spectral} & 0.809 & 9 & 0.775 & 7 & 0.159 \\
-    \code{gmm} & 0.763 & 15 & -- & -- & 0.096 \\
-    \code{agglomerative} (Ward) & 0.728 & 24 & 0.741 & 15 & 0.027 \\
-    \code{kmeans} & 0.709 & 29 & 0.734 & 21 & 0.025 \\
+    \code{spectral} & 0.763 & 9 & -- & \textbf{0.860} & \textbf{1} & 0.027 \\
+    \code{gmm} & 0.699 & 20 & -- & 0.774 & 15 & 0.014 \\
+    \code{agglomerative} (Ward) & 0.685 & 23 & -- & 0.754 & 20 & 0.006 \\
+    \code{kmeans} & 0.655 & 30 & -- & 0.731 & 23 & 0.006 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -471,60 +493,82 @@ results stand out.
   \caption{Mean ARI by dataset family (in-distribution) for classical
   baselines and the new algorithms. \code{louvain\_knn} is the only
   non-router to solve moons and the karate graph together; LMM, spectral
-  clustering and AURA-v3 solve circles; GMM is strongest on Iris and Wine.}
+  clustering and AURA-v3 solve circles; GMM is strongest on Iris and Wine; the
+real UCR time series (ECG200, Trace) are hard for every algorithm.}
   \label{fig:heatmap}
 \end{figure}
 
-\subsection{Routers: in-distribution gains, OOD losses}
-Figure~\ref{fig:lineage} plots every router generation on both splits.
-In-distribution, routers hold the top seven ranks. v2's probe features and
-v3's switch from rank voting to per-algorithm ARI regression each added
-roughly 0.02--0.03 ARI.
-Later architectural changes did not help unless they added a genuinely
-different signal. v4 (same features, a different model) overrode v3 on 51 of
-52 tasks without improving, so the v5 stacker over $\{$v3, v4$\}$ degenerated
-to always-v3. v6's probe signal is different in kind and won exactly one task
-v3 missed (inverse-PCA, $0.00 \to 0.38$). That was enough for the v7 stacker
-over $\{$v3, v6$\}$ to take rank 1 in round 8. Silhouette as a probe metric
-favours compact wrong answers on non-convex data, and adding a 20\% cost term
-(v6c) dethroned spectral clustering on close calls where it was correct.
-
-The OOD split reverses the ordering. v3, v5 and v7 make \emph{identical}
-picks on every OOD task and lose 0.115--0.126 ARI. v4 loses 0.128. v1 gains
-0.023 and v2 loses 0.014. Distance-weighted per-algorithm regressors
-extrapolate poorly far from training fingerprints, while v1's rank vote over
-neighbours degrades gracefully. Typical OOD failures:
+\subsection{Routers: in-distribution gains that do not transfer}
+Figure~\ref{fig:lineage} plots every router generation on three evaluations.
 \begin{itemize}
-  \item inverse-PCA at $d{=}150$: v3/v7 chose BIRCH (0.27), while RAPID-v3
-  scored 0.88.
-  \item outlier extremity 10: v3/v7 chose LMM or GMM (0.55), while
-  \code{louvain\_knn} scored 0.81.
+  \item \textbf{In-distribution, routers hold the top seven ranks.} The best
+  beats LMM by 0.051 ARI (paired Wilcoxon, Holm $p = 2\times10^{-4}$).
+  \item \textbf{Within the lineage, v3 beats v1} (Holm $p = 0.003$). v2's
+  probe features and v3's switch from rank voting to per-algorithm ARI
+  regression each added roughly 0.02--0.03 ARI when introduced.
+  \item \textbf{Architectural changes helped only when they added a new
+  signal.} v4 used the same features with a different model and overrode v3
+  on 51 of 52 tasks without improving, so the v5 stacker over $\{$v3, v4$\}$
+  degenerated to always-v3. v6's probe signal is different in kind and won
+  exactly one task v3 missed (inverse-PCA, $0.00 \to 0.38$). That was enough
+  for the v7 stacker over $\{$v3, v6$\}$ to take rank 1 in round 8.
+  \item \textbf{Silhouette is a biased probe.} As a probe metric it favours
+  compact wrong answers on non-convex data, and adding a 20\% cost term (v6c)
+  dethroned spectral clustering on close calls where it was correct.
 \end{itemize}
-v8 tried to fix this with a richer fingerprint and an OOD-triggered ensemble,
-but it regressed by 0.022 against v7 on average. It lost most on the
-adversarial regimes it was designed for (\code{VariableDensityBridges}
-$-0.092$, \code{PowerLawStudentT} $-0.045$).
+
+\paragraph{Leave one family out.} Retraining each router without the family
+under test removes the leakage of sibling seeds.
+\begin{itemize}
+  \item v3, v5 and v7 fall from 0.815 to 0.745, v1 from 0.788 to 0.728, and
+  v8 from 0.808 to 0.748.
+  \item v4, whose gradient-boosted regressors interpolate more smoothly, is the
+  most robust: 0.814 to 0.784.
+  \item The losses concentrate where a family's winner is unusual. With moons
+  held out, v3 never learns to send moons-like data to \code{louvain\_knn} and
+  loses 0.70 ARI there; the karate graph costs 0.32.
+  \item Paired against LMM and spectral clustering on the same 140 tasks, no
+  LOFO router differs significantly (Holm $p \ge 0.07$; mean differences
+  from $-0.037$ to $+0.020$).
+\end{itemize}
+
+\paragraph{Unseen configurations.} On the OOD split, v3, v5 and v7 (0.845)
+are level with spectral clustering (0.860), LMM (0.858) and
+\code{louvain\_knn} (0.846); none of these differences survives Holm
+correction. Typical remaining failures are inverse-PCA at $d{=}150$ (v3 0.72
+against 0.85 for Ward) and outlier extremity 10 (v3 0.74 against 0.92 for
+\code{rl\_pipeline}). v8's richer fingerprint and OOD-triggered ensemble
+again did not help (0.800).
+
+An earlier version of this paper reported that v3--v7 lost 0.11--0.13 ARI on
+the OOD split and that v1 generalised best. That result came from routers
+trained on a narrower grid (three seeds, no inverse-PCA, synthetic stand-ins
+for the UCR series) and does not reproduce. The robust conclusion is the LOFO
+one: a router's advantage comes from having seen a family's winner.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=0.55\linewidth]{router_lineage.pdf}
-  \caption{Mean ARI of each router generation in-distribution and on the OOD
-  split (v8 was not run OOD). LMM is shown for reference. The
-  highest in-distribution scorers (v3, v4, v5, v7) show the largest OOD losses.}
+  \caption{Mean ARI of each router generation in-distribution (task-level
+  leave-one-out), leave-one-family-out (stacked and probe routers v5--v6c not
+  evaluated) and on the OOD split. LMM is shown for reference.}
   \label{fig:lineage}
 \end{figure}
 
-\paragraph{Self-extension.} Routers retrain from the results file, so adding
-\code{louvain\_knn} and re-running the benchmark was enough for every
+\paragraph{Self-extension (development history, before the controls).} Routers
+retrain from the results file, so adding \code{louvain\_knn} and re-running
+the benchmark was enough for every
 fingerprint router to start dispatching to it on the karate graph. This
 raised the mean ARI of v3, v4, v5 and v7 by 0.029--0.038, the largest router
 gain since v3, with zero router code changed. Round 15's additions likewise
-lifted v7 from 0.871 to 0.912.
+lifted v7 from 0.871 to 0.912. The LOFO result above is the
+other side of the same mechanism: a router can only dispatch to a winner it
+has seen.
 
 \subsection{Machine-proposed algorithms}
 The card mutator predicted 0.926 ARI for \code{mutant\_kmeans\_meta}; it
-measured 0.747 at introduction and 0.764 in the final snapshot (rank 14). It
-beats its parent \code{kmeans\_trimmed} by about 0.05--0.09, so the hybrid is
+measured 0.747 at introduction and 0.719 in the controlled rerun (rank 12).
+It beats its parent \code{kmeans\_trimmed} (0.654) by 0.065, so the hybrid is
 a real improvement, but the predicted magnitude was not. Bias matching can
 order architectures but cannot calibrate them.
 
@@ -532,31 +576,42 @@ Of the round-14 proposals, the two adversarial datasets did what they were
 designed to do: routers trailed non-routers by 0.036 and 0.068 ARI on them.
 Of the three new algorithms, none reached the top 20.
 
-Trident (rank 10, 0.791) shows the limit of silhouette gating. On moons it
-scored 0.265 even though its own \code{louvain\_knn} probe scored 0.997,
+Trident (rank 11, 0.725) shows the limit of silhouette gating. On moons it
+scored 0.262 even though its own \code{louvain\_knn} probe scored 0.997,
 because a compact wrong split can have a higher silhouette than a correct
 non-convex one.
 
 \subsection{\texorpdfstring{\code{rl\_pipeline}}{rl\_pipeline}}
 The behaviour-cloned policy reached 0.59 validation accuracy at predicting the
-next action. Chance is 0.125 and the majority-class baseline is 0.41. In a
-300-point smoke test it scored ARI 1.00 on blobs and 1.00 on circles, where
-$k$-means scores $-0.003$. On circles it chose \code{eigen\_embed} early: from
-imitation alone, it learned to switch to the spectral embedding when the cost
-stops falling. On moons it scored 0.26, because a $k$-means-like rollout won
-the silhouette tie-break.
+next action. Chance is 0.125 and the majority-class baseline is 0.41. In the
+original 300-point smoke test it scored ARI 1.00 on blobs and 1.00 on
+circles, where $k$-means scores $-0.003$. On circles it chose
+\code{eigen\_embed} early: from imitation alone, it learned to switch to the
+spectral embedding when the cost stops falling. On moons it scored 0.26,
+because a $k$-means-like rollout won the silhouette tie-break.
 
-In the full 43-algorithm benchmark it ranked 36th (mean ARI 0.584), with a
-bimodal profile: 0.996 on anisotropic blobs and 0.982 on the SBM graph, but
-$-0.001$ on circles at $n{=}500$. At that size the policy still fires
-\code{eigen\_embed}, but every rollout then stalls on \code{update\_centers}
-no-ops, because 419 imitation rows cannot teach the coordinated sequence that
-completes a spectral partition. This is the behaviour-cloning ceiling.
-Imitation of per-step decisions does not value a move by where the episode
-ends, and compounding errors off the demonstrator distribution are
-expected~\cite{ross2011reduction}. In the round-14 sweep, the agent produced
-no result rows, which suggests a checkpoint-loading failure in that
-configuration that has not yet been resolved.
+\paragraph{Reproducibility.} The traces and checkpoint lived in a git-ignored
+directory, which is why the agent produced no rows in round 14. The agent now
+rebuilds both deterministically when they are missing. The rebuilt traces
+match the originals exactly: 419 rows, 50 episodes, and the same action
+counts. A checkpoint retrained on them (PyTorch 2.14) reproduces blobs (1.00)
+and moons (0.30), but scores \emph{0.16} on the circles smoke test, not 1.00.
+That headline result therefore depended on one lucky training run.
+
+\paragraph{Controlled rerun.} The agent ranks 37th of 48 in-distribution (mean
+ARI 0.604) and is the slowest method (median 2.4\,s per task), with a bimodal
+profile: 0.989 on the SBM graph and 0.907 on anisotropic blobs, but $-0.001$
+on circles and 0.27 on moons at $n{=}500$. It does better OOD (rank 17,
+0.764), where it is the best algorithm on outlier extremity 10 (0.92).
+\begin{itemize}
+  \item At $n{=}500$ the policy still fires \code{eigen\_embed}, but every
+  rollout then stalls on \code{update\_centers} no-ops. 419 imitation rows
+  cannot teach the coordinated sequence that completes a spectral partition.
+  \item This is the behaviour-cloning ceiling. Imitation of per-step
+  decisions does not value a move by where the episode ends, and compounding
+  errors off the demonstrator distribution are
+  expected~\cite{ross2011reduction}.
+\end{itemize}
 
 \section{Lessons}\label{sec:lessons}
 \begin{enumerate}
@@ -571,24 +626,32 @@ configuration that has not yet been resolved.
   \item \textbf{Stacking needs architectural diversity.} Re-fitting the same
   features with a different model (v4) added nothing. A different signal (v6's
   probe) added a real, if small, gain.
-  \item \textbf{Learned selection overfits its training distribution, and more
-  capacity overfits more.} Only an OOD split shows this. For deployment
-  outside the benchmark's distribution, the evidence favours v1, LMM,
-  AURA-v2/v3 or \code{louvain\_knn}.
+  \item \textbf{Learned selection does not transfer to unseen families.} Routers
+  beat every single algorithm in-distribution, but with the test family held
+  out they are statistically tied with LMM and spectral clustering. Only a
+  family-level split shows this; a seed-level or configuration-level hold-out
+  does not. Outside the benchmark's families, LMM, spectral clustering,
+  \code{louvain\_knn} and AURA-v2/v3 are as good a default and much cheaper.
   \item \textbf{Grow the registry, not the router.} The biggest router gains
   came from adding algorithms and data, not from router redesigns.
   \item \textbf{Internal-validity gates are shape-biased.} Silhouette-based
   probes (v6, META-v3, Trident) repeatedly pick compact wrong answers on
   non-convex data. A connectivity-aware criterion or shape prior is needed.
-  \item \textbf{Imitation recovers moves, not plans.} The RL agent rediscovered
-  \code{eigen\_embed} as a conditional move but not the sequence that makes it
-  pay off.
+  \item \textbf{Imitation recovers moves, not plans.} The RL agent learned to
+  fire \code{eigen\_embed} as a conditional move but not the sequence that
+  makes it pay off, and its best smoke result depended on one training run.
+  \item \textbf{Silent failures bias means.} GMM's singular covariances, a YAML
+  float parsed as a string, a missing default argument and git-ignored
+  training files each removed rows from the benchmark without stopping it.
+  Each missing row changed the means it was dropped from until it was
+  root-caused.
 \end{enumerate}
 
-\paragraph{Limitations.} Tasks are small ($n \le 1000$, three seeds), and
-lineage tables come from earlier, smaller grids than the final snapshot. The
-in-distribution router numbers use task-level leave-one-out with sibling seeds
-present. Round-14+ algorithms and GMM were not run OOD. Many ideas here have
+\paragraph{Limitations.} Most tasks are small ($n \le 1000$; the scaling
+sweep reaches $n = 50{,}000$ on two families only). Twenty families give wide
+intervals, so many adjacent ranks are ties. Lineage tables come from earlier,
+smaller grids run before the validity controls. Algorithms run with fixed
+hyperparameters. Many ideas here have
 prior art: algorithm selection~\cite{rice1976algorithm}, meta-learning for
 clustering~\cite{desouto2008ranking,ferrari2015clustering},
 landmarking~\cite{pfahringer2000landmarking} (our probe features) and stacked
@@ -600,8 +663,9 @@ basis-mixture family, and the trajectory-trained agent.
 Starting from benchmark failure modes, we built 25 algorithms and ten
 learned selectors and evaluated all of them against one another, including on
 data none had seen. The most durable results are a single algorithm (LMM, an
-EM-trained mixture over a graph-Laplacian basis) and a negative result (more
-sophisticated routers generalise worse). Three directions follow:
+EM-trained mixture over a graph-Laplacian basis, accurate and near-linear in
+practice) and a negative result: learned routers win only on dataset families
+they have seen. Three directions follow:
 \begin{itemize}
   \item fine-tune the behaviour-cloned agent with
   PPO~\cite{schulman2017proximal}, rewarding terminal partition quality, using

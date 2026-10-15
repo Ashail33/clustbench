@@ -33,7 +33,7 @@ class Gmm(Algorithm):
         self.max_iter = max_iter
         self.n_init = n_init
         self.covariance_type = covariance_type
-        self.reg_covar = reg_covar
+        self.reg_covar = float(reg_covar)  # YAML 1.1 reads "1e-4" as a string
         self.random_state = random_state
 
     def fit_predict(self, X: np.ndarray, k: Optional[int] = None) -> AlgoResult:

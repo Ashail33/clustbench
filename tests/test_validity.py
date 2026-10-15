@@ -120,3 +120,22 @@ def test_router_training_respects_exclusions(tmp_path):
     out = subprocess.run([sys.executable, "-c", code], env={**os.environ, **env},
                          capture_output=True, text=True, check=True).stdout
     assert out.strip() == "['mdcgen']"
+
+
+def test_gmm_accepts_yaml_string_reg_covar_and_recovers_from_singularity():
+    from clustbench.algorithms.base import ALGO_REGISTRY
+
+    g = ALGO_REGISTRY["gmm"](reg_covar="1e-4")  # YAML 1.1 parses 1e-4 as a str
+    assert g.reg_covar == pytest.approx(1e-4)
+    rng = np.random.default_rng(0)
+    # Two clusters, one of them collapsed onto a line -> singular covariance.
+    X = np.vstack([rng.normal(size=(50, 3)), np.tile([5.0, 5.0, 5.0], (50, 1))])
+    res = ALGO_REGISTRY["gmm"]().fit_predict(X, k=2)
+    assert len(res.labels) == 100 and res.extra["reg_covar_used"] >= 1e-6
+
+
+def test_consensus_has_default_base():
+    from clustbench.algorithms.base import ALGO_REGISTRY
+
+    X = np.random.default_rng(0).normal(size=(60, 2))
+    assert len(ALGO_REGISTRY["consensus"]().fit_predict(X, k=2).labels) == 60
