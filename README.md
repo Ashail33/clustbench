@@ -101,6 +101,17 @@ contribution: rather than only comparing final outputs, clustbench now
 captures the *process* each algorithm takes to reach those outputs, so
 the next generation of meta-algorithms can learn from the search itself.
 
+### Companion papers (2026)
+
+- **Clustbench: A Reproducible, Trajectory-Instrumented, Self-Extending
+  Benchmark for Clustering Algorithms**:
+  [`paper/clustbench/clustbench.pdf`](paper/clustbench/clustbench.pdf)
+- **Synthesising Clustering Algorithms from Benchmark Failure Modes**:
+  [`paper/algorithms/algorithms.pdf`](paper/algorithms/algorithms.pdf)
+
+LaTeX sources, the shared bibliography, and the script that regenerates every
+figure from `docs/data/` are in [`paper/`](paper/README.md).
+
 ## Quick start
 
 ```bash
