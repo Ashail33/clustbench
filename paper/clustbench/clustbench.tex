@@ -146,8 +146,11 @@ dataset features is Rice's algorithm selection
 problem~\cite{rice1976algorithm}. It has been studied as meta-learning in
 general~\cite{brazdil2009metalearning,pfahringer2000landmarking} and for
 clustering
-specifically~\cite{desouto2008ranking,ferrari2015clustering}, and is used as
-warm-starting in AutoML~\cite{feurer2015efficient}. Clustbench's learned
+specifically~\cite{desouto2008ranking,ferrari2015clustering}, including recent
+AutoML systems for clustering that select algorithms from meta-features,
+dataset similarity or learned
+embeddings~\cite{trederTschechlov2023ml2dac,singh2024clams,bakhtyari2025clustrecnet}.
+It is also used for warm-starting in AutoML~\cite{feurer2015efficient}. Clustbench's learned
 routers are instances of this idea. The contribution here is the
 infrastructure that makes them self-extending: the router training set
 \emph{is} the benchmark output, so it grows whenever the benchmark runs.
@@ -717,6 +720,12 @@ fallbacks, small $n$, and missing rows. Future work is more dataset families,
 tuned-hyperparameter comparisons, larger-$n$ distributed runs, importing
 external dataset batteries such as Gagolewski's~\cite{gagolewski2022framework},
 and using the trajectory corpus to train components inside algorithms.
+
+\paragraph{Acknowledgement of AI assistance.} The benchmark harness's
+initial scaffold was written by the author. The algorithm implementations,
+experiments, analysis scripts and drafts of this paper were produced with an
+AI coding assistant (Claude Code), directed and reviewed by the author, who
+takes responsibility for the content.
 
 \paragraph{Availability.} Code, configurations, committed results, the live
 dashboard (\url{https://ashail33.github.io/clustbench/}) and the scripts that

@@ -156,6 +156,33 @@ members differ only in $\phi$:
   lose meaning.
 \end{itemize}
 
+\paragraph{Relation to prior work.}
+\begin{itemize}
+  \item \textbf{The name ``Laplacian mixture model'' is taken.}
+  Korenblum~\cite{korenblum2018laplacian} combines Laplacian eigenspaces with
+  finite mixture modelling to obtain fuzzy partitions. That model is fitted
+  by globally optimising a linear transformation of the eigenvectors (a
+  linearly constrained concave quadratic programme), with optimal-recovery
+  guarantees for a class of cluster graphs. Our LMM shares the
+  Laplacian-eigenvector basis and soft assignments. It differs in fitting
+  per-cluster exponential-family log-densities on that basis by EM, with
+  self-normalisation over the data and a learned per-cluster heat-kernel
+  diffusion time. We keep the abbreviation for continuity with the code, but
+  the method should be read as a variant within that line of work, not a new
+  model class.
+  \item \textbf{FMM's ingredients are known.} EM for mixtures of exponential
+  families is classical~\cite{banerjee2005clustering}. Exponential families
+  over kernel or random-feature bases are studied as density
+  estimators~\cite{sriperumbudur2017density}, typically fitted by score
+  matching rather than by maximum likelihood, because of the partition
+  function. Random Fourier features have been used for kernel
+  clustering~\cite{chitta2012efficient}. We did not find this exact
+  combination: a mixture whose components are random-Fourier exponential
+  families with the log-partition self-normalised over the sample, fitted by
+  Newton-step EM. Our search was limited, though, and we make no strong novelty
+  claim.
+\end{itemize}
+
 \subsection{MRIC: magnetic-resonance-inspired clustering}
 MRI separates tissues because nuclei in different chemical environments relax
 at different rates. MRIC treats each point as a spin and its $k$NN
@@ -652,12 +679,25 @@ sweep reaches $n = 50{,}000$ on two families only). Twenty families give wide
 intervals, so many adjacent ranks are ties. Lineage tables come from earlier,
 smaller grids run before the validity controls. Algorithms run with fixed
 hyperparameters. Many ideas here have
-prior art: algorithm selection~\cite{rice1976algorithm}, meta-learning for
-clustering~\cite{desouto2008ranking,ferrari2015clustering},
-landmarking~\cite{pfahringer2000landmarking} (our probe features) and stacked
-generalisation~\cite{wolpert1992stacked}. Our contribution is their
-systematic, re-runnable evaluation against a broad registry, the
-basis-mixture family, and the trajectory-trained agent.
+prior art:
+\begin{itemize}
+  \item algorithm selection~\cite{rice1976algorithm};
+  \item meta-learning for clustering, from early work to recent
+  systems~\cite{desouto2008ranking,ferrari2015clustering,trederTschechlov2023ml2dac,singh2024clams,bakhtyari2025clustrecnet};
+  \item landmarking~\cite{pfahringer2000landmarking}, which our probe
+  features are;
+  \item stacked generalisation~\cite{wolpert1992stacked};
+  \item Laplacian mixture modelling~\cite{korenblum2018laplacian};
+  \item exponential-family mixtures~\cite{banerjee2005clustering}.
+\end{itemize}
+Recent clustering-recommendation systems such as ML2DAC, CLAMS and
+ClustRecNet target the same problem as our routers and should be compared
+against directly in future work. A limited search found no published
+MRI-relaxation clustering method and no prior agent that composes clustering
+algorithms from primitive operators learned by imitation, but neither search
+was exhaustive. Our contribution is a systematic, re-runnable evaluation of
+these ideas against a broad registry, with validity controls, plus the
+FMM/LMM/AMM variants and the trajectory-trained agent.
 
 \section{Conclusion and future work}
 Starting from benchmark failure modes, we built 25 algorithms and ten
@@ -675,6 +715,12 @@ they have seen. Three directions follow:
   \item give selection gates a shape-aware criterion, e.g.\ penalise
   silhouette when the number of $k$NN-graph components disagrees with $k$.
 \end{itemize}
+
+\paragraph{Acknowledgement of AI assistance.} The benchmark harness's
+initial scaffold was written by the author. The algorithm implementations,
+experiments, analysis scripts and drafts of this paper were produced with an
+AI coding assistant (Claude Code), directed and reviewed by the author, who
+takes responsibility for the content.
 
 \paragraph{Availability.} All algorithms, configurations, results and the
 figure scripts are at \url{https://github.com/Ashail33/clustbench}.

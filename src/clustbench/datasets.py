@@ -95,7 +95,7 @@ def gen_mixed(spec: DataSpec):
 
 
 def gen_mdcgen(spec: DataSpec):
-    """MDCGen-style synthetic dataset generator (Lopez et al., reproduced).
+    """MDCGen-style synthetic dataset generator (Iglesias et al., 2019, reproduced).
 
     Generates ``centers`` Gaussian clusters whose spread is modulated by
     ``density`` (lower density => looser clusters), then optionally injects
