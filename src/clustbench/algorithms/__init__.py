@@ -46,3 +46,4 @@ from . import density_peaks_bridge  # noqa: F401
 from . import bico_stream  # noqa: F401
 from . import isomap_bgmm  # noqa: F401
 from . import trident  # noqa: F401
+from . import tbmm  # noqa: F401

@@ -383,6 +383,12 @@ algorithms:
     params: {}
 
 # Five seeds per configuration (was three) so per-configuration seed
+  # Tri-basis mixture (Fourier + Laplacian + autoencoder) and ablation;
+  # AMM added so all three single-basis variants are benchmarked.
+  - {name: amm, kind: python, entry: amm, params: {}}
+  - {name: tbmm, kind: python, entry: tbmm, params: {}}
+  - {name: tbmm_fl, kind: python, entry: tbmm, params: {blocks: [fourier, laplacian]}}
+
 # variability and configuration-level bootstrap CIs are meaningful.
 seeds: [1, 2, 3, 4, 5]
 

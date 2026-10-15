@@ -139,3 +139,17 @@ def test_consensus_has_default_base():
 
     X = np.random.default_rng(0).normal(size=(60, 2))
     assert len(ALGO_REGISTRY["consensus"]().fit_predict(X, k=2).labels) == 60
+
+
+def test_tbmm_concatenates_blocks_and_solves_circles():
+    from sklearn.metrics import adjusted_rand_score
+
+    from clustbench.algorithms.base import ALGO_REGISTRY
+
+    X, y = DATASETS["circles"](DataSpec(n_samples=300, n_features=2, centers=2, compactness=1.0, seed=1))
+    res = ALGO_REGISTRY["tbmm"](ae_max_iter=50).fit_predict(X, k=2)
+    assert set(res.extra["blocks"]) == {"fourier", "laplacian", "autoencoder"}
+    assert all(v > 0 for v in res.extra["block_dims"].values())
+    assert adjusted_rand_score(y, res.labels) > 0.9
+    with pytest.raises(ValueError):
+        ALGO_REGISTRY["tbmm"](blocks=("wavelet",))
