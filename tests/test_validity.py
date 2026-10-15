@@ -171,3 +171,17 @@ def test_flhmm_transform_blocks_and_heads():
         assert set(res.extra["blocks"]) == {"fourier", "laplace", "hilbert"}
     with pytest.raises(ValueError):
         ALGO_REGISTRY["flhmm"](head="dbscan")
+
+
+def test_flh_cycle_records_one_step_per_view():
+    from clustbench.algorithms.base import ALGO_REGISTRY
+
+    X, y = DATASETS["blobs"](DataSpec(n_samples=150, n_features=3, centers=3, compactness=1.0, seed=2))
+    for kw in ({}, {"estep": "product", "handoff": 0.5}):
+        res = ALGO_REGISTRY["flh_cycle"](n_cycles=4, **kw).fit_predict(X, k=3)
+        assert len(res.labels) == len(X)
+        views = [s.action["view"] for s in res.trajectory]
+        assert views[:3] == ["fourier", "laplace", "hilbert"]
+        assert len(views) == 3 * res.extra["cycles"]
+    with pytest.raises(ValueError):
+        ALGO_REGISTRY["flh_cycle"](estep="median")

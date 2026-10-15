@@ -128,11 +128,11 @@ class Flhmm(Fmm):
         return {"type": "fourier_laplace_hilbert", "blocks": list(self.blocks),
                 "block_dims": dict(self._block_dims), "head": self.head}
 
-    def transform(self, X: np.ndarray, rng: np.random.Generator | None = None) -> np.ndarray:
-        """Return the concatenated, equal-variance transform features."""
+    def block_features(self, X: np.ndarray, rng: np.random.Generator | None = None) -> Dict[str, np.ndarray]:
+        """Return each transform block, standardised and scaled to unit total variance."""
         X = np.asarray(X, dtype=np.float64)
         rng = rng if rng is not None else np.random.default_rng(self.random_state)
-        parts = []
+        parts: Dict[str, np.ndarray] = {}
         for name in self.blocks:
             if name == "fourier":
                 omega, _ = self._sample_omega(X, rng)
@@ -147,8 +147,12 @@ class Flhmm(Fmm):
             phi = phi[:, keep] / sd[keep]
             phi = phi / np.sqrt(max(phi.shape[1], 1)) * float(self.block_weights.get(name, 1.0))
             self._block_dims[name] = int(phi.shape[1])
-            parts.append(phi)
-        return np.concatenate(parts, axis=1)
+            parts[name] = phi
+        return parts
+
+    def transform(self, X: np.ndarray, rng: np.random.Generator | None = None) -> np.ndarray:
+        """Return the concatenated, equal-variance transform features."""
+        return np.concatenate(list(self.block_features(X, rng).values()), axis=1)
 
     def _build_basis(self, X: np.ndarray, rng: np.random.Generator) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         phi = self.transform(X, rng)

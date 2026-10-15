@@ -394,6 +394,11 @@ algorithms:
   - {name: flhmm_km, kind: python, entry: flhmm, params: {head: kmeans}}
   - {name: flhmm_laplace_km, kind: python, entry: flhmm, params: {head: kmeans, blocks: [laplace]}}
   - {name: flhmm_hilbert_km, kind: python, entry: flhmm, params: {head: kmeans, blocks: [hilbert]}}
+  # Co-EM cycling between the Fourier, Laplace and Hilbert views: one view's
+  # M-step then E-step per step (flh_cycle), or all-view E-step with damped
+  # hand-off (flh_cycle_product).
+  - {name: flh_cycle, kind: python, entry: flh_cycle, params: {}}
+  - {name: flh_cycle_product, kind: python, entry: flh_cycle, params: {estep: product, handoff: 0.5}}
 
 # variability and configuration-level bootstrap CIs are meaningful.
 seeds: [1, 2, 3, 4, 5]
