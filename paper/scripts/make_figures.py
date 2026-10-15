@@ -252,6 +252,70 @@ def fig_router_lineage() -> None:
     plt.close(fig)
 
 
+def fig_ci_forest(summary: dict, top: int = 25) -> None:
+    """Mean ARI with configuration-level bootstrap 95% CIs, plus the
+    Nemenyi critical difference on the average-rank axis."""
+    post = summary.get("ari", {}).get("posthoc", {})
+    ci = post.get("bootstrap_ci")
+    if not ci:
+        return
+    ranks = summary["ari"]["average_ranks"]
+    order = [r["algo"] for r in ranks][:top]
+    rk = {r["algo"]: r["rank"] for r in ranks}
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6.8, 4.6), sharey=True,
+                                   gridspec_kw={"width_ratios": [1.1, 1]})
+    y = np.arange(len(order))[::-1]
+    for yi, a in zip(y, order):
+        c = ci.get(a)
+        if not c:
+            continue
+        col = "#c0504d" if a in ROUTERS else "#4f81bd"
+        ax1.plot([c["ci_low"], c["ci_high"]], [yi, yi], c=col, lw=1.2)
+        ax1.plot(c["mean"], yi, "o", c=col, ms=3)
+        ax2.plot(rk[a], yi, "s", c=col, ms=3)
+    ax1.set_yticks(y)
+    ax1.set_yticklabels(order, fontsize=5.8)
+    ax1.set_xlabel("mean ARI (95% bootstrap CI over configurations)")
+    cd = post.get("nemenyi_cd")
+    best = rk[order[0]]
+    if cd:
+        ax2.axvspan(best, best + cd, color="grey", alpha=0.15, lw=0)
+        ax2.text(best + cd / 2, y[0] + 0.9, f"Nemenyi CD = {cd:.1f}", ha="center", fontsize=6)
+    ax2.set_xlabel("average ARI rank")
+    fig.tight_layout()
+    fig.savefig(OUT / "ci_forest.pdf")
+    plt.close(fig)
+
+
+def fig_scaling(path: str = "docs/data_scaling/results.json") -> None:
+    p = ROOT / path
+    if not p.exists():
+        return
+    rows = json.load(open(p))
+    by = defaultdict(list)
+    for r in rows:
+        if r.get("wall_time_s") is not None:
+            by[(r["algo"], r["dataset_id"], r["n_samples"])].append(r["wall_time_s"])
+    algos = sorted({a for a, _, _ in by})
+    fig, axes = plt.subplots(1, 2, figsize=(6.8, 2.8), sharey=True)
+    cmap = plt.get_cmap("tab20")
+    for ax, ds in zip(axes, ("mdcgen", "moons")):
+        for i, a in enumerate(algos):
+            pts = sorted((n, st.median(v)) for (aa, d, n), v in by.items() if aa == a and d == ds)
+            if len(pts) < 2:
+                continue
+            ax.plot(*zip(*pts), "o-", ms=2, lw=0.8, color=cmap(i % 20), label=a)
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlabel("n")
+        ax.set_title(ds)
+    axes[0].set_ylabel("wall time (s)")
+    axes[1].legend(fontsize=5, frameon=False, bbox_to_anchor=(1.02, 1), loc="upper left")
+    fig.tight_layout()
+    fig.savefig(OUT / "scaling.pdf")
+    plt.close(fig)
+
+
 def main() -> None:
     rows_in = load("docs/data/results.json")
     rows_ood = load("docs/data_unseen/results.json")
@@ -262,6 +326,8 @@ def main() -> None:
     fig_ood(rows_in, rows_ood)
     fig_trajectories(traj)
     fig_router_lineage()
+    fig_ci_forest(summary)
+    fig_scaling()
     print("wrote", sorted(p.name for p in OUT.glob("*.pdf")))
 
 

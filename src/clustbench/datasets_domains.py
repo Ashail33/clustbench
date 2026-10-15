@@ -142,50 +142,111 @@ def _ts_features(series: np.ndarray) -> np.ndarray:
 
 _UCR_CACHE: dict = {}
 
-# Candidate mirrors for UCR archive. The official archive lives at
-# timeseriesclassification.com but its TSV layout varies by mirror; we
-# try a couple of likely-available URLs and accept whichever returns
-# parseable data.
+# The UCR archive's canonical distribution: one zip per dataset holding
+# {name}_TRAIN.txt and {name}_TEST.txt (whitespace-separated, label first).
+# We concatenate TRAIN + TEST to get the full dataset (ECG200 and Trace are
+# both 100 + 100 = 200 series). Downloads are verified against a pinned
+# SHA-256 and cached, so a changed upstream file is detected rather than
+# silently benchmarked.
+_UCR_ZIP_URL = "https://www.timeseriesclassification.com/aeon-toolkit/{name}.zip"
+_UCR_SHA256 = {
+    "ECG200": "755937ea37849346ea20033666b19d17345bb039971e8fa33458b16b62c09380",
+    "Trace": "46fdce1d24e8a1b823c8461b2b9f2b2333c01d4eb55af33e6a8bfd04e41c6a0f",
+}
+# Legacy single-file mirrors (TRAIN split only), tried after the zip.
 _UCR_MIRRORS = [
-    # tslearn UEA/UCR mirror: each dataset is /{name}/{name}_TRAIN.tsv
     "https://raw.githubusercontent.com/tslearn-team/tslearn/main/tslearn/datasets/UCR_UEA_datasets/{name}/{name}_TRAIN.tsv",
     "https://www.timeseriesclassification.com/Downloads/{name}.txt",
 ]
 
 
+def _ucr_cache_dir() -> "os.PathLike":
+    import os
+    import pathlib
+
+    root = os.environ.get("CLUSTBENCH_DATA_DIR") or os.path.join(
+        os.path.expanduser("~"), ".cache", "clustbench"
+    )
+    d = pathlib.Path(root) / "ucr"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _parse_ucr_txt(raw: str) -> Tuple[np.ndarray, np.ndarray] | None:
+    import io
+
+    arr = np.loadtxt(io.StringIO(raw))
+    if arr.ndim != 2 or arr.shape[1] < 4:
+        return None
+    return arr[:, 1:].astype(np.float64), arr[:, 0]
+
+
+def _fetch_ucr_zip(name: str) -> Tuple[np.ndarray, np.ndarray] | None:
+    import hashlib
+    import io
+    import urllib.request
+    import zipfile
+
+    expected = _UCR_SHA256.get(name)
+    path = _ucr_cache_dir() / f"{name}.zip"
+    blob = path.read_bytes() if path.exists() else None
+    if blob is None or (expected and hashlib.sha256(blob).hexdigest() != expected):
+        with urllib.request.urlopen(_UCR_ZIP_URL.format(name=name), timeout=30) as resp:
+            blob = resp.read()
+        digest = hashlib.sha256(blob).hexdigest()
+        if expected and digest != expected:
+            warnings.warn(f"{name}: UCR zip checksum mismatch ({digest}); refusing to use it.")
+            return None
+        path.write_bytes(blob)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    parts = []
+    for split in ("TRAIN", "TEST"):
+        member = next((m for m in zf.namelist() if m.endswith(f"{name}_{split}.txt")), None)
+        if member is None:
+            return None
+        parsed = _parse_ucr_txt(zf.read(member).decode("utf-8", errors="replace"))
+        if parsed is None:
+            return None
+        parts.append(parsed)
+    series = np.vstack([p[0] for p in parts])
+    labels = np.concatenate([p[1] for p in parts])
+    return series, labels
+
+
 def _fetch_ucr(name: str) -> Tuple[np.ndarray, np.ndarray] | None:
     """Fetch a UCR Archive dataset by name. Returns (series, labels) or None.
 
-    The TSV layout is: first column = integer class label, remaining
-    columns = the univariate series values. We try a couple of mirrors;
-    any failure (HTTP error, parse error) returns ``None`` so the caller
-    can fall back to a synthetic generator.
+    Tries the checksummed archive zip (TRAIN + TEST) first, then the legacy
+    single-file mirrors (TRAIN only). Any failure returns ``None`` so the
+    caller can fall back to a synthetic generator, which it must report
+    (see ``clustbench.benchmark`` provenance tracking).
     """
     if name in _UCR_CACHE:
         return _UCR_CACHE[name]
-    try:
-        import io
-        import urllib.request
-    except Exception:  # pragma: no cover — stdlib always present
-        return None
+    import urllib.request
 
-    for mirror in _UCR_MIRRORS:
-        url = mirror.format(name=name)
-        try:
-            with urllib.request.urlopen(url, timeout=5) as resp:
-                raw = resp.read().decode("utf-8", errors="replace")
-            arr = np.loadtxt(io.StringIO(raw))
-            if arr.ndim != 2 or arr.shape[1] < 4:
+    fetched = None
+    try:
+        fetched = _fetch_ucr_zip(name)
+    except Exception:
+        fetched = None
+    if fetched is None:
+        for mirror in _UCR_MIRRORS:
+            try:
+                with urllib.request.urlopen(mirror.format(name=name), timeout=5) as resp:
+                    raw = resp.read().decode("utf-8", errors="replace")
+                fetched = _parse_ucr_txt(raw)
+                if fetched is not None:
+                    break
+            except Exception:
                 continue
-            y = arr[:, 0].astype(np.int64)
-            # Relabel to 0..k-1 (UCR labels are sometimes 1..k or {-1,1}).
-            _, y = np.unique(y, return_inverse=True)
-            series = arr[:, 1:].astype(np.float64)
-            _UCR_CACHE[name] = (series, y.astype(np.int64))
-            return _UCR_CACHE[name]
-        except Exception:
-            continue
-    return None
+    if fetched is None:
+        return None
+    series, y = fetched
+    # Relabel to 0..k-1 (UCR labels are sometimes 1..k or {-1,1}).
+    _, y = np.unique(y.astype(np.int64), return_inverse=True)
+    _UCR_CACHE[name] = (series, y.astype(np.int64))
+    return _UCR_CACHE[name]
 
 
 # ---------------------------------------------------------------------------
