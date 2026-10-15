@@ -150,33 +150,46 @@ def main() -> None:
                                                 )
                                             )
 
-    # Flatten metrics dict so metrics appear top‑level in the DataFrame.
-    # Metric names that collide with task-identity columns (notably
-    # `compactness`) get a `metric_` prefix so the experiment setting wins.
-    PROTECTED = {"compactness", "outliers", "noise", "density", "seed", "k_target"}
+    df = results_frame(rows)
+    write_results(df, outdir)
+    write_summary(df, outdir)
+    print(f"Wrote results to {outdir}")
+
+
+# Metric names that collide with task-identity columns (notably
+# `compactness`) get a `metric_` prefix so the experiment setting wins.
+PROTECTED = {"compactness", "outliers", "noise", "density", "seed", "k_target"}
+
+
+def results_frame(rows: List[dict]) -> pd.DataFrame:
+    """Flatten Record dicts into the tidy results table.
+
+    Metrics become top-level columns. ``extra`` (algorithm-specific, with a
+    different shape per algorithm) is stored as a JSON string so the table
+    can always be written to Parquet.
+    """
 
     def flatten(r: dict) -> dict:
-        m = r["metrics"]
+        m = r.get("metrics") or {}
         base = {k: v for k, v in r.items() if k != "metrics"}
         for k, v in m.items():
             if k in PROTECTED and k in base:
                 base[f"metric_{k}"] = v
             else:
                 base[k] = v
+        if isinstance(base.get("extra"), (dict, list)):
+            base["extra"] = json.dumps(base["extra"], default=str)
         return base
 
-    flat_rows = [flatten(r) for r in rows]
-    df = pd.DataFrame(flat_rows)
+    return pd.DataFrame([flatten(dict(r)) for r in rows])
 
-    # Save results; attempt Parquet, fallback to CSV
+
+def write_results(df: pd.DataFrame, outdir: pathlib.Path) -> None:
+    df.to_csv(outdir / "results.csv", index=False)
     try:
         df.to_parquet(outdir / "results.parquet")
-    except Exception:
-        pass
-    df.to_csv(outdir / "results.csv", index=False)
-
-    write_summary(df, outdir)
-    print(f"Wrote results to {outdir}")
+    except Exception as e:  # CSV is still there; make the failure visible
+        print(f"WARNING: could not write results.parquet ({type(e).__name__}: {e}); results.csv only")
 
 
 def write_summary(df: pd.DataFrame, outdir: pathlib.Path) -> dict:

@@ -1,0 +1,1968 @@
+{
+  "ari": {
+    "average_ranks": [
+      {
+        "algo": "learned_router",
+        "rank": 3.59375
+      },
+      {
+        "algo": "spectral",
+        "rank": 5.03125
+      },
+      {
+        "algo": "lmm",
+        "rank": 5.5625
+      },
+      {
+        "algo": "louvain_knn",
+        "rank": 5.725
+      },
+      {
+        "algo": "gmm",
+        "rank": 6.475
+      },
+      {
+        "algo": "rapid",
+        "rank": 6.75
+      },
+      {
+        "algo": "birch_algo",
+        "rank": 8.825
+      },
+      {
+        "algo": "dbscan_auto",
+        "rank": 8.85
+      },
+      {
+        "algo": "aura_v3",
+        "rank": 8.90625
+      },
+      {
+        "algo": "agglomerative",
+        "rank": 9.25
+      },
+      {
+        "algo": "bico_stream",
+        "rank": 9.275
+      },
+      {
+        "algo": "parallel_kmeans",
+        "rank": 9.4
+      },
+      {
+        "algo": "kmeans",
+        "rank": 9.6
+      },
+      {
+        "algo": "minibatch_kmeans",
+        "rank": 10.025
+      },
+      {
+        "algo": "fmm",
+        "rank": 10.3125
+      },
+      {
+        "algo": "meanshift_robust",
+        "rank": 10.666666666666666
+      },
+      {
+        "algo": "clarans_pp",
+        "rank": 13.4375
+      },
+      {
+        "algo": "optics",
+        "rank": 18.0
+      }
+    ],
+    "friedman": {
+      "statistic": 58.935283218634204,
+      "p_value": 1.573270802447634e-06,
+      "k": 18,
+      "n_tasks": 8
+    },
+    "posthoc": {
+      "nemenyi_cd": 9.312240149910963,
+      "pairwise_wilcoxon_holm": [
+        {
+          "a": "learned_router",
+          "b": "spectral",
+          "median_diff": 0.1865472646386918,
+          "mean_diff": 0.2486353736658637,
+          "n_nonzero": 6,
+          "p": 0.15625,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "louvain_knn",
+          "median_diff": 0.0,
+          "mean_diff": 0.07267135475128922,
+          "n_nonzero": 4,
+          "p": 0.625,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "lmm",
+          "median_diff": 0.25242253682065524,
+          "mean_diff": 0.2791013796278131,
+          "n_nonzero": 6,
+          "p": 0.15625,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "rapid",
+          "median_diff": 0.002656890645741816,
+          "mean_diff": 0.11005029988645015,
+          "n_nonzero": 7,
+          "p": 0.296875,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "gmm",
+          "median_diff": 0.38056886742419066,
+          "mean_diff": 0.3189472539624392,
+          "n_nonzero": 8,
+          "p": 0.0234375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "aura_v3",
+          "median_diff": 0.3001666634000228,
+          "mean_diff": 0.329746303832226,
+          "n_nonzero": 7,
+          "p": 0.046875,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "dbscan_auto",
+          "median_diff": 0.16496696647502518,
+          "mean_diff": 0.19469249877871017,
+          "n_nonzero": 8,
+          "p": 0.0078125,
+          "p_holm": 0.4140625,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "kmeans",
+          "median_diff": 0.3677343702544228,
+          "mean_diff": 0.37431075397296365,
+          "n_nonzero": 4,
+          "p": 0.125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "parallel_kmeans",
+          "median_diff": 0.3677343702544228,
+          "mean_diff": 0.37431075397296365,
+          "n_nonzero": 4,
+          "p": 0.125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "spectral",
+          "b": "louvain_knn",
+          "median_diff": -0.1865472646386918,
+          "mean_diff": -0.17596401891457447,
+          "n_nonzero": 6,
+          "p": 0.15625,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "spectral",
+          "b": "lmm",
+          "median_diff": 0.0,
+          "mean_diff": 0.030466005961949427,
+          "n_nonzero": 4,
+          "p": 0.25,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "spectral",
+          "b": "rapid",
+          "median_diff": -0.1865472646386918,
+          "mean_diff": -0.13858507377941354,
+          "n_nonzero": 7,
+          "p": 0.21875,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "spectral",
+          "b": "gmm",
+          "median_diff": 0.008540906021833466,
+          "mean_diff": 0.07031188029657554,
+          "n_nonzero": 8,
+          "p": 0.3828125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "spectral",
+          "b": "aura_v3",
+          "median_diff": 0.024230275787167382,
+          "mean_diff": 0.08111093016636227,
+          "n_nonzero": 6,
+          "p": 0.03125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "spectral",
+          "b": "dbscan_auto",
+          "median_diff": -0.05048322357171653,
+          "mean_diff": -0.05394287488715349,
+          "n_nonzero": 8,
+          "p": 0.640625,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "spectral",
+          "b": "kmeans",
+          "median_diff": 0.08410845187106984,
+          "mean_diff": 0.12567538030710002,
+          "n_nonzero": 6,
+          "p": 0.03125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "spectral",
+          "b": "parallel_kmeans",
+          "median_diff": 0.08410845187106984,
+          "mean_diff": 0.12567538030710002,
+          "n_nonzero": 6,
+          "p": 0.03125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "louvain_knn",
+          "b": "lmm",
+          "median_diff": 0.25242253682065524,
+          "mean_diff": 0.2064300248765239,
+          "n_nonzero": 6,
+          "p": 0.15625,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "louvain_knn",
+          "b": "rapid",
+          "median_diff": 0.002656890645741816,
+          "mean_diff": 0.037378945135160935,
+          "n_nonzero": 6,
+          "p": 0.21875,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "louvain_knn",
+          "b": "gmm",
+          "median_diff": 0.38093598760015784,
+          "mean_diff": 0.24627589921115,
+          "n_nonzero": 8,
+          "p": 0.1484375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "louvain_knn",
+          "b": "aura_v3",
+          "median_diff": 0.30053378357599,
+          "mean_diff": 0.25707494908093675,
+          "n_nonzero": 7,
+          "p": 0.15625,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "louvain_knn",
+          "b": "dbscan_auto",
+          "median_diff": 0.04764873591002777,
+          "mean_diff": 0.12202114402742092,
+          "n_nonzero": 8,
+          "p": 0.109375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "louvain_knn",
+          "b": "kmeans",
+          "median_diff": 0.3699402644380438,
+          "mean_diff": 0.30163939922167443,
+          "n_nonzero": 8,
+          "p": 0.1484375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "louvain_knn",
+          "b": "parallel_kmeans",
+          "median_diff": 0.3699402644380438,
+          "mean_diff": 0.30163939922167443,
+          "n_nonzero": 8,
+          "p": 0.1484375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "lmm",
+          "b": "rapid",
+          "median_diff": -0.25242253682065524,
+          "mean_diff": -0.1690510797413629,
+          "n_nonzero": 7,
+          "p": 0.21875,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "lmm",
+          "b": "gmm",
+          "median_diff": -0.00025576023761370026,
+          "mean_diff": 0.039845874334626115,
+          "n_nonzero": 8,
+          "p": 0.9453125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "lmm",
+          "b": "aura_v3",
+          "median_diff": 0.015084823583556561,
+          "mean_diff": 0.05064492420441284,
+          "n_nonzero": 6,
+          "p": 0.15625,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "lmm",
+          "b": "dbscan_auto",
+          "median_diff": -0.1128342411396761,
+          "mean_diff": -0.08440888084910292,
+          "n_nonzero": 8,
+          "p": 0.546875,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "lmm",
+          "b": "kmeans",
+          "median_diff": 0.06853813529614568,
+          "mean_diff": 0.09520937434515057,
+          "n_nonzero": 6,
+          "p": 0.03125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "lmm",
+          "b": "parallel_kmeans",
+          "median_diff": 0.06853813529614568,
+          "mean_diff": 0.09520937434515057,
+          "n_nonzero": 6,
+          "p": 0.03125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "rapid",
+          "b": "gmm",
+          "median_diff": 0.3774677000993548,
+          "mean_diff": 0.20889695407598904,
+          "n_nonzero": 8,
+          "p": 0.1953125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "rapid",
+          "b": "aura_v3",
+          "median_diff": 0.2846771082123961,
+          "mean_diff": 0.21969600394577582,
+          "n_nonzero": 7,
+          "p": 0.21875,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "rapid",
+          "b": "dbscan_auto",
+          "median_diff": 0.037627209457621935,
+          "mean_diff": 0.08464219889225999,
+          "n_nonzero": 8,
+          "p": 0.3828125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "rapid",
+          "b": "kmeans",
+          "median_diff": 0.36861270770895077,
+          "mean_diff": 0.2642604540865135,
+          "n_nonzero": 8,
+          "p": 0.25,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "rapid",
+          "b": "parallel_kmeans",
+          "median_diff": 0.36861270770895077,
+          "mean_diff": 0.2642604540865135,
+          "n_nonzero": 8,
+          "p": 0.25,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "gmm",
+          "b": "aura_v3",
+          "median_diff": 0.042302706860109146,
+          "mean_diff": 0.01079904986978672,
+          "n_nonzero": 8,
+          "p": 0.84375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "gmm",
+          "b": "dbscan_auto",
+          "median_diff": -0.19808516061552836,
+          "mean_diff": -0.12425475518372907,
+          "n_nonzero": 8,
+          "p": 0.3125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "gmm",
+          "b": "kmeans",
+          "median_diff": 0.11739118559421292,
+          "mean_diff": 0.055363500010524466,
+          "n_nonzero": 8,
+          "p": 0.84375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "gmm",
+          "b": "parallel_kmeans",
+          "median_diff": 0.11739118559421292,
+          "mean_diff": 0.055363500010524466,
+          "n_nonzero": 8,
+          "p": 0.84375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "aura_v3",
+          "b": "dbscan_auto",
+          "median_diff": -0.14866096271202445,
+          "mean_diff": -0.13505380505351577,
+          "n_nonzero": 8,
+          "p": 0.4609375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "aura_v3",
+          "b": "kmeans",
+          "median_diff": 0.0164721549204173,
+          "mean_diff": 0.04456445014073773,
+          "n_nonzero": 7,
+          "p": 0.109375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "aura_v3",
+          "b": "parallel_kmeans",
+          "median_diff": 0.0164721549204173,
+          "mean_diff": 0.04456445014073773,
+          "n_nonzero": 7,
+          "p": 0.109375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "dbscan_auto",
+          "b": "kmeans",
+          "median_diff": 0.2104025612235228,
+          "mean_diff": 0.1796182551942535,
+          "n_nonzero": 8,
+          "p": 0.3125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "dbscan_auto",
+          "b": "parallel_kmeans",
+          "median_diff": 0.2104025612235228,
+          "mean_diff": 0.1796182551942535,
+          "n_nonzero": 8,
+          "p": 0.3125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "kmeans",
+          "b": "parallel_kmeans",
+          "median_diff": 0.0,
+          "mean_diff": 0.0,
+          "n_nonzero": 0,
+          "p": 1.0,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "agglomerative",
+          "median_diff": 0.20856435187644834,
+          "mean_diff": 0.29785543625992794,
+          "n_nonzero": 8,
+          "p": 0.0078125,
+          "p_holm": 0.4140625,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "bico_stream",
+          "median_diff": 0.36326943383584165,
+          "mean_diff": 0.3808786548594944,
+          "n_nonzero": 4,
+          "p": 0.125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "meanshift_robust",
+          "median_diff": 0.5592615114502086,
+          "mean_diff": 0.39955381339931745,
+          "n_nonzero": 8,
+          "p": 0.0078125,
+          "p_holm": 0.4140625,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "fmm",
+          "median_diff": 0.3531939549296033,
+          "mean_diff": 0.3501954646918922,
+          "n_nonzero": 8,
+          "p": 0.0078125,
+          "p_holm": 0.4140625,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "minibatch_kmeans",
+          "median_diff": 0.5059279805590673,
+          "mean_diff": 0.443267740495305,
+          "n_nonzero": 6,
+          "p": 0.03125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "birch_algo",
+          "median_diff": 0.3695601498956604,
+          "mean_diff": 0.3741830367742956,
+          "n_nonzero": 8,
+          "p": 0.0078125,
+          "p_holm": 0.4140625,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "clarans_pp",
+          "median_diff": 0.48233304360313695,
+          "mean_diff": 0.4561966446629655,
+          "n_nonzero": 8,
+          "p": 0.0078125,
+          "p_holm": 0.4140625,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "optics",
+          "median_diff": 0.9935857178499539,
+          "mean_diff": 0.9571261773564181,
+          "n_nonzero": 8,
+          "p": 0.0078125,
+          "p_holm": 0.4140625,
+          "significant": false
+        }
+      ],
+      "bootstrap_ci": {
+        "agglomerative": {
+          "mean": 0.707061143136007,
+          "ci_low": 0.45122731998207827,
+          "ci_high": 0.9965224443561763,
+          "n_configs": 6
+        },
+        "aura_v3": {
+          "mean": 0.661775867278757,
+          "ci_low": 0.4320754050859169,
+          "ci_high": 0.9005277419784045,
+          "n_configs": 8
+        },
+        "bico_stream": {
+          "mean": 0.6177104648561579,
+          "ci_low": 0.38921970928621,
+          "ci_high": 0.8450328377475875,
+          "n_configs": 10
+        },
+        "birch_algo": {
+          "mean": 0.6242712530961211,
+          "ci_low": 0.4004586074440673,
+          "ci_high": 0.8476755410403988,
+          "n_configs": 10
+        },
+        "clarans_pp": {
+          "mean": 0.5328464473225074,
+          "ci_low": 0.34114338339768746,
+          "ci_high": 0.7319423628214167,
+          "n_configs": 8
+        },
+        "dbscan_auto": {
+          "mean": 0.6619391746506181,
+          "ci_low": 0.42050109258797475,
+          "ci_high": 0.8635649439455018,
+          "n_configs": 10
+        },
+        "fmm": {
+          "mean": 0.645253281155721,
+          "ci_low": 0.4053323433384288,
+          "ci_high": 0.890918847703989,
+          "n_configs": 8
+        },
+        "gmm": {
+          "mean": 0.6682659394482944,
+          "ci_low": 0.5579677318573035,
+          "ci_high": 0.7844606037179264,
+          "n_configs": 10
+        },
+        "kmeans": {
+          "mean": 0.5843766413046265,
+          "ci_low": 0.37762258450879255,
+          "ci_high": 0.7923337120726419,
+          "n_configs": 10
+        },
+        "learned_router": {
+          "mean": 0.996478853827546,
+          "ci_low": 0.9952826482568764,
+          "ci_high": 0.9975333853411705,
+          "n_configs": 8
+        },
+        "lmm": {
+          "mean": 0.6813457462092488,
+          "ci_low": 0.45142573583842477,
+          "ci_high": 0.9139979233317419,
+          "n_configs": 8
+        },
+        "louvain_knn": {
+          "mean": 0.8837002888114174,
+          "ci_low": 0.8120209657109433,
+          "ci_high": 0.9542894586697754,
+          "n_configs": 10
+        },
+        "meanshift_robust": {
+          "mean": 0.602609238891015,
+          "ci_low": 0.39371467951340344,
+          "ci_high": 0.8045605053231434,
+          "n_configs": 6
+        },
+        "minibatch_kmeans": {
+          "mean": 0.5695867835468353,
+          "ci_low": 0.37311455224565554,
+          "ci_high": 0.7671355546894985,
+          "n_configs": 10
+        },
+        "optics": {
+          "mean": 0.04051890351697207,
+          "ci_low": -0.0017811023428091477,
+          "ci_high": 0.11625163010135556,
+          "n_configs": 4
+        },
+        "parallel_kmeans": {
+          "mean": 0.584799738618511,
+          "ci_low": 0.37804258379165195,
+          "ci_high": 0.7927534601634123,
+          "n_configs": 10
+        },
+        "rapid": {
+          "mean": 0.9030329822129679,
+          "ci_low": 0.8135659398078661,
+          "ci_high": 0.9897954991714571,
+          "n_configs": 8
+        },
+        "spectral": {
+          "mean": 0.718741539844996,
+          "ci_low": 0.5233614273231764,
+          "ci_high": 0.9215757605103421,
+          "n_configs": 8
+        }
+      },
+      "seed_variability": {
+        "agglomerative": {
+          "mean_seed_sd": 0.058858833833753975,
+          "max_seed_sd": 0.2986740021703744,
+          "seeds_per_config": 2.0
+        },
+        "aura_v3": {
+          "mean_seed_sd": 0.025663815754731378,
+          "max_seed_sd": 0.10711893146120761,
+          "seeds_per_config": 2.0
+        },
+        "bico_stream": {
+          "mean_seed_sd": 0.009090560709917548,
+          "max_seed_sd": 0.043461392782817444,
+          "seeds_per_config": 2.0
+        },
+        "birch_algo": {
+          "mean_seed_sd": 0.0025782424697246642,
+          "max_seed_sd": 0.012583812803251705,
+          "seeds_per_config": 2.0
+        },
+        "clarans_pp": {
+          "mean_seed_sd": 0.06926535143776338,
+          "max_seed_sd": 0.14595374135505518,
+          "seeds_per_config": 2.0
+        },
+        "dbscan_auto": {
+          "mean_seed_sd": 0.050288118458414535,
+          "max_seed_sd": 0.22841028109596942,
+          "seeds_per_config": 2.0
+        },
+        "fmm": {
+          "mean_seed_sd": 0.005208524680985285,
+          "max_seed_sd": 0.012298445827080121,
+          "seeds_per_config": 2.0
+        },
+        "gmm": {
+          "mean_seed_sd": 0.05720847910046358,
+          "max_seed_sd": 0.19290909174293655,
+          "seeds_per_config": 2.0
+        },
+        "kmeans": {
+          "mean_seed_sd": 0.0352808231839757,
+          "max_seed_sd": 0.22330898439686125,
+          "seeds_per_config": 2.0
+        },
+        "learned_router": {
+          "mean_seed_sd": 0.0018171012902039763,
+          "max_seed_sd": 0.003173781424684964,
+          "seeds_per_config": 2.0
+        },
+        "lmm": {
+          "mean_seed_sd": 0.0465070424690777,
+          "max_seed_sd": 0.29117630375738107,
+          "seeds_per_config": 2.0
+        },
+        "louvain_knn": {
+          "mean_seed_sd": 0.04865037248361079,
+          "max_seed_sd": 0.20828245359100814,
+          "seeds_per_config": 2.0
+        },
+        "meanshift_robust": {
+          "mean_seed_sd": 0.09503001583797867,
+          "max_seed_sd": 0.41432317772152155,
+          "seeds_per_config": 2.0
+        },
+        "minibatch_kmeans": {
+          "mean_seed_sd": 0.078691609496452,
+          "max_seed_sd": 0.1986091458582039,
+          "seeds_per_config": 2.0
+        },
+        "optics": {
+          "mean_seed_sd": 0.05377958585133353,
+          "max_seed_sd": 0.21294914102608362,
+          "seeds_per_config": 2.0
+        },
+        "parallel_kmeans": {
+          "mean_seed_sd": 0.03468247322447644,
+          "max_seed_sd": 0.22330898439686125,
+          "seeds_per_config": 2.0
+        },
+        "rapid": {
+          "mean_seed_sd": 0.03519960544479131,
+          "max_seed_sd": 0.20921262599577914,
+          "seeds_per_config": 2.0
+        },
+        "spectral": {
+          "mean_seed_sd": 0.03342285525742514,
+          "max_seed_sd": 0.15403572737009907,
+          "seeds_per_config": 2.0
+        }
+      }
+    }
+  },
+  "nmi": {
+    "average_ranks": [
+      {
+        "algo": "learned_router",
+        "rank": 3.5625
+      },
+      {
+        "algo": "spectral",
+        "rank": 5.0
+      },
+      {
+        "algo": "lmm",
+        "rank": 5.46875
+      },
+      {
+        "algo": "louvain_knn",
+        "rank": 5.475
+      },
+      {
+        "algo": "rapid",
+        "rank": 6.5
+      },
+      {
+        "algo": "gmm",
+        "rank": 6.675
+      },
+      {
+        "algo": "agglomerative",
+        "rank": 7.083333333333333
+      },
+      {
+        "algo": "aura_v3",
+        "rank": 8.625
+      },
+      {
+        "algo": "dbscan_auto",
+        "rank": 9.05
+      },
+      {
+        "algo": "birch_algo",
+        "rank": 9.125
+      },
+      {
+        "algo": "bico_stream",
+        "rank": 9.95
+      },
+      {
+        "algo": "parallel_kmeans",
+        "rank": 9.95
+      },
+      {
+        "algo": "kmeans",
+        "rank": 10.0
+      },
+      {
+        "algo": "minibatch_kmeans",
+        "rank": 10.35
+      },
+      {
+        "algo": "meanshift_robust",
+        "rank": 10.583333333333334
+      },
+      {
+        "algo": "fmm",
+        "rank": 10.6875
+      },
+      {
+        "algo": "clarans_pp",
+        "rank": 13.125
+      },
+      {
+        "algo": "optics",
+        "rank": 16.625
+      }
+    ],
+    "friedman": {
+      "statistic": 57.59525059039616,
+      "p_value": 2.6060203233982654e-06,
+      "k": 18,
+      "n_tasks": 8
+    },
+    "posthoc": {
+      "nemenyi_cd": 9.312240149910963,
+      "pairwise_wilcoxon_holm": [
+        {
+          "a": "learned_router",
+          "b": "spectral",
+          "median_diff": 0.2020669835803659,
+          "mean_diff": 0.2565449783075565,
+          "n_nonzero": 6,
+          "p": 0.15625,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "louvain_knn",
+          "median_diff": 0.0,
+          "mean_diff": 0.033605735488470734,
+          "n_nonzero": 4,
+          "p": 0.625,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "lmm",
+          "median_diff": 0.24291881595614762,
+          "mean_diff": 0.27559521886906246,
+          "n_nonzero": 6,
+          "p": 0.15625,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "rapid",
+          "median_diff": 0.00656495964128212,
+          "mean_diff": 0.05149172771296079,
+          "n_nonzero": 7,
+          "p": 0.296875,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "agglomerative",
+          "median_diff": 0.2128456588723298,
+          "mean_diff": 0.2908852440575721,
+          "n_nonzero": 8,
+          "p": 0.015625,
+          "p_holm": 0.703125,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "gmm",
+          "median_diff": 0.3594626727126033,
+          "mean_diff": 0.3311868654368496,
+          "n_nonzero": 8,
+          "p": 0.0234375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "aura_v3",
+          "median_diff": 0.32678172796481,
+          "mean_diff": 0.3286023214707476,
+          "n_nonzero": 7,
+          "p": 0.0390625,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "dbscan_auto",
+          "median_diff": 0.16688249082482198,
+          "mean_diff": 0.17605039923877902,
+          "n_nonzero": 8,
+          "p": 0.0078125,
+          "p_holm": 0.4140625,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "kmeans",
+          "median_diff": 0.3956594137057152,
+          "mean_diff": 0.40253631269066514,
+          "n_nonzero": 4,
+          "p": 0.125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "spectral",
+          "b": "louvain_knn",
+          "median_diff": -0.2020669835803659,
+          "mean_diff": -0.22293924281908578,
+          "n_nonzero": 6,
+          "p": 0.15625,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "spectral",
+          "b": "lmm",
+          "median_diff": 5.551115123125783e-17,
+          "mean_diff": 0.019050240561505977,
+          "n_nonzero": 4,
+          "p": 0.3125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "spectral",
+          "b": "rapid",
+          "median_diff": -0.2020669835803659,
+          "mean_diff": -0.20505325059459573,
+          "n_nonzero": 7,
+          "p": 0.21875,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "spectral",
+          "b": "agglomerative",
+          "median_diff": 0.005686465618340741,
+          "mean_diff": 0.03434026575001562,
+          "n_nonzero": 8,
+          "p": 0.1484375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "spectral",
+          "b": "gmm",
+          "median_diff": 0.05566201993707515,
+          "mean_diff": 0.07464188712929314,
+          "n_nonzero": 8,
+          "p": 0.0234375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "spectral",
+          "b": "aura_v3",
+          "median_diff": 0.03316670172707242,
+          "mean_diff": 0.07205734316319114,
+          "n_nonzero": 6,
+          "p": 0.015625,
+          "p_holm": 0.703125,
+          "significant": false
+        },
+        {
+          "a": "spectral",
+          "b": "dbscan_auto",
+          "median_diff": -0.06964735163733121,
+          "mean_diff": -0.0804945790687775,
+          "n_nonzero": 8,
+          "p": 0.3828125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "spectral",
+          "b": "kmeans",
+          "median_diff": 0.1111464147363338,
+          "mean_diff": 0.14599133438310863,
+          "n_nonzero": 6,
+          "p": 0.03125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "louvain_knn",
+          "b": "lmm",
+          "median_diff": 0.24291881595614756,
+          "mean_diff": 0.24198948338059173,
+          "n_nonzero": 6,
+          "p": 0.15625,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "louvain_knn",
+          "b": "rapid",
+          "median_diff": 0.0030713764259954757,
+          "mean_diff": 0.017885992224490055,
+          "n_nonzero": 6,
+          "p": 0.3125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "louvain_knn",
+          "b": "agglomerative",
+          "median_diff": 0.2155690141477688,
+          "mean_diff": 0.25727950856910137,
+          "n_nonzero": 8,
+          "p": 0.1484375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "louvain_knn",
+          "b": "gmm",
+          "median_diff": 0.3602630298846882,
+          "mean_diff": 0.2975811299483789,
+          "n_nonzero": 8,
+          "p": 0.1484375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "louvain_knn",
+          "b": "aura_v3",
+          "median_diff": 0.3275820851368949,
+          "mean_diff": 0.29499658598227685,
+          "n_nonzero": 7,
+          "p": 0.15625,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "louvain_knn",
+          "b": "dbscan_auto",
+          "median_diff": 0.0851164333271629,
+          "mean_diff": 0.14244466375030826,
+          "n_nonzero": 8,
+          "p": 0.0078125,
+          "p_holm": 0.4140625,
+          "significant": false
+        },
+        {
+          "a": "louvain_knn",
+          "b": "kmeans",
+          "median_diff": 0.3992962568713028,
+          "mean_diff": 0.3689305772021944,
+          "n_nonzero": 8,
+          "p": 0.1484375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "lmm",
+          "b": "rapid",
+          "median_diff": -0.24291881595614756,
+          "mean_diff": -0.22410349115610168,
+          "n_nonzero": 7,
+          "p": 0.21875,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "lmm",
+          "b": "agglomerative",
+          "median_diff": 0.0022818786181856843,
+          "mean_diff": 0.015290025188509648,
+          "n_nonzero": 8,
+          "p": 0.4609375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "lmm",
+          "b": "gmm",
+          "median_diff": 0.05145211611378395,
+          "mean_diff": 0.05559164656778716,
+          "n_nonzero": 8,
+          "p": 0.109375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "lmm",
+          "b": "aura_v3",
+          "median_diff": 0.03724520531961964,
+          "mean_diff": 0.05300710260168516,
+          "n_nonzero": 6,
+          "p": 0.03125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "lmm",
+          "b": "dbscan_auto",
+          "median_diff": -0.09389418659262366,
+          "mean_diff": -0.09954481963028344,
+          "n_nonzero": 8,
+          "p": 0.3828125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "lmm",
+          "b": "kmeans",
+          "median_diff": 0.07626189088335161,
+          "mean_diff": 0.12694109382160268,
+          "n_nonzero": 6,
+          "p": 0.03125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "rapid",
+          "b": "agglomerative",
+          "median_diff": 0.22077326083779192,
+          "mean_diff": 0.2393935163446113,
+          "n_nonzero": 8,
+          "p": 0.25,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "rapid",
+          "b": "gmm",
+          "median_diff": 0.355338437065686,
+          "mean_diff": 0.2796951377238888,
+          "n_nonzero": 8,
+          "p": 0.1953125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "rapid",
+          "b": "aura_v3",
+          "median_diff": 0.3117915613950104,
+          "mean_diff": 0.2771105937577868,
+          "n_nonzero": 7,
+          "p": 0.21875,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "rapid",
+          "b": "dbscan_auto",
+          "median_diff": 0.07774922238753318,
+          "mean_diff": 0.1245586715258182,
+          "n_nonzero": 8,
+          "p": 0.0078125,
+          "p_holm": 0.4140625,
+          "significant": false
+        },
+        {
+          "a": "rapid",
+          "b": "kmeans",
+          "median_diff": 0.3960262232489801,
+          "mean_diff": 0.35104458497770435,
+          "n_nonzero": 8,
+          "p": 0.25,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "agglomerative",
+          "b": "gmm",
+          "median_diff": 0.05914696197841213,
+          "mean_diff": 0.040301621379277515,
+          "n_nonzero": 8,
+          "p": 0.640625,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "agglomerative",
+          "b": "aura_v3",
+          "median_diff": 0.0022475561844527148,
+          "mean_diff": 0.03771707741317551,
+          "n_nonzero": 8,
+          "p": 0.546875,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "agglomerative",
+          "b": "dbscan_auto",
+          "median_diff": -0.04596316804750783,
+          "mean_diff": -0.11483484481879308,
+          "n_nonzero": 8,
+          "p": 0.4609375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "agglomerative",
+          "b": "kmeans",
+          "median_diff": 0.006307622191237053,
+          "mean_diff": 0.11165106863309301,
+          "n_nonzero": 8,
+          "p": 0.25,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "gmm",
+          "b": "aura_v3",
+          "median_diff": 0.010369423671911931,
+          "mean_diff": -0.0025845439661019987,
+          "n_nonzero": 8,
+          "p": 0.84375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "gmm",
+          "b": "dbscan_auto",
+          "median_diff": -0.18546142678546995,
+          "mean_diff": -0.1551364661980706,
+          "n_nonzero": 8,
+          "p": 0.3125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "gmm",
+          "b": "kmeans",
+          "median_diff": 0.0988264699133907,
+          "mean_diff": 0.07134944725381552,
+          "n_nonzero": 8,
+          "p": 0.1953125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "aura_v3",
+          "b": "dbscan_auto",
+          "median_diff": -0.14825812434686872,
+          "mean_diff": -0.15255192223196865,
+          "n_nonzero": 8,
+          "p": 0.3125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "aura_v3",
+          "b": "kmeans",
+          "median_diff": 0.060011455995639645,
+          "mean_diff": 0.07393399121991752,
+          "n_nonzero": 7,
+          "p": 0.1484375,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "dbscan_auto",
+          "b": "kmeans",
+          "median_diff": 0.23504246415574676,
+          "mean_diff": 0.22648591345188612,
+          "n_nonzero": 8,
+          "p": 0.3125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "parallel_kmeans",
+          "median_diff": 0.3956594137057152,
+          "mean_diff": 0.40253631269066514,
+          "n_nonzero": 4,
+          "p": 0.125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "meanshift_robust",
+          "median_diff": 0.5490545857505439,
+          "mean_diff": 0.393669622497189,
+          "n_nonzero": 8,
+          "p": 0.0078125,
+          "p_holm": 0.4140625,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "fmm",
+          "median_diff": 0.3948297258075976,
+          "mean_diff": 0.38801091357109335,
+          "n_nonzero": 8,
+          "p": 0.0078125,
+          "p_holm": 0.4140625,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "bico_stream",
+          "median_diff": 0.39193703574461397,
+          "mean_diff": 0.40733559268799413,
+          "n_nonzero": 4,
+          "p": 0.03125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "minibatch_kmeans",
+          "median_diff": 0.46678984511846583,
+          "mean_diff": 0.4371114139922613,
+          "n_nonzero": 6,
+          "p": 0.03125,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "birch_algo",
+          "median_diff": 0.3957764622942138,
+          "mean_diff": 0.40145813418870935,
+          "n_nonzero": 8,
+          "p": 0.0078125,
+          "p_holm": 0.4140625,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "clarans_pp",
+          "median_diff": 0.46526412681476587,
+          "mean_diff": 0.45354374772480754,
+          "n_nonzero": 8,
+          "p": 0.0078125,
+          "p_holm": 0.4140625,
+          "significant": false
+        },
+        {
+          "a": "learned_router",
+          "b": "optics",
+          "median_diff": 0.8189612662167418,
+          "mean_diff": 0.8242435199357387,
+          "n_nonzero": 8,
+          "p": 0.0078125,
+          "p_holm": 0.4140625,
+          "significant": false
+        }
+      ],
+      "bootstrap_ci": {
+        "agglomerative": {
+          "mean": 0.714421421984888,
+          "ci_low": 0.4703017615697243,
+          "ci_high": 0.9922521150059673,
+          "n_configs": 6
+        },
+        "aura_v3": {
+          "mean": 0.6489915258943995,
+          "ci_low": 0.416401290582031,
+          "ci_high": 0.8925867497962094,
+          "n_configs": 8
+        },
+        "bico_stream": {
+          "mean": 0.5857863031281698,
+          "ci_low": 0.3423378622950311,
+          "ci_high": 0.8291084150407039,
+          "n_configs": 10
+        },
+        "birch_algo": {
+          "mean": 0.5914335272913878,
+          "ci_low": 0.35182003310911675,
+          "ci_high": 0.8309424545542236,
+          "n_configs": 10
+        },
+        "clarans_pp": {
+          "mean": 0.5254596437910921,
+          "ci_low": 0.32471368125412003,
+          "ci_high": 0.7356708364698284,
+          "n_configs": 8
+        },
+        "dbscan_auto": {
+          "mean": 0.6620023414627374,
+          "ci_low": 0.42715537159778716,
+          "ci_high": 0.8460322967030321,
+          "n_configs": 10
+        },
+        "fmm": {
+          "mean": 0.6023261468677639,
+          "ci_low": 0.34189771040726963,
+          "ci_high": 0.8704146206232778,
+          "n_configs": 8
+        },
+        "gmm": {
+          "mean": 0.6565329656078951,
+          "ci_low": 0.4967879452789838,
+          "ci_high": 0.821874395176333,
+          "n_configs": 10
+        },
+        "kmeans": {
+          "mean": 0.5702931597023082,
+          "ci_low": 0.3380148309504394,
+          "ci_high": 0.8032630847815712,
+          "n_configs": 10
+        },
+        "learned_router": {
+          "mean": 0.9908777452374591,
+          "ci_low": 0.9878219683234063,
+          "ci_high": 0.993654086110884,
+          "n_configs": 8
+        },
+        "lmm": {
+          "mean": 0.6677587864153508,
+          "ci_low": 0.43147917685022963,
+          "ci_high": 0.9103922914147997,
+          "n_configs": 8
+        },
+        "louvain_knn": {
+          "mean": 0.9382704780390009,
+          "ci_low": 0.9038045922813754,
+          "ci_high": 0.9714079713320235,
+          "n_configs": 10
+        },
+        "meanshift_robust": {
+          "mean": 0.6075502971620598,
+          "ci_low": 0.3648841445818764,
+          "ci_high": 0.8360024738257794,
+          "n_configs": 6
+        },
+        "minibatch_kmeans": {
+          "mean": 0.562679152846113,
+          "ci_low": 0.3365568634515609,
+          "ci_high": 0.7905324823771861,
+          "n_configs": 10
+        },
+        "optics": {
+          "mean": 0.16988748001887427,
+          "ci_low": 0.05279755376417321,
+          "ci_high": 0.25846308346133917,
+          "n_configs": 4
+        },
+        "parallel_kmeans": {
+          "mean": 0.569649178824157,
+          "ci_low": 0.3373761015180868,
+          "ci_high": 0.8025911987374508,
+          "n_configs": 10
+        },
+        "rapid": {
+          "mean": 0.941923795734606,
+          "ci_low": 0.9041671726698784,
+          "ci_high": 0.9762978291507542,
+          "n_configs": 8
+        },
+        "spectral": {
+          "mean": 0.6964630420911172,
+          "ci_low": 0.487841381841446,
+          "ci_high": 0.9131990182192016,
+          "n_configs": 8
+        }
+      },
+      "seed_variability": {
+        "agglomerative": {
+          "mean_seed_sd": 0.056059624154854715,
+          "max_seed_sd": 0.21339945128720308,
+          "seeds_per_config": 2.0
+        },
+        "aura_v3": {
+          "mean_seed_sd": 0.013076331187143082,
+          "max_seed_sd": 0.026543429363518427,
+          "seeds_per_config": 2.0
+        },
+        "bico_stream": {
+          "mean_seed_sd": 0.008020569950611945,
+          "max_seed_sd": 0.03397648966686793,
+          "seeds_per_config": 2.0
+        },
+        "birch_algo": {
+          "mean_seed_sd": 0.0043640380690620605,
+          "max_seed_sd": 0.01950555236242788,
+          "seeds_per_config": 2.0
+        },
+        "clarans_pp": {
+          "mean_seed_sd": 0.047604028960625946,
+          "max_seed_sd": 0.10363978844057561,
+          "seeds_per_config": 2.0
+        },
+        "dbscan_auto": {
+          "mean_seed_sd": 0.04203087183171631,
+          "max_seed_sd": 0.15398634861873126,
+          "seeds_per_config": 2.0
+        },
+        "fmm": {
+          "mean_seed_sd": 0.0059861840970868085,
+          "max_seed_sd": 0.020680547804198243,
+          "seeds_per_config": 2.0
+        },
+        "gmm": {
+          "mean_seed_sd": 0.02607042515779382,
+          "max_seed_sd": 0.09382142382806677,
+          "seeds_per_config": 2.0
+        },
+        "kmeans": {
+          "mean_seed_sd": 0.015359770512913882,
+          "max_seed_sd": 0.1059230971611019,
+          "seeds_per_config": 2.0
+        },
+        "learned_router": {
+          "mean_seed_sd": 0.004241209400563246,
+          "max_seed_sd": 0.007359916250966021,
+          "seeds_per_config": 2.0
+        },
+        "lmm": {
+          "mean_seed_sd": 0.042599391421633485,
+          "max_seed_sd": 0.22992406320076536,
+          "seeds_per_config": 2.0
+        },
+        "louvain_knn": {
+          "mean_seed_sd": 0.024415586125384272,
+          "max_seed_sd": 0.10072256174652572,
+          "seeds_per_config": 2.0
+        },
+        "meanshift_robust": {
+          "mean_seed_sd": 0.07228329333389898,
+          "max_seed_sd": 0.3508784748273025,
+          "seeds_per_config": 2.0
+        },
+        "minibatch_kmeans": {
+          "mean_seed_sd": 0.04120191254907365,
+          "max_seed_sd": 0.10581038469093076,
+          "seeds_per_config": 2.0
+        },
+        "optics": {
+          "mean_seed_sd": 0.08696546739761193,
+          "max_seed_sd": 0.3360913799372563,
+          "seeds_per_config": 2.0
+        },
+        "parallel_kmeans": {
+          "mean_seed_sd": 0.016270497004704093,
+          "max_seed_sd": 0.1059230971611019,
+          "seeds_per_config": 2.0
+        },
+        "rapid": {
+          "mean_seed_sd": 0.01968253997670213,
+          "max_seed_sd": 0.09738067430259964,
+          "seeds_per_config": 2.0
+        },
+        "spectral": {
+          "mean_seed_sd": 0.03530200663005921,
+          "max_seed_sd": 0.13796027575323677,
+          "seeds_per_config": 2.0
+        }
+      }
+    }
+  },
+  "silhouette": {
+    "average_ranks": [
+      {
+        "algo": "bico_stream",
+        "rank": 4.575
+      },
+      {
+        "algo": "kmeans",
+        "rank": 4.8
+      },
+      {
+        "algo": "parallel_kmeans",
+        "rank": 4.95
+      },
+      {
+        "algo": "fmm",
+        "rank": 5.125
+      },
+      {
+        "algo": "minibatch_kmeans",
+        "rank": 5.525
+      },
+      {
+        "algo": "birch_algo",
+        "rank": 6.175
+      },
+      {
+        "algo": "lmm",
+        "rank": 6.8125
+      },
+      {
+        "algo": "spectral",
+        "rank": 6.84375
+      },
+      {
+        "algo": "aura_v3",
+        "rank": 8.53125
+      },
+      {
+        "algo": "gmm",
+        "rank": 9.275
+      },
+      {
+        "algo": "meanshift_robust",
+        "rank": 9.416666666666666
+      },
+      {
+        "algo": "learned_router",
+        "rank": 9.65625
+      },
+      {
+        "algo": "agglomerative",
+        "rank": 10.666666666666666
+      },
+      {
+        "algo": "clarans_pp",
+        "rank": 11.4375
+      },
+      {
+        "algo": "louvain_knn",
+        "rank": 11.925
+      },
+      {
+        "algo": "rapid",
+        "rank": 13.5625
+      },
+      {
+        "algo": "dbscan_auto",
+        "rank": 14.15
+      },
+      {
+        "algo": "optics",
+        "rank": 18.0
+      }
+    ],
+    "friedman": {
+      "statistic": 73.59992059290623,
+      "p_value": 5.130116743366548e-09,
+      "k": 18,
+      "n_tasks": 8
+    }
+  },
+  "davies_bouldin": {
+    "average_ranks": [
+      {
+        "algo": "bico_stream",
+        "rank": 4.725
+      },
+      {
+        "algo": "birch_algo",
+        "rank": 5.275
+      },
+      {
+        "algo": "parallel_kmeans",
+        "rank": 5.45
+      },
+      {
+        "algo": "kmeans",
+        "rank": 5.45
+      },
+      {
+        "algo": "aura_v3",
+        "rank": 5.84375
+      },
+      {
+        "algo": "minibatch_kmeans",
+        "rank": 6.025
+      },
+      {
+        "algo": "lmm",
+        "rank": 7.15625
+      },
+      {
+        "algo": "spectral",
+        "rank": 7.28125
+      },
+      {
+        "algo": "agglomerative",
+        "rank": 8.0
+      },
+      {
+        "algo": "fmm",
+        "rank": 8.4375
+      },
+      {
+        "algo": "learned_router",
+        "rank": 9.28125
+      },
+      {
+        "algo": "clarans_pp",
+        "rank": 9.4375
+      },
+      {
+        "algo": "gmm",
+        "rank": 9.575
+      },
+      {
+        "algo": "louvain_knn",
+        "rank": 11.875
+      },
+      {
+        "algo": "meanshift_robust",
+        "rank": 12.083333333333334
+      },
+      {
+        "algo": "rapid",
+        "rank": 13.03125
+      },
+      {
+        "algo": "dbscan_auto",
+        "rank": 15.1
+      },
+      {
+        "algo": "optics",
+        "rank": 15.75
+      }
+    ],
+    "friedman": {
+      "statistic": 66.11532406192603,
+      "p_value": 9.949658904227355e-08,
+      "k": 18,
+      "n_tasks": 8
+    }
+  },
+  "wall_time_s": {
+    "average_ranks": [
+      {
+        "algo": "clarans_pp",
+        "rank": 1.1875
+      },
+      {
+        "algo": "gmm",
+        "rank": 2.8
+      },
+      {
+        "algo": "minibatch_kmeans",
+        "rank": 2.9
+      },
+      {
+        "algo": "parallel_kmeans",
+        "rank": 3.2
+      },
+      {
+        "algo": "kmeans",
+        "rank": 4.75
+      },
+      {
+        "algo": "dbscan_auto",
+        "rank": 7.35
+      },
+      {
+        "algo": "aura_v3",
+        "rank": 7.8125
+      },
+      {
+        "algo": "bico_stream",
+        "rank": 8.45
+      },
+      {
+        "algo": "birch_algo",
+        "rank": 9.1
+      },
+      {
+        "algo": "lmm",
+        "rank": 10.0625
+      },
+      {
+        "algo": "rapid",
+        "rank": 11.1875
+      },
+      {
+        "algo": "spectral",
+        "rank": 11.25
+      },
+      {
+        "algo": "agglomerative",
+        "rank": 11.833333333333334
+      },
+      {
+        "algo": "fmm",
+        "rank": 12.75
+      },
+      {
+        "algo": "louvain_knn",
+        "rank": 13.4
+      },
+      {
+        "algo": "learned_router",
+        "rank": 14.1875
+      },
+      {
+        "algo": "meanshift_robust",
+        "rank": 15.333333333333334
+      },
+      {
+        "algo": "optics",
+        "rank": 18.0
+      }
+    ],
+    "friedman": {
+      "statistic": 120.78947368421052,
+      "p_value": 1.0906090685196456e-17,
+      "k": 18,
+      "n_tasks": 8
+    }
+  },
+  "rss_delta_mb": {
+    "average_ranks": [
+      {
+        "algo": "bico_stream",
+        "rank": 6.425
+      },
+      {
+        "algo": "gmm",
+        "rank": 6.425
+      },
+      {
+        "algo": "minibatch_kmeans",
+        "rank": 6.425
+      },
+      {
+        "algo": "kmeans",
+        "rank": 6.425
+      },
+      {
+        "algo": "parallel_kmeans",
+        "rank": 7.0
+      },
+      {
+        "algo": "lmm",
+        "rank": 7.21875
+      },
+      {
+        "algo": "clarans_pp",
+        "rank": 7.21875
+      },
+      {
+        "algo": "optics",
+        "rank": 7.6875
+      },
+      {
+        "algo": "fmm",
+        "rank": 7.90625
+      },
+      {
+        "algo": "meanshift_robust",
+        "rank": 8.041666666666666
+      },
+      {
+        "algo": "agglomerative",
+        "rank": 8.958333333333334
+      },
+      {
+        "algo": "spectral",
+        "rank": 9.34375
+      },
+      {
+        "algo": "birch_algo",
+        "rank": 9.525
+      },
+      {
+        "algo": "aura_v3",
+        "rank": 9.625
+      },
+      {
+        "algo": "learned_router",
+        "rank": 10.28125
+      },
+      {
+        "algo": "rapid",
+        "rank": 11.15625
+      },
+      {
+        "algo": "louvain_knn",
+        "rank": 12.15
+      },
+      {
+        "algo": "dbscan_auto",
+        "rank": 12.35
+      }
+    ],
+    "friedman": {
+      "statistic": 56.71075204468379,
+      "p_value": 3.628878108366019e-06,
+      "k": 18,
+      "n_tasks": 8
+    }
+  }
+}

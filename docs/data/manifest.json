@@ -74,6 +74,21 @@
         ]
       },
       {
+        "id": "anisotropic",
+        "n_samples": [
+          1000
+        ],
+        "n_features": [
+          2
+        ],
+        "k_targets": [
+          2
+        ],
+        "compactness": [
+          1.25
+        ]
+      },
+      {
         "id": "iris",
         "n_samples": [
           150
@@ -131,21 +146,6 @@
         ],
         "compactness": [
           1.0
-        ]
-      },
-      {
-        "id": "anisotropic",
-        "n_samples": [
-          1000
-        ],
-        "n_features": [
-          2
-        ],
-        "k_targets": [
-          2
-        ],
-        "compactness": [
-          1.25
         ]
       },
       {
@@ -239,6 +239,23 @@
         ],
         "k_targets": [
           4
+        ],
+        "compactness": [
+          1.0
+        ]
+      },
+      {
+        "id": "inverse_pca",
+        "n_samples": [
+          400
+        ],
+        "n_features": [
+          50,
+          200
+        ],
+        "k_targets": [
+          3,
+          5
         ],
         "compactness": [
           1.0
@@ -694,12 +711,113 @@
     "seeds": [
       1,
       2,
-      3
-    ]
+      3,
+      4,
+      5
+    ],
+    "strict_provenance": true,
+    "timing": {
+      "repeats": 3,
+      "threads": 1,
+      "warmup": true
+    }
   },
-  "generated_at": "2026-08-05 07:40:51",
+  "config_sha256": "5fbc33e8fd7bcab5199a6f1fde9e4e694f542b4e7cb3651e78e680fac039cf81",
+  "generated_at": "2026-10-15 09:28:45",
   "env": {
-    "python": "3.11.15",
-    "platform": "Linux-6.18.5-fc-v18-x86_64-with-glibc2.39"
-  }
+    "python": "3.13.16",
+    "platform": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "processor": "x86_64",
+    "cpu_count_logical": 4,
+    "cpu_count_physical": 4,
+    "memory_gb": 15.72,
+    "thread_limit": 1,
+    "cpu_model": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "packages": {
+      "numpy": "2.5.3",
+      "scipy": "1.18.1",
+      "scikit-learn": "1.9.1",
+      "pandas": "3.0.5",
+      "networkx": "3.6.1",
+      "torch": "2.14.1+cpu"
+    },
+    "threadpools": [
+      {
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "version": null
+      },
+      {
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "version": "0.3.34.106.0"
+      },
+      {
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "version": "0.3.31.dev"
+      }
+    ],
+    "git_commit": "2a87fd25a1e789f9990b53a42a02ad1675939784",
+    "git_dirty": true,
+    "env_threads": {
+      "OMP_NUM_THREADS": "1",
+      "OPENBLAS_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": "1"
+    }
+  },
+  "shards": [
+    {
+      "run_dir": "runs/validity/indist_a",
+      "config_sha256": "5fbc33e8fd7bcab5199a6f1fde9e4e694f542b4e7cb3651e78e680fac039cf81",
+      "generated_at": "2026-10-15 09:28:45",
+      "datasets": [
+        "mdcgen",
+        "anisotropic",
+        "moons",
+        "circles",
+        "anisotropic"
+      ]
+    },
+    {
+      "run_dir": "runs/validity/indist_b",
+      "config_sha256": "6cc3321e7be8b5161685a56a10f1e065f29ce646772264fef11f11c714eb36aa",
+      "generated_at": "2026-10-15 09:28:44",
+      "datasets": [
+        "iris",
+        "wine",
+        "breast_cancer",
+        "digits",
+        "extreme_outliers",
+        "ts_ecg200",
+        "ts_trace",
+        "ts_synth",
+        "graph_karate",
+        "graph_sbm"
+      ]
+    },
+    {
+      "run_dir": "runs/validity/indist_c",
+      "config_sha256": "5c5051e66281ef4d6e1d337b061d3f3b556d84dd9a7847f487c757afa2578d9e",
+      "generated_at": "2026-10-15 09:28:44",
+      "datasets": [
+        "inverse_pca",
+        "hierarchical_nested",
+        "imbalanced_blobs",
+        "heavy_tailed_mixture",
+        "PowerLawStudentT",
+        "VariableDensityBridges"
+      ]
+    },
+    {
+      "run_dir": "runs/validity/indist_fix",
+      "config_sha256": "f86801e0a6c74fb06ad1b7b36834766af59fe9fe191e2a9027187804f438404d",
+      "generated_at": "2026-10-15 11:30:24",
+      "datasets": [
+        "breast_cancer",
+        "imbalanced_blobs"
+      ]
+    }
+  ]
 }

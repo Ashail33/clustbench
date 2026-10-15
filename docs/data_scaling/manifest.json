@@ -1,0 +1,262 @@
+{
+  "config": {
+    "datasets": [
+      {
+        "id": "mdcgen",
+        "n_samples": [
+          1000,
+          3000,
+          10000,
+          30000,
+          50000
+        ],
+        "n_features": [
+          10
+        ],
+        "k_targets": [
+          5
+        ],
+        "compactness": [
+          1.0
+        ],
+        "outliers": [
+          0
+        ],
+        "noise": [
+          0
+        ],
+        "density": [
+          1.0
+        ]
+      },
+      {
+        "id": "moons",
+        "n_samples": [
+          1000,
+          3000,
+          10000,
+          30000,
+          50000
+        ],
+        "n_features": [
+          2
+        ],
+        "k_targets": [
+          2
+        ],
+        "compactness": [
+          1.0
+        ]
+      }
+    ],
+    "algorithms": [
+      {
+        "name": "kmeans",
+        "kind": "python",
+        "entry": "kmeans",
+        "params": {
+          "max_iter": 100,
+          "n_init": 3
+        }
+      },
+      {
+        "name": "minibatch_kmeans",
+        "kind": "python",
+        "entry": "minibatch_kmeans",
+        "params": {
+          "batch_size": 100,
+          "max_iter": 100
+        }
+      },
+      {
+        "name": "parallel_kmeans",
+        "kind": "python",
+        "entry": "parallel_kmeans",
+        "params": {
+          "max_iter": 50,
+          "n_init": 2,
+          "n_workers": 1
+        }
+      },
+      {
+        "name": "birch_algo",
+        "kind": "python",
+        "entry": "birch_algo",
+        "params": {
+          "threshold": 1.0
+        }
+      },
+      {
+        "name": "bico_stream",
+        "kind": "python",
+        "entry": "bico_stream",
+        "params": {}
+      },
+      {
+        "name": "gmm",
+        "kind": "python",
+        "entry": "gmm",
+        "params": {
+          "max_iter": 100,
+          "n_init": 1
+        }
+      },
+      {
+        "name": "dbscan_auto",
+        "kind": "python",
+        "entry": "dbscan_auto",
+        "params": {
+          "min_samples": 5
+        }
+      },
+      {
+        "name": "louvain_knn",
+        "kind": "python",
+        "entry": "louvain_knn",
+        "params": {}
+      },
+      {
+        "name": "fmm",
+        "kind": "python",
+        "entry": "fmm",
+        "params": {
+          "n_frequencies": 64,
+          "n_scales": 3,
+          "max_iter": 40
+        },
+        "max_n": 30000
+      },
+      {
+        "name": "lmm",
+        "kind": "python",
+        "entry": "lmm",
+        "params": {},
+        "max_n": 30000
+      },
+      {
+        "name": "spectral",
+        "kind": "python",
+        "entry": "spectral",
+        "params": {
+          "n_neighbors": 10
+        },
+        "max_n": 30000
+      },
+      {
+        "name": "aura_v3",
+        "kind": "python",
+        "entry": "aura_v3",
+        "params": {},
+        "max_n": 30000
+      },
+      {
+        "name": "rapid",
+        "kind": "python",
+        "entry": "rapid",
+        "params": {},
+        "max_n": 30000
+      },
+      {
+        "name": "clarans_pp",
+        "kind": "python",
+        "entry": "clarans_pp",
+        "params": {
+          "numlocal": 2,
+          "maxneigh": 80
+        },
+        "max_n": 30000
+      },
+      {
+        "name": "agglomerative",
+        "kind": "python",
+        "entry": "agglomerative",
+        "params": {
+          "linkage": "ward"
+        },
+        "max_n": 10000
+      },
+      {
+        "name": "meanshift_robust",
+        "kind": "python",
+        "entry": "meanshift_robust",
+        "params": {
+          "trim": 0.2,
+          "quantile": 0.2
+        },
+        "max_n": 10000
+      },
+      {
+        "name": "learned_router",
+        "kind": "python",
+        "entry": "learned_router",
+        "params": {},
+        "max_n": 30000
+      },
+      {
+        "name": "optics",
+        "kind": "python",
+        "entry": "optics",
+        "params": {
+          "min_samples": 5,
+          "xi": 0.05
+        },
+        "max_n": 3000
+      }
+    ],
+    "seeds": [
+      1,
+      2
+    ],
+    "strict_provenance": true,
+    "timing": {
+      "repeats": 1,
+      "threads": 1,
+      "warmup": true
+    }
+  },
+  "config_sha256": "4c6c5f62bc4d1a808c8c78d162dbb5d52131f43bc386ac90612b3f8e14e1e74b",
+  "generated_at": "2026-10-15 09:28:44",
+  "env": {
+    "python": "3.13.16",
+    "platform": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "processor": "x86_64",
+    "cpu_count_logical": 4,
+    "cpu_count_physical": 4,
+    "memory_gb": 15.72,
+    "thread_limit": 1,
+    "cpu_model": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "packages": {
+      "numpy": "2.5.3",
+      "scipy": "1.18.1",
+      "scikit-learn": "1.9.1",
+      "pandas": "3.0.5",
+      "networkx": "3.6.1",
+      "torch": "2.14.1+cpu"
+    },
+    "threadpools": [
+      {
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "version": null
+      },
+      {
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "version": "0.3.31.dev"
+      },
+      {
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "version": "0.3.34.106.0"
+      }
+    ],
+    "git_commit": "2a87fd25a1e789f9990b53a42a02ad1675939784",
+    "git_dirty": true,
+    "env_threads": {
+      "OMP_NUM_THREADS": "1",
+      "OPENBLAS_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": "1"
+    }
+  }
+}

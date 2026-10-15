@@ -52,6 +52,17 @@ def _keys(df: pd.DataFrame, keys: Sequence[str]) -> List[str]:
     return [c for c in keys if c in df.columns]
 
 
+def _numeric(df: pd.DataFrame, metric: str) -> pd.DataFrame:
+    """Copy of ``df`` with ``metric`` as float and rows lacking it dropped.
+
+    Metrics that are only defined on some tasks (``ari_inliers``) arrive as
+    object columns mixing None and floats after concatenation.
+    """
+    d = df.copy()
+    d[metric] = pd.to_numeric(d[metric], errors="coerce")
+    return d[d[metric].notna()]
+
+
 def task_matrix(
     df: pd.DataFrame,
     metric: str,
@@ -65,12 +76,12 @@ def task_matrix(
     tasks missing any algorithm are dropped so every column is comparable.
     """
     keys = _keys(df, TASK_KEYS)
-    d = df[df[metric].notna()].copy()
+    d = _numeric(df, metric)
     if algos is not None:
         d = d[d["algo"].isin(list(algos))]
     for k in keys:
         d[k] = d[k].fillna(-1) if d[k].dtype != object else d[k].fillna("")
-    M = d.pivot_table(index=keys, columns="algo", values=metric, aggfunc="mean")
+    M = d.pivot_table(index=keys, columns="algo", values=metric, aggfunc="mean").astype(float)
     if not higher:
         M = -M
     if complete_only:
@@ -169,7 +180,7 @@ def bootstrap_ci(
     """
     rng = np.random.default_rng(seed)
     ck = _keys(df, CONFIG_KEYS)
-    d = df[df[metric].notna()].copy()
+    d = _numeric(df, metric)
     for k in ck:
         d[k] = d[k].fillna(-1) if d[k].dtype != object else d[k].fillna("")
     # Per (config, algo): mean over seeds.
@@ -196,7 +207,7 @@ def bootstrap_ci(
 def seed_variability(df: pd.DataFrame, metric: str) -> Dict[str, Dict[str, float]]:
     """Mean and max across configurations of the across-seed std per algorithm."""
     ck = _keys(df, CONFIG_KEYS)
-    d = df[df[metric].notna()].copy()
+    d = _numeric(df, metric)
     for k in ck:
         d[k] = d[k].fillna(-1) if d[k].dtype != object else d[k].fillna("")
     g = d.groupby(ck + ["algo"], dropna=False)[metric]
