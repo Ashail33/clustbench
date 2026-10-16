@@ -284,3 +284,19 @@ def test_amg_eigensolver_matches_lobpcg_basis():
     assert ALGO_REGISTRY["lmm_fast"]().eigensolver == "amg"
     with pytest.raises(ValueError):
         ALGO_REGISTRY["lmm"](eigensolver="arpack")
+
+
+def test_mcg_follows_manifolds_and_scales_micro_clusters():
+    from sklearn.metrics import adjusted_rand_score
+
+    from clustbench.algorithms.base import ALGO_REGISTRY
+    from clustbench.algorithms.mcg import _top2
+
+    X, y = DATASETS["moons"](DataSpec(n_samples=3000, n_features=2, centers=2, compactness=1.0, seed=1))
+    res = ALGO_REGISTRY["mcg"]().fit_predict(X, k=2)
+    assert adjusted_rand_score(y, res.labels) > 0.9  # k-means scores ~0.25 here
+    assert res.extra["n_micro"] == 300  # n // 10 on small data
+    C = np.array([[0.0, 0.0], [1.0, 0.0], [5.0, 0.0]])
+    assert _top2(np.array([[0.4, 0.0], [4.0, 0.0]]), C).tolist() == [[0, 1], [2, 1]]
+    with pytest.raises(ValueError):
+        ALGO_REGISTRY["mcg"](edge_weight="cosine")

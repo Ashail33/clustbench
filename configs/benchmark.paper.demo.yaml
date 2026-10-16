@@ -381,6 +381,10 @@ algorithms:
     kind: python
     entry: trident
     params: {}
+  - name: mcg
+    kind: python
+    entry: mcg
+    params: {}
 
 # Five seeds per configuration (was three) so per-configuration seed
   # Tri-basis mixture (Fourier + Laplacian + autoencoder) and ablation;

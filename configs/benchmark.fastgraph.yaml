@@ -221,6 +221,10 @@ algorithms:
   entry: spectral_fast
   params:
     n_neighbors: 10
+- name: mcg
+  kind: python
+  entry: mcg
+  params: {}
 seeds:
 - 1
 - 2

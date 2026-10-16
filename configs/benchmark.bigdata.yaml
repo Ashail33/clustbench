@@ -373,6 +373,10 @@ algorithms:
   params:
     estep: product
     handoff: 0.5
+- name: mcg
+  kind: python
+  entry: mcg
+  params: {}
 seeds:
 - 1
 strict_provenance: true
