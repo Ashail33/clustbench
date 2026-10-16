@@ -65,6 +65,10 @@ class AlgoCfg:
     # O(n^2) methods in a large-n scaling sweep). Skips are logged, not
     # silently dropped.
     max_n: int | None = None
+    # Wall-clock budget for one fit_predict call. A run that exceeds it is
+    # recorded as an ``error_*.json`` with ``error_type="Timeout"`` (a
+    # "did not finish" in scaling reports) instead of stalling the sweep.
+    timeout_s: float | None = None
 
 
 def measure_resources(fn, repeats: int = 1):
@@ -111,6 +115,40 @@ def _measure_once(fn):
     return out
 
 
+class AlgoTimeout(Exception):
+    """fit_predict exceeded its wall-clock budget."""
+
+
+class _time_limit:
+    """SIGALRM-based time limit (Unix, main thread). Long C/BLAS calls are
+    interrupted when they next return to Python, so overruns are possible
+    but bounded by the longest single native call."""
+
+    def __init__(self, seconds: float | None) -> None:
+        self.seconds = seconds
+
+    def __enter__(self):
+        import signal
+        import threading
+
+        self._armed = bool(self.seconds) and threading.current_thread() is threading.main_thread()
+        if self._armed:
+            def _raise(signum, frame):
+                raise AlgoTimeout(f"exceeded {self.seconds:g}s")
+
+            self._old = signal.signal(signal.SIGALRM, _raise)
+            signal.setitimer(signal.ITIMER_REAL, float(self.seconds))
+        return self
+
+    def __exit__(self, *exc):
+        if self._armed:
+            import signal
+
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, self._old)
+        return False
+
+
 def run_task(
     dataset_id: str,
     n: int,
@@ -125,6 +163,7 @@ def run_task(
     density: float = 1.0,
     outlier_extremity: float = 1.0,
     timing_repeats: int = 1,
+    default_timeout_s: float | None = None,
     strict_provenance: bool = False,
 ):
     X, y, dataset_source = generate_with_provenance(
@@ -198,7 +237,8 @@ def run_task(
         try:
             # Only the algorithm call is timed; saving labels and scoring
             # (silhouette is O(n^2)) happen outside the measured window.
-            payload = fit()
+            with _time_limit(cfg.timeout_s if cfg.timeout_s is not None else default_timeout_s):
+                payload = fit()
             labels = np.asarray(labels_of(payload))
             npy_path = artifacts / f"labels_{cfg.name}__{task_suffix}.npy"
             np.save(npy_path, labels)
@@ -216,7 +256,7 @@ def run_task(
             err_path = artifacts / f"error_{cfg.name}__{task_suffix}.json"
             err_path.write_text(json.dumps({
                 "algo": cfg.name, **task_stub,
-                "error_type": type(e).__name__,
+                "error_type": "Timeout" if isinstance(e, AlgoTimeout) else type(e).__name__,
                 "error_message": str(e)[:500],
             }, indent=2, default=str))
             print(f"  [skip] {cfg.name}{kind_tag} on {task_suffix}: {type(e).__name__}: {str(e)[:120]}")

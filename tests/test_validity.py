@@ -185,3 +185,26 @@ def test_flh_cycle_records_one_step_per_view():
         assert len(views) == 3 * res.extra["cycles"]
     with pytest.raises(ValueError):
         ALGO_REGISTRY["flh_cycle"](estep="median")
+
+
+def test_timeout_records_did_not_finish(tmp_path):
+    import json as _json
+
+    from clustbench.algorithms.base import ALGO_REGISTRY, AlgoResult, Algorithm
+
+    class _Slow(Algorithm):
+        def fit_predict(self, X, k=None):
+            import time
+            t0 = time.time()
+            while time.time() - t0 < 5:
+                pass
+            return AlgoResult(labels=np.zeros(len(X), dtype=int), extra={})
+
+    ALGO_REGISTRY["_slow_test"] = _Slow
+    try:
+        algos = [AlgoCfg(name="slow", kind="python", entry="_slow_test", params={}, timeout_s=0.3)]
+        assert run_task("blobs", 50, 2, 2, 1.0, 1, algos, tmp_path) == []
+        err = _json.loads(next(tmp_path.glob("artifacts/error_slow__*.json")).read_text())
+        assert err["error_type"] == "Timeout"
+    finally:
+        ALGO_REGISTRY.pop("_slow_test", None)

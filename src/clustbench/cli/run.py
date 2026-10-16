@@ -90,6 +90,16 @@ def main() -> None:
     repeats = int(timing.get("repeats", 1))
     threads = timing.get("threads")
     strict = bool(cfg.get("strict_provenance", False))
+    # resources: {memory_limit_gb: 6} caps this process's address space, so an
+    # algorithm that tries to allocate an n x n matrix at large n raises
+    # MemoryError (recorded as a failed run) instead of being OOM-killed and
+    # taking the whole sweep with it.
+    mem_gb = (cfg.get("resources", {}) or {}).get("memory_limit_gb")
+    if mem_gb:
+        import resource
+
+        limit = int(float(mem_gb) * 1024 ** 3)
+        resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
     if threads is not None:
         from threadpoolctl import threadpool_limits
 
@@ -108,7 +118,8 @@ def main() -> None:
     # Prepare algorithm configurations
     algos: List[AlgoCfg] = [
         AlgoCfg(name=a["name"], kind=a.get("kind", "python"), entry=a["entry"],
-                params=a.get("params", {}), max_n=a.get("max_n"))
+                params=a.get("params", {}), max_n=a.get("max_n"),
+                timeout_s=a.get("timeout_s"))
         for a in cfg["algorithms"]
     ]
 
@@ -146,6 +157,7 @@ def main() -> None:
                                                     density=float(g),
                                                     outlier_extremity=float(x),
                                                     timing_repeats=repeats,
+                                                    default_timeout_s=timing.get("timeout_s"),
                                                     strict_provenance=strict,
                                                 )
                                             )
