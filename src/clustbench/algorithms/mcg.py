@@ -151,10 +151,13 @@ class Mcg(Algorithm):
                                   random_state=self.random_state).fit(P).cluster_centers_)
         return np.vstack(out)
 
-    def fit_predict(self, X: np.ndarray, k: Optional[int] = None) -> AlgoResult:
-        from sklearn.cluster import SpectralClustering
+    def build_graph(self, X: np.ndarray, k: int) -> dict:
+        """Micro-clusters and their weighted graph (shared with second stages).
 
-        assert k is not None, "k must be given"
+        Returns centres ``C`` (m, d), each point's nearest and second-nearest
+        centre ``a``, ``b``, the dense weighted graph ``W`` (m, m), and the CF
+        statistics ``N`` (points per centre) and ``R2`` (mean squared radius).
+        """
         X = np.asarray(X, dtype=np.float64)
         n = len(X)
         m = self._resolve_m(n, k)
@@ -167,6 +170,11 @@ class Mcg(Algorithm):
         a, b = T[:, 0], T[:, 1]
         W = sp.coo_matrix((np.ones(n), (a, b)), shape=(m, m)).tocsr()
         W = (W + W.T).toarray()
+        N, LS, SS = cf_triples(X, a, m)
+        R2 = cf_radius2(N, LS, SS)
+        ok = N > 1
+        # Singletons have no spread estimate; give them the typical one.
+        R2 = np.where(ok, R2, float(np.median(R2[ok])) if ok.any() else 1.0)
         if self.edge_weight in ("gauss", "cf"):
             sq = (C ** 2).sum(axis=1)
             D2 = np.maximum(sq[:, None] + sq[None, :] - 2.0 * C @ C.T, 0.0)
@@ -174,13 +182,16 @@ class Mcg(Algorithm):
             s2 = float(np.median(D2[W > 0])) if (W > 0).any() else 1.0
             W = W * np.exp(-D2 / (2.0 * max(s2, 1e-12)))
         elif self.edge_weight == "cf":
-            N, LS, SS = cf_triples(X, a, m)
-            R2 = cf_radius2(N, LS, SS)
-            # Singletons have no spread estimate; give them the typical one.
-            ok = N > 1
-            R2 = np.where(ok, R2, float(np.median(R2[ok])) if ok.any() else 1.0)
             W = W * np.exp(-D2 / (self.gamma * (R2[:, None] + R2[None, :]) + 1e-12))
+        return {"C": C, "a": a, "b": b, "W": W, "N": N, "R2": R2}
 
+    def fit_predict(self, X: np.ndarray, k: Optional[int] = None) -> AlgoResult:
+        from sklearn.cluster import SpectralClustering
+
+        assert k is not None, "k must be given"
+        g = self.build_graph(X, k)
+        W, a = g["W"], g["a"]
+        m = len(W)
         alive = W.sum(axis=1) > 0
         lab_m = np.zeros(m, dtype=np.int64)
         n_alive = int(alive.sum())
@@ -217,3 +228,68 @@ class Mcg_cf(Mcg):
         kwargs.setdefault("gamma", 1.0)
         super().__init__(**kwargs)
         self.name = "mcg_cf"
+
+
+def _lmm_mcg_class():
+    """Defined lazily so importing mcg does not pull in the LMM/FMM stack first."""
+    from .lmm import Lmm
+
+    @register
+    class Lmm_mcg(Lmm):
+        """LMM whose Laplacian basis comes from the MCG micro-cluster graph.
+
+        LMM's accuracy comes from the k-NN graph, and its cost from building
+        that graph and eigendecomposing it on all n points. Here the graph
+        is ``mcg_cf``'s (tiered micro-clusters, CF-weighted competitive-
+        Hebbian edges; m <= 1000 nodes), its bottom eigenvectors are a dense
+        m x m problem, and each point takes the eigenvector row of its
+        nearest micro-cluster (``interp="hard"``) or a CF-kernel blend of its
+        two nearest (``"soft"``). LMM's EM then runs on the points as usual,
+        so the soft assignments and the Yu-Shi initialisation are LMM's.
+        ``interp="hard"`` was chosen on the unseen and n = 20k suites (round
+        22); the two tie there.
+        """
+
+        def __init__(self, interp: str = "hard", mcg_params: Optional[dict] = None,
+                     **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            if interp not in ("hard", "soft"):
+                raise ValueError("interp must be 'hard' or 'soft'")
+            self.name = "lmm_mcg"
+            self.interp = interp
+            self.mcg_params = dict(mcg_params or {})
+
+        def _build_basis(self, X, rng):
+            k = self._k_hint or 2
+            mcg = Mcg_cf(random_state=self.random_state, **self.mcg_params)
+            g = mcg.build_graph(X, k)
+            W = g["W"] + 1e-9  # connect stray micro-clusters for the eigensolver
+            dinv = 1.0 / np.sqrt(W.sum(axis=1))
+            L = np.eye(len(W)) - dinv[:, None] * W * dinv[None, :]
+            vals, V = np.linalg.eigh(0.5 * (L + L.T))
+            me = int(min(self.n_frequencies, len(W) - 1))
+            vals, V = np.clip(vals[:me], 0.0, None), V[:, :me]
+            if self.interp == "hard":
+                phi = V[g["a"]]
+            else:
+                X = np.asarray(X, dtype=np.float64)
+                C = g["C"]
+                d2 = np.stack([((X - C[g["a"]]) ** 2).sum(axis=1), ((X - C[g["b"]]) ** 2).sum(axis=1)], axis=1)
+                idx = np.stack([g["a"], g["b"]], axis=1)
+                w = np.exp(-(d2 - d2.min(axis=1, keepdims=True)) / (g["R2"][idx] + 1e-12))
+                w /= w.sum(axis=1, keepdims=True)
+                phi = (V[idx] * w[:, :, None]).sum(axis=1)
+            rms = np.sqrt(np.mean(phi ** 2, axis=0)) + 1e-12
+            phi = phi / rms[None, :]
+            if self.row_normalize:
+                phi = phi / np.maximum(np.linalg.norm(phi, axis=1, keepdims=True), 1e-12)
+            return vals.reshape(-1, 1), phi, vals
+
+        def _basis_action(self) -> dict:
+            return {"type": "mcg_laplacian_basis", "n_eigvecs": int(self.n_frequencies),
+                    "interp": self.interp}
+
+    return Lmm_mcg
+
+
+Lmm_mcg = _lmm_mcg_class()

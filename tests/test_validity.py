@@ -318,3 +318,16 @@ def test_cf_triples_and_tiered_mcg():
     assert adjusted_rand_score(y, res.labels) > 0.9
     with pytest.raises(ValueError):
         ALGO_REGISTRY["mcg"](tiers=3)
+
+
+def test_lmm_mcg_uses_micro_cluster_basis():
+    from sklearn.metrics import adjusted_rand_score
+
+    from clustbench.algorithms.base import ALGO_REGISTRY
+
+    X, y = DATASETS["circles"](DataSpec(n_samples=3000, n_features=2, centers=2, compactness=1.0, seed=1))
+    for interp in ("hard", "soft"):
+        res = ALGO_REGISTRY["lmm_mcg"](interp=interp).fit_predict(X, k=2)
+        assert adjusted_rand_score(y, res.labels) > 0.9
+    with pytest.raises(ValueError):
+        ALGO_REGISTRY["lmm_mcg"](interp="cubic")

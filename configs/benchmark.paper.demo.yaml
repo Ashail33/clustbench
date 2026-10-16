@@ -389,6 +389,10 @@ algorithms:
     kind: python
     entry: mcg_cf
     params: {}
+  - name: lmm_mcg
+    kind: python
+    entry: lmm_mcg
+    params: {}
 
 # Five seeds per configuration (was three) so per-configuration seed
   # Tri-basis mixture (Fourier + Laplacian + autoencoder) and ablation;

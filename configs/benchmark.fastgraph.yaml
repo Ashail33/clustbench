@@ -229,6 +229,10 @@ algorithms:
   kind: python
   entry: mcg_cf
   params: {}
+- name: lmm_mcg
+  kind: python
+  entry: lmm_mcg
+  params: {}
 seeds:
 - 1
 - 2
