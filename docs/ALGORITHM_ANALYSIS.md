@@ -2181,3 +2181,55 @@ is capped at 20k. Data are in `docs/data_fastgraph/` (`table.md`,
 * The remaining cost of `lmm_fast` at 100k is roughly half graph build and
   half LOBPCG. A landmark or multigrid eigensolver is the next step if more
   speed is needed.
+
+### Round 19b: AMG-preconditioned eigensolver
+
+After the graph build, the eigensolver was the other half of `lmm_fast`'s
+cost, and it depends heavily on the data:
+
+* On blob data, LOBPCG converges in 26 iterations (1.7 s at n = 100k).
+* On manifold data such as rings, it needs 184 iterations (16.6 s).
+* Within scikit-learn's iteration budget it does not converge at all on
+  rings. That is why `spectral_fast` collapsed there (ARI 0.29), and partly
+  why exact LMM scores only 0.79.
+
+Both fast variants now precondition LOBPCG with algebraic multigrid
+(`pyamg`, now in the `fast` extra):
+
+* LMM gains `eigensolver="amg"`, which `lmm_fast` uses by default. It uses
+  plain aggregation (`smooth=None`). Default smoothed aggregation spends
+  3.5 s on setup for a 100k-point graph with many components; plain
+  aggregation costs about the same as no preconditioner on blobs.
+* `spectral_fast` uses scikit-learn's `eigen_solver="amg"`.
+
+With the preconditioner, rings converges in about 6 iterations (1.7 s).
+
+Re-run on the same tasks (`docs/data_fastgraph/table.md`; the `*_lobpcg`
+rows are the earlier runs):
+
+| n | algorithm | mean ARI | median time (s) |
+|---|---|---|---|
+| 20k | `lmm` (exact graph) | 0.846 | 2.2 |
+| 20k | `lmm_fast` | 0.853 | 1.2 |
+| 20k | `spectral` (exact graph) | 0.853 | 7.2 |
+| 20k | `spectral_fast` | 0.855 | 2.5 |
+| 100k | `lmm` (exact graph) | 0.837 | 40.1 |
+| 100k | **`lmm_fast`** | **0.844** | **8.5** |
+| 100k | `spectral_fast` | 0.832 | 8.9 |
+
+* **`lmm_fast` is now 4.7× faster than LMM at 100k and slightly more
+  accurate.** Rings goes from 0.79 to 1.00 because the eigenvectors now
+  converge.
+* **It loses one case, and that loss is not a solver error.** On
+  mixed_shapes (n = 100k, seed 2) it drops from 1.00 to 0.72. The k-NN
+  graph there has 4 connected components for 5 clusters. Both solvers
+  return the same eigenvalues (1.47e-4 vs 1.51e-4 for the 5th), and
+  k-means on either embedding gives 0.72. So 0.72 is the converged spectral
+  answer, and the earlier 1.00 came from the EM recovering from an
+  unconverged basis.
+* **`spectral_fast` improves from 0.776 to 0.832 at 100k** (rings 0.29 to
+  1.00), but has one new failure: moons, n = 100k, seed 2, scores 0.49
+  where seed 1 scores 0.99. LMM's EM step is the more robust finaliser.
+* About 60% of `lmm_fast`'s time at 100k is now the NN-descent graph.
+  Tuning NN-descent (`delta`, `n_iters`, `n_trees`) saves at most 15%
+  before recall drops, so the defaults are kept.
