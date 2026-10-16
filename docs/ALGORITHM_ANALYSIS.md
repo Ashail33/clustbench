@@ -2390,3 +2390,81 @@ k-means; multi-resolution anchor graphs (U-SPEC, Huang et al. 2020).
 Locally scaled affinities follow self-tuning spectral clustering
 (Zelnik-Manor & Perona 2004), with the local scale read from CF radii
 instead of a k-th-neighbour distance.
+
+## Round 22: second stages after MCG (LMM, SVD, SVC)
+
+MCG ends with plain spectral clustering on its micro-cluster graph. Three
+alternative second stages were built on the same `mcg_cf` graph
+(`Mcg.build_graph` is now shared):
+
+* **`lmm_mcg`** (MCG → LMM). The bottom eigenvectors of the m × m graph
+  (dense, m ≤ 1000) replace LMM's all-points Laplacian basis. Each point
+  takes its nearest micro-cluster's row (`interp="hard"`) or a CF-kernel
+  blend of its two nearest (`"soft"`). LMM's EM and Yu-Shi initialisation
+  then run on the points unchanged.
+* **SVD of the bipartite graph** (anchor graph / transfer cut). Each point
+  links softly to its s nearest micro-clusters, and the left singular
+  vectors of the normalised n × m matrix give the embedding. A second
+  version also CF-kernel-weights the co-membership matrix.
+* **Support vector clustering** (Ben-Hur et al. 2001) on the micro-clusters:
+  1. Fit a one-class SVM, weighted by counts.
+  2. Join two centres when the segment between them (sampled at 4–8
+     points) stays inside the boundary.
+  3. Bisect the kernel width until there are k components holding at least
+     2% of the points each.
+
+Comparison (`scripts/mcg_second_stage.py`). Selection used the unseen and
+20k suites only; the 140-task suite is held out. Times are medians per
+task, from runs sharing the CPU:
+
+| second stage | in-distribution (held out) | unseen | 8 families, 20k | time at 20k |
+|---|---|---|---|---|
+| spectral (`mcg_cf`) | 0.760 | 0.917 | 0.906 | 0.42 s |
+| **LMM, hard** (`lmm_mcg`) | 0.764 | **0.925** | 0.906 | 0.70 s |
+| LMM, soft | 0.766 | 0.923 | 0.909 | 0.75 s |
+| SVD, s = 5, γ = 4 | 0.704 | 0.862 | 0.799 | 0.87 s |
+| SVD with CF co-membership, s = 5 | 0.600 | 0.915 | 0.780 | 0.84 s |
+| SVC, ν = 0.05 | 0.685 | 0.834 | 0.771 | 3.4 s |
+
+* **LMM is the only second stage that beats spectral.** Hard and soft tie
+  on the selection suites (0.9155 vs 0.916), so the pre-registered `hard`
+  is the default.
+* **Bipartite SVD loses the competitive-Hebbian edge structure.** Soft
+  point-to-centre links blur boundaries between touching clusters,
+  especially on small data (0.60).
+* **SVC finds connected density regions.** It cannot separate clusters
+  that touch or are bridged, so forcing exactly k components merges real
+  clusters and splits off fragments. It is also the slowest.
+
+Harness results for `lmm_mcg` (data in `docs/data_mcg/results_lmm_mcg_*.json`):
+
+| benchmark | `lmm_mcg` | `mcg_cf` | LMM | spectral | router v3 |
+|---|---|---|---|---|---|
+| in-distribution, 140 tasks | 0.764 (rank 9/60) | 0.760 | 0.765 | 0.763 | 0.815 |
+| unseen, 35 tasks | **0.925 (rank 1/61)** | 0.917 | 0.858 | 0.860 | 0.845 |
+| n = 20k, 22 tasks | 0.856 in 0.90 s | 0.855 in 0.54 s | 0.846 in 2.2 s | 0.853 in 7.2 s | |
+| n = 100k, 22 tasks | 0.858 in 1.96 s | 0.859 in 0.74 s | 0.837 in 40.1 s | — | |
+| 200k × 20 × 10 | 1.00 in 3.7 s | 1.00 in 1.1 s | did not finish | — | |
+| 100k × 100 × 50 | 1.00 in 20.9 s | 1.00 in 1.3 s | 1.00 in 101.5 s | — | |
+
+Paired Wilcoxon tests:
+
+* **In-distribution:** `lmm_mcg` and LMM are identical on average (−0.000,
+  p = 0.16). The routers remain significantly better (−0.051, p = 4e-7).
+* **Unseen:** `lmm_mcg` beats LMM (+0.066, p = 0.013), spectral (+0.065,
+  p = 0.044) and router v3 (+0.080, p = 0.013). All three stay below 0.05
+  after Holm correction over the three comparisons (adjusted 0.039, 0.026,
+  0.044). It is the first method in this repo to beat the original graph
+  methods significantly on the held-out families. Against `mcg_cf` it is
+  +0.008 (n.s.).
+
+Cost:
+
+* At large n, LMM's EM dominates. `lmm_mcg` takes 2.6× `mcg_cf`'s time at
+  100k, but is still 20× faster than LMM.
+* EM cost grows with k: 20.9 s at k = 50.
+* At k = 200 the EM's Newton step allocates a (k, k, n) array (3 GB) and
+  fails, exactly as plain LMM does.
+
+Recommendation: use `lmm_mcg` for best accuracy up to moderate k, and
+`mcg_cf` when speed or large k matters.

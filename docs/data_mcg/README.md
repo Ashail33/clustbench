@@ -1,4 +1,4 @@
-# MCG results (rounds 20–21)
+# MCG results (rounds 20–22)
 
 `mcg` was run on its own on the same tasks and seeds as the existing results.
 All generators are deterministic, so the rows pair one-to-one with:
@@ -13,4 +13,8 @@ All generators are deterministic, so the rows pair one-to-one with:
 `results_cf_*.json` are the same tasks for `mcg_cf`, the tiered MCG with
 CF-triple edge weights (round 21).
 
-See `docs/ALGORITHM_ANALYSIS.md`, rounds 20 and 21.
+`results_lmm_mcg_*.json` are `lmm_mcg`, LMM's EM on the `mcg_cf` graph basis
+(round 22). `failures_lmm_mcg_bigdata.json` holds its one run that did not
+finish: a MemoryError at k = 200, which plain LMM also hits.
+
+See `docs/ALGORITHM_ANALYSIS.md`, rounds 20–22.
