@@ -398,7 +398,12 @@ attacked both costs.
   (PyAMG~\cite{bell2022pyamg}), which needs about six iterations on the same
   data.
   \item \textbf{MCG: a graph on micro-clusters} (\code{mcg}). Fit mini-batch
-  $k$-means with $m = \min(1000, n/10)$ centres on a subsample. Each point
+  $k$-means with $m = \min(1000, \max(n/10, 10k), n/3)$ centres on a
+  subsample: about ten points per micro-cluster, at least ten per cluster,
+  and never fewer than three points each (round 24).
+  Without the last cap, small data with many clusters got one point per
+  micro-cluster: 400 for Olivetti's 400 faces, where \code{lmm\_mcg} scored
+  0.02. The cap raises that to 0.37 and leaves larger data unchanged. Each point
   votes for an edge between its nearest and second-nearest centre:
   competitive Hebbian learning~\cite{martinetz1994topology}, whose edge counts
   are the CONN similarity of Ta\c{s}demir and Mer\'enyi~\cite{tasdemir2009exploiting}.
@@ -573,7 +578,7 @@ spectral clustering and router v3.
   family ties them at a fraction of the cost.} \code{lmm\_mcg\_dual} (0.769),
   LMM (0.765), \code{lmm\_mcg} (0.764) and spectral clustering (0.763) rank
   8th--11th, behind only the routers. No MCG variant differs from LMM or
-  spectral in-distribution (Holm $p \ge 0.47$). OOD, the four MCG variants
+  spectral in-distribution (Holm $p \ge 0.42$). OOD, the four MCG variants
   have the four highest means (\code{lmm\_mcg} 0.925, \code{mcg\_cf} 0.917,
   \code{lmm\_mcg\_dual} 0.892, \code{mcg} 0.890), ahead of TBMM (0.869),
   spectral (0.860) and LMM (0.858). None of those gaps survives the
@@ -616,16 +621,16 @@ spectral clustering and router v3.
     \code{lmm} & 0.765 & 9 & -- & 0.858 & 8 & 0.033 \\
     \code{fmm} & 0.657 & 34 & -- & 0.728 & 34 & 0.152 \\
     \code{amm} & 0.625 & 44 & -- & 0.716 & 41 & 0.482 \\
-    \code{tbmm} & 0.760 & 12 & -- & 0.869 & 5 & 0.345 \\
+    \code{tbmm} & 0.760 & 13 & -- & 0.869 & 5 & 0.345 \\
     \code{tbmm\_fl} & 0.759 & 14 & -- & 0.867 & 6 & 0.065 \\
     \code{flhmm} & 0.652 & 39 & -- & 0.724 & 37 & 0.064 \\
     \code{flh\_cycle\_product} & 0.627 & 43 & -- & 0.676 & 45 & 0.100 \\
     \code{flh\_cycle} & 0.381 & 57 & -- & 0.344 & 59 & 0.102 \\
     \midrule
-    \code{mcg} & 0.745 & 15 & -- & 0.890 & 4 & 0.014 \\
-    \code{mcg\_cf} & 0.760 & 13 & -- & 0.917 & 2 & 0.022 \\
-    \code{lmm\_mcg} & 0.764 & 10 & -- & \textbf{0.925} & \textbf{1} & 0.025 \\
-    \code{lmm\_mcg\_dual} & 0.769 & 8 & -- & 0.892 & 3 & 0.045 \\
+    \code{mcg} & 0.744 & 15 & -- & 0.890 & 4 & 0.012 \\
+    \code{mcg\_cf} & 0.761 & 12 & -- & 0.917 & 2 & 0.021 \\
+    \code{lmm\_mcg} & 0.764 & 10 & -- & \textbf{0.925} & \textbf{1} & 0.023 \\
+    \code{lmm\_mcg\_dual} & 0.769 & 8 & -- & 0.892 & 3 & 0.044 \\
     \midrule
     \code{mri} & 0.562 & 50 & -- & 0.617 & 52 & 0.032 \\
     \code{louvain\_knn} & 0.714 & 19 & -- & 0.846 & 9 & 0.098 \\
@@ -768,13 +773,14 @@ the 2-D shapes.
   CF spread.
   \item \textbf{Mixtures favour the full-graph EM models.} TBMM, LMM and
   spectral clustering lead at 0.78--0.79 and MCG trails (0.67--0.76). On real
-  data the MCG variants are weakest (0.32--0.37). With $n = 400$ and $k = 40$
-  (Olivetti faces), the $\max(n/10, 10k)$ rule leaves one point per
-  micro-cluster, and \code{lmm\_mcg} scores 0.02.
+  data the MCG variants score 0.35--0.38, against 0.36 for LMM and 0.49 for
+  the best router. On Olivetti faces they reach 0.37--0.40, level with LMM
+  (0.40), now that the micro-cluster count is capped at $n/3$.
 \end{itemize}
-Over all 180 tasks \code{lmm\_mcg\_dual} has the highest mean (0.684),
-ahead of \code{lmm\_mcg} (0.674), \code{mcg\_cf} and \code{lmm\_fast}
-(0.667), spectral clustering (0.665) and LMM (0.659). The best router ranks
+Over all 180 tasks the four MCG variants have the highest means:
+\code{lmm\_mcg\_dual} 0.686, \code{lmm\_mcg} 0.680, \code{mcg\_cf} 0.674 and
+\code{mcg} 0.667. \code{lmm\_fast} also scores 0.667, spectral clustering
+0.665 and LMM 0.659. The best router ranks
 16th (0.580).
 
 \begin{figure}[t]
@@ -1007,10 +1013,9 @@ Four directions follow:
   Chameleon's merge rule, with models trained on trajectory data;
   \item give selection gates a shape-aware criterion, e.g.\ penalise
   silhouette when the number of $k$NN-graph components disagrees with $k$;
-  \item make MCG's resolution adaptive, so that small $n$ with large $k$
-  (Olivetti faces) and tightly packed 2-D structures get enough
-  micro-clusters, and replace LMM's $(k, M, n)$ Newton step so that the
-  EM-based variants scale in $k$.
+  \item adapt MCG's resolution to local structure, so that tightly packed
+  2-D arms get enough micro-clusters, and replace LMM's $(k, M, n)$ Newton
+  step so that the EM-based variants scale in $k$.
 \end{itemize}
 
 \paragraph{Acknowledgement of AI assistance.} The benchmark harness's

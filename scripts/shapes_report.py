@@ -48,15 +48,29 @@ def task_label(r) -> str:
     return f"{r.dataset_id}{k} d={r.n_features}"
 
 
-def load(runs):
-    res = pd.concat([pd.read_parquet(r / "results.parquet") for r in runs], ignore_index=True)
+def load(runs, supersede=None):
+    """Concatenate run directories. If ``supersede`` is given, its algorithms'
+    rows (and failures) replace those algorithms' rows in ``runs``."""
+    frames = [pd.read_parquet(r / "results.parquet") for r in runs]
+    redo = set()
+    if supersede is not None:
+        top = pd.read_parquet(supersede / "results.parquet")
+        redo = set(top["algo"].unique())
+        frames = [f[~f["algo"].isin(redo)] for f in frames] + [top]
+        runs = list(runs) + [supersede]
+    res = pd.concat(frames, ignore_index=True)
     res["ari"] = pd.to_numeric(res["ari"], errors="coerce")
     fails = []
     for r in runs:
+        keep_redo = supersede is not None and r == supersede
         for p in (r / "artifacts").glob("error_*.json"):
-            fails.append(json.loads(p.read_text()))
+            e = json.loads(p.read_text())
+            if keep_redo or e.get("algo") not in redo:
+                fails.append(e)
         for p in (r / "artifacts").glob("skipped_*.json"):
-            fails.append({**json.loads(p.read_text()), "error_type": "capped"})
+            e = {**json.loads(p.read_text()), "error_type": "capped"}
+            if keep_redo or e.get("algo") not in redo:
+                fails.append(e)
     return res, pd.DataFrame(fails)
 
 
@@ -184,12 +198,14 @@ def main() -> None:
     ap.add_argument("runs", nargs="+", type=pathlib.Path)
     ap.add_argument("--out", type=pathlib.Path, default=pathlib.Path("docs/data_shapes"))
     ap.add_argument("--no-gallery", action="store_true")
+    ap.add_argument("--supersede", type=pathlib.Path, default=None,
+                    help="a re-run whose algorithms replace those algorithms' rows in the other runs")
     args = ap.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     import matplotlib
 
     matplotlib.use("Agg")
-    res, fails = load(args.runs)
+    res, fails = load(args.runs, args.supersede)
     cols = ["algo"] + KEYS + ["dataset_source", "ari", "nmi", "wall_time_s", "n_clusters_found"]
     res[[c for c in cols if c in res.columns]].to_json(args.out / "results.json", orient="records", indent=1)
     if len(fails):

@@ -7,6 +7,10 @@ group, each with ``timing.threads: 1``) and recombined before
 merged table with the same code the CLI uses.
 
     python scripts/merge_runs.py --runs runs/shard_a runs/shard_b --out runs/merged
+
+``--replace-from`` supersedes whole datasets with a re-run, and
+``--replace-algos-from`` supersedes whole algorithms (e.g. after changing an
+algorithm's defaults, re-run just it and swap its rows in).
 """
 from __future__ import annotations
 
@@ -26,9 +30,15 @@ def main() -> None:
     ap.add_argument("--out", type=pathlib.Path, required=True)
     ap.add_argument("--replace-from", type=pathlib.Path, default=None,
                     help="a re-run whose datasets supersede those datasets' rows in --runs")
+    ap.add_argument("--replace-algos-from", type=pathlib.Path, default=None,
+                    help="a re-run whose algorithms supersede those algorithms' rows in --runs")
     args = ap.parse_args()
+    if args.replace_from is not None and args.replace_algos_from is not None:
+        raise SystemExit("use one of --replace-from / --replace-algos-from at a time")
     if args.replace_from is not None:
         args.runs = list(args.runs) + [args.replace_from]
+    if args.replace_algos_from is not None:
+        args.runs = list(args.runs) + [args.replace_algos_from]
 
     frames, manifests = [], []
     for r in args.runs:
@@ -38,6 +48,10 @@ def main() -> None:
         redo = set(frames[-1]["dataset_id"].unique())
         frames = [f[~f["dataset_id"].isin(redo)] for f in frames[:-1]] + [frames[-1]]
         print(f"replacing datasets {sorted(redo)} with rows from {args.replace_from}")
+    if args.replace_algos_from is not None:
+        redo = set(frames[-1]["algo"].unique())
+        frames = [f[~f["algo"].isin(redo)] for f in frames[:-1]] + [frames[-1]]
+        print(f"replacing algorithms {sorted(redo)} with rows from {args.replace_algos_from}")
     df = pd.concat(frames, ignore_index=True)
     keys = [k for k in TASK_KEYS if k in df.columns] + ["algo"]
     dup = df.duplicated(subset=keys, keep=False)

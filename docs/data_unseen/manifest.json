@@ -564,7 +564,7 @@
   },
   "shards": [
     {
-      "run_dir": "runs/validity/unseen_all",
+      "run_dir": "runs/validity/unseen_all62",
       "config_sha256": "e653b76ef996419644241f36f2a53452d5757acee397dbd6cc7208b162d58487",
       "generated_at": "2026-10-15 11:44:34",
       "datasets": [
@@ -578,51 +578,9 @@
       ]
     },
     {
-      "run_dir": "runs/mcg/unseen",
-      "config_sha256": "dd5b68908e749caf48a5dbb1915d4bbc9ef2ddc026a29844fa27af3f82f5f800",
-      "generated_at": "2026-10-16 20:58:11",
-      "datasets": [
-        "mdcgen",
-        "moons",
-        "inverse_pca",
-        "extreme_outliers",
-        "varying_density",
-        "ts_synth",
-        "graph_sbm"
-      ]
-    },
-    {
-      "run_dir": "runs/mcg_cf/unseen",
-      "config_sha256": "64e5e5ff366ee21d0834721213e684a3379ae3f2e380d12397ca518734be9d39",
-      "generated_at": "2026-10-16 21:12:47",
-      "datasets": [
-        "mdcgen",
-        "moons",
-        "inverse_pca",
-        "extreme_outliers",
-        "varying_density",
-        "ts_synth",
-        "graph_sbm"
-      ]
-    },
-    {
-      "run_dir": "runs/lmm_mcg/unseen",
-      "config_sha256": "877d28ecf88b45c2918b5c7ad43e83c8268572f1fc17011560427745bfb6645b",
-      "generated_at": "2026-10-16 21:35:30",
-      "datasets": [
-        "mdcgen",
-        "moons",
-        "inverse_pca",
-        "extreme_outliers",
-        "varying_density",
-        "ts_synth",
-        "graph_sbm"
-      ]
-    },
-    {
-      "run_dir": "runs/lmm_mcg_dual/unseen",
-      "config_sha256": "0062e35c9d2467ba04fcf157cf9a7a8044e8730e86be48267903951fdcd6d08e",
-      "generated_at": "2026-10-16 22:40:46",
+      "run_dir": "runs/r24/unseen",
+      "config_sha256": "e40c4d68171e66ed190473487172246cd3d3bf9bfe8f781c9c3f3cffdaebf11a",
+      "generated_at": "2026-10-16 23:08:34",
       "datasets": [
         "mdcgen",
         "moons",

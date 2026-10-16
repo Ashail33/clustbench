@@ -351,3 +351,14 @@ def test_lmm_mcg_count_basis_recovers_manifold_eigenvectors():
     assert dual.basis == "both" and len(dual.fit_predict(X, k=4).labels) == len(X)
     with pytest.raises(ValueError):
         ALGO_REGISTRY["lmm_mcg"](basis="pca")
+
+
+def test_mcg_micro_cluster_count_adapts_to_small_data():
+    from clustbench.algorithms.base import ALGO_REGISTRY
+
+    m = ALGO_REGISTRY["mcg"]()
+    assert m._resolve_m(400, 40) == 133  # Olivetti-sized: capped at n / 3, not 10 k = 400
+    assert m._resolve_m(3000, 2) == 300  # ~10 points per micro-cluster
+    assert m._resolve_m(200000, 10) == 1000  # cap for large n
+    assert ALGO_REGISTRY["mcg"](min_points=0)._resolve_m(400, 40) == 399  # old behaviour
+    assert ALGO_REGISTRY["mcg"](n_micro=50)._resolve_m(400, 40) == 50  # explicit count wins

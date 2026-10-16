@@ -2658,3 +2658,49 @@ Added to `docs/data_bigdata`, with exponents of wall time in n / d / k:
 `lmm_mcg_dual`'s 2k basis makes LMM's Newton step allocate a (k, 2k, n)
 array. It runs out of memory at 100k × 100 × 50 (3.7 GB) and at k = 200,
 where `lmm_mcg` and plain LMM fail only at k = 200.
+
+## Round 24: adaptive micro-cluster count for small data
+
+MCG's automatic count was `m = min(1000, max(n/10, 10k))`. On small data
+with many clusters the `10k` floor leaves about one point per micro-cluster:
+399 micro-clusters for Olivetti's 400 faces at k = 40. A micro-cluster with
+one point has no CF spread to estimate and no points to vote for edges, and
+`lmm_mcg` scored 0.02 there (LMM 0.40). Glass and the karate graph were also
+below 4 points per micro-cluster.
+
+The count is now also capped at `n / min_points`:
+`m = min(1000, max(n/10, 10k), n/3)`. With `min_points = 3` the cap only
+binds when there are fewer than 30 points per cluster. Explicit `n_micro`
+still wins, and `min_points = 0` restores the old rule.
+
+**Selection.** `min_points ∈ {3, 4, 5, 6}` was swept on a new suite of the 14
+real datasets at native size (42 tasks), on the unseen split and on the 20k
+suite, with the 140 in-distribution tasks held out.
+
+* Only the real suite moved, and 3 was best for both `mcg_cf` and
+  `lmm_mcg`.
+* The margin over 4 comes from the 34-point karate graph and glass, which
+  are noisy; Olivetti alone would prefer 4 (0.42 vs 0.37).
+
+| algorithm | real (42) | unseen | 20k | curved shapes | in-distribution (held out) |
+|---|---|---|---|---|---|
+| `mcg` | 0.323 → **0.347** | 0.890 = | 0.900 = | 0.863 = | 0.745 → 0.744 |
+| `mcg_cf` | 0.343 → **0.370** | 0.917 = | 0.906 = | 0.803 = | 0.760 → 0.761 |
+| `lmm_mcg` | 0.352 → **0.380** | 0.925 = | 0.906 = | 0.812 = | 0.764 = |
+| `lmm_mcg_dual` | 0.366 → **0.374** | 0.892 = | 0.905 = | 0.833 = | 0.769 = |
+
+**Harness re-run.** The four MCG algorithms were re-run on the
+in-distribution, unseen and every-dataset configs, and their rows replaced in
+`docs/data`, `docs/data_unseen` and `docs/data_shapes` (via
+`merge_runs.py --replace-algos-from` and `shapes_report.py --supersede`).
+The big-data and n = 100k runs are unaffected, because the cap never binds
+there. Changes:
+
+* **In-distribution:** `mcg_cf` 0.761 (rank 12, was 13); Friedman
+  χ² = 2700; MCG vs LMM/spectral Holm p ≥ 0.42 (12-test family); router v3
+  vs `lmm_mcg_dual` +0.047 (Holm 1e-4). The unseen split is unchanged.
+* **Every-dataset run:** the four MCG variants now have the four highest
+  overall means: `lmm_mcg_dual` 0.686, `lmm_mcg` 0.680, `mcg_cf` 0.674,
+  `mcg` 0.667.
+* **Real data:** the MCG variants score 0.35–0.38, against 0.36 for LMM.
+* **Olivetti:** the MCG variants reach 0.37–0.40, level with LMM (0.40).
