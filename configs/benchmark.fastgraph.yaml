@@ -1,0 +1,251 @@
+# Fast graph clustering at large n: does an approximate (NN-descent) k-NN
+# graph keep LMM's and spectral clustering's accuracy?
+#
+# lmm / spectral build the exact k-NN graph (O(n^2 d)); lmm_fast /
+# spectral_fast build it with NN-descent once n >= 10k and d > 10. Eleven
+# dataset families at d = 20, n = 20k and 100k, two seeds; exact spectral is
+# capped at 20k (it does not finish 50k in 120 s, see docs/data_bigdata).
+# GMM, mini-batch k-means and Trident are the fast reference points.
+#
+#   clustbench --config configs/benchmark.fastgraph.yaml --out runs/fastgraph
+datasets:
+- id: mdcgen
+  n_samples:
+  - 20000
+  - 100000
+  n_features:
+  - 20
+  k_targets:
+  - 10
+  compactness:
+  - 1.0
+  outliers:
+  - 0
+  noise:
+  - 0
+  density:
+  - 1.0
+- id: anisotropic
+  n_samples:
+  - 20000
+  - 100000
+  n_features:
+  - 20
+  k_targets:
+  - 10
+  compactness:
+  - 1.0
+  outliers:
+  - 0
+  noise:
+  - 0
+  density:
+  - 1.0
+- id: heavy_tailed_mixture
+  n_samples:
+  - 20000
+  - 100000
+  n_features:
+  - 20
+  k_targets:
+  - 10
+  compactness:
+  - 1.0
+  outliers:
+  - 0
+  noise:
+  - 0
+  density:
+  - 1.0
+- id: hierarchical_nested
+  n_samples:
+  - 20000
+  - 100000
+  n_features:
+  - 20
+  k_targets:
+  - 10
+  compactness:
+  - 1.0
+  outliers:
+  - 0
+  noise:
+  - 0
+  density:
+  - 1.0
+- id: VariableDensityBridges
+  n_samples:
+  - 20000
+  - 100000
+  n_features:
+  - 20
+  k_targets:
+  - 10
+  compactness:
+  - 1.0
+  outliers:
+  - 0
+  noise:
+  - 0
+  density:
+  - 1.0
+- id: inverse_pca
+  n_samples:
+  - 20000
+  - 100000
+  n_features:
+  - 20
+  k_targets:
+  - 10
+  compactness:
+  - 1.0
+  outliers:
+  - 0
+  noise:
+  - 0
+  density:
+  - 1.0
+- id: spiral
+  n_samples:
+  - 20000
+  - 100000
+  n_features:
+  - 20
+  k_targets:
+  - 10
+  compactness:
+  - 1.0
+  outliers:
+  - 0
+  noise:
+  - 0
+  density:
+  - 1.0
+- id: rings
+  n_samples:
+  - 20000
+  - 100000
+  n_features:
+  - 20
+  k_targets:
+  - 10
+  compactness:
+  - 1.0
+  outliers:
+  - 0
+  noise:
+  - 0
+  density:
+  - 1.0
+- id: moons
+  n_samples:
+  - 20000
+  - 100000
+  n_features:
+  - 20
+  k_targets:
+  - 2
+  compactness:
+  - 1.0
+  outliers:
+  - 0
+  noise:
+  - 0
+  density:
+  - 1.0
+- id: circles
+  n_samples:
+  - 20000
+  - 100000
+  n_features:
+  - 20
+  k_targets:
+  - 2
+  compactness:
+  - 1.0
+  outliers:
+  - 0
+  noise:
+  - 0
+  density:
+  - 1.0
+- id: mixed_shapes
+  n_samples:
+  - 20000
+  - 100000
+  n_features:
+  - 20
+  k_targets:
+  - 5
+  compactness:
+  - 1.0
+  outliers:
+  - 0
+  noise:
+  - 0
+  density:
+  - 1.0
+algorithms:
+- name: minibatch_kmeans
+  kind: python
+  entry: minibatch_kmeans
+  params:
+    batch_size: 100
+    max_iter: 100
+- name: gmm
+  kind: python
+  entry: gmm
+  params:
+    max_iter: 100
+    n_init: 1
+- name: spectral
+  kind: python
+  entry: spectral
+  params:
+    n_neighbors: 10
+  max_n: 20000
+- name: lmm
+  kind: python
+  entry: lmm
+  params: {}
+- name: trident
+  kind: python
+  entry: trident
+  params: {}
+- name: lmm_fast
+  kind: python
+  entry: lmm_fast
+  params: {}
+- name: spectral_fast
+  kind: python
+  entry: spectral_fast
+  params:
+    n_neighbors: 10
+- name: mcg
+  kind: python
+  entry: mcg
+  params: {}
+- name: mcg_cf
+  kind: python
+  entry: mcg_cf
+  params: {}
+- name: lmm_mcg
+  kind: python
+  entry: lmm_mcg
+  params: {}
+- name: lmm_mcg_dual
+  kind: python
+  entry: lmm_mcg_dual
+  params: {}
+seeds:
+- 1
+- 2
+strict_provenance: true
+timing:
+  repeats: 1
+  threads: 1
+  warmup: true
+  timeout_s: 300
+resources:
+  isolate: true
+  memory_limit_gb: 4

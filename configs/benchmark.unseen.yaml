@@ -126,6 +126,27 @@ algorithms:
   - {name: isomap_bgmm, kind: python, entry: isomap_bgmm, params: {}}
   - {name: trident, kind: python, entry: trident, params: {}}
 
+  # Tri-basis mixture (Fourier + Laplacian + autoencoder) and ablation;
+  # AMM added so all three single-basis variants are benchmarked.
+  - {name: amm, kind: python, entry: amm, params: {}}
+  - {name: tbmm, kind: python, entry: tbmm, params: {}}
+  - {name: tbmm_fl, kind: python, entry: tbmm, params: {blocks: [fourier, laplacian]}}
+  # Fourier / Laplace / Hilbert transform features (mixture or k-means head)
+  # and single-transform ablations.
+  - {name: flhmm, kind: python, entry: flhmm, params: {}}
+  - {name: flhmm_km, kind: python, entry: flhmm, params: {head: kmeans}}
+  - {name: flhmm_laplace_km, kind: python, entry: flhmm, params: {head: kmeans, blocks: [laplace]}}
+  - {name: flhmm_hilbert_km, kind: python, entry: flhmm, params: {head: kmeans, blocks: [hilbert]}}
+  # Co-EM cycling between the Fourier, Laplace and Hilbert views: one view's
+  # M-step then E-step per step (flh_cycle), or all-view E-step with damped
+  # hand-off (flh_cycle_product).
+  - {name: flh_cycle, kind: python, entry: flh_cycle, params: {}}
+  - {name: flh_cycle_product, kind: python, entry: flh_cycle, params: {estep: product, handoff: 0.5}}
+  - {name: mcg, kind: python, entry: mcg, params: {}}
+  - {name: mcg_cf, kind: python, entry: mcg_cf, params: {}}
+  - {name: lmm_mcg, kind: python, entry: lmm_mcg, params: {}}
+  - {name: lmm_mcg_dual, kind: python, entry: lmm_mcg_dual, params: {}}
+
 # Five unseen seeds (was three).
 seeds: [100, 101, 102, 103, 104]
 

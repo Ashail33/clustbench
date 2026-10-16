@@ -2017,3 +2017,644 @@ leave-one-dataset-family-out (LOFO) evaluation of the routers.
 for spectral, so LMM takes 6 s at n = 30k where spectral takes 297 s, both at
 ARI 1.00. `louvain_knn` keeps moons at ARI 1.00 up to n = 50k.
 Auto-epsilon DBSCAN collapses at large n on blobs.
+
+#### Round 17: combining transforms, and cycling EM between them
+
+Two questions, benchmarked under the round-16 controls on the same 140
+in-distribution and 35 unseen tasks (paired Wilcoxon, Holm-corrected).
+
+**1. Combine the three classical transforms as features (`flhmm`).**
+
+Per point:
+- **Fourier:** random Fourier features (the characteristic function).
+- **Laplace:** the Laplace transform of the point's distance distribution,
+  `mean_j exp(-s d_ij)` on a log-grid of s.
+- **Hilbert:** envelope and instantaneous phase of the analytic signal of
+  the projected density.
+
+The blocks are equal-variance scaled and concatenated, with a mixture head
+(`flhmm`) or a k-means head (`flhmm_km`).
+
+| variant | ARI in-dist | vs LMM | ARI unseen |
+|---|---|---|---|
+| `flhmm` (mixture) | 0.652 | -0.113 (Holm 9e-15) | 0.724 |
+| `flhmm_km` | 0.592 | -0.172 | 0.643 |
+| Laplace block only (k-means) | 0.241 | -0.523 | 0.290 |
+| Hilbert block only (k-means) | 0.504 | -0.261 | 0.661 |
+
+The combined transforms are significantly worse than LMM overall and fail on
+moons (0.01-0.23 vs 0.63). The one genuine win is **real ECG200**:
+`flhmm_km` reaches 0.356, the best non-router result on that family (LMM
+0.196). On real Trace they lose (0.31 vs 0.61).
+
+**2. Cycle EM between the three transform views (`flh_cycle`).**
+
+Each transform keeps its own mixture and the views share soft assignments.
+Each step runs one view's M-step and then an E-step, cycling Fourier ->
+Laplace -> Hilbert (co-EM, Nigam & Ghani 2000; Bickel & Scheffer 2004).
+
+| variant | ARI in-dist | vs its k-means start | ARI unseen |
+|---|---|---|---|
+| `flh_cycle` (E-step from one view) | 0.381 | **-0.211** (Holm 7e-18) | 0.344 |
+| `flh_cycle_product` (E-step from all views, 50% hand-off) | 0.627 | **+0.034** (Holm 2e-8) | 0.676 |
+
+Literal cycling compounds each view's errors: every single-view E-step
+overwrites the shared assignments. Cycling the parameter updates while
+computing assignments from all views (block-coordinate EM on the
+product-of-experts) does improve on its starting point. It is the best
+non-router method on `extreme_outliers` (0.772), but it stays well below LMM
+(-0.138).
+
+**Bonus: graph-Laplacian + Fourier + autoencoder bases (`tbmm`) and AMM.**
+`tbmm` is statistically tied with LMM in-distribution (0.760 vs 0.765,
+Holm 0.36). On the unseen split it has the highest mean of all 58
+algorithms (0.869 vs LMM 0.858), but that gap is not significant. The
+Fourier+Laplacian ablation `tbmm_fl` scores the same and is 5x faster.
+Concatenating bases neither helps nor hurts: the graph-Laplacian block
+carries the signal. AMM, benchmarked for the first time, ranks 40th of 57
+(0.625).
+
+## Round 18: big-data scaling
+
+Config `configs/benchmark.bigdata.yaml` runs all 57 algorithms on MDCGen data
+along three one-factor axes through a base point (n=10k, d=20, k=10):
+n ∈ {2k, 10k, 50k, 200k}, d ∈ {5, 20, 100, 500}, k ∈ {3, 10, 50, 200}. A
+corner task (n=100k, d=100, k=50) is also included. Each run executes in a
+forked child process with a single thread, a 120 s `fit_predict` limit and a
+3 GB memory budget. The scripts record runs that hit either limit instead of
+dropping them. That gives 489 finished runs and 138 that did not finish. The
+data are in `docs/data_bigdata/`: `scaling_table.md`, `scaling_axes.pdf`
+(wall time against n, d and k) and `scaling_grid.pdf` (every algorithm on
+every task, with T/M/c marking timeout, memory and capped runs). Exponents
+are log-log slopes of median wall time along each axis.
+
+* **Finished n = 200k** (15 algorithms):
+  * Fast with good quality: `minibatch_kmeans` (3.6 s, ARI 1.00), `trident`
+    (3.4 s, 1.00), `gmm` (2.8 s, 0.96) and `bico_stream` (5.2 s, 0.77).
+  * Slower but complete: `kmeans` (28.5 s), `fmm` (37.1 s, 1.00),
+    `parallel_kmeans` and `kmeans_trimmed`.
+  * `dbscan` finished at 96.7 s but scored ARI 0.
+  * `trident` has the flattest curve of any algorithm (n exponent 0.30).
+* **Corner task (100k × 100 × 50)**: only 10 algorithms finished. The best
+  were `trident` (0.99 in 3.5 s), `bico_stream` (1.00 in 18.5 s), `gmm`
+  (0.97 in 64 s) and `lmm` (1.00 in 101.5 s). LMM has n exponent 1.53, so it
+  is the best-quality new algorithm at scale but not the fastest.
+* **Quadratic in n**:
+  * `agglomerative` (2.36), `density_peaks_bridge` (2.29), `spectral`
+    (2.18), `rapid` (2.02) and `birch_algo` (2.01) never get beyond 10k.
+  * The learned routers (exponents 1.3–1.8) inherit the cost of the
+    candidates they run. None reaches 200k; v4, v5, v7 and v8 stop at 10k.
+  * `rl_pipeline` only finishes n = 2k.
+* **k-axis**: the cost of the k-means family grows with k (exponent 1.5–1.9;
+  `kmeans` takes 83 s at k = 200). `agglomerative` and BIRCH are almost flat
+  in k and reach ARI 1.00 at k = 200.
+* **d-axis**: most exponents are below 0.6. The cost of high dimension is
+  mainly memory, not time.
+* **Memory**: the FLH family (FLHMM, flh_cycle) fails with MemoryError at
+  n ≥ 50k because the Laplace block allocates an n × 300 × d tensor. A
+  chunked Laplace feature map is the obvious fix. `flhmm_hilbert_km`, which
+  has no Laplace block, scales to 200k in 3.7 s.
+* **Harness bug found by this sweep**: `dunn_index` built an O(m²·d)
+  broadcast tensor, about 16 GB at d = 500, which OOM-killed the benchmark
+  parent process. It now uses `scipy.spatial.distance.pdist`/`cdist`, which
+  peaks at about 0.3 GB.
+
+## Round 19: fast graph clustering (`lmm_fast`, `spectral_fast`)
+
+LMM and spectral clustering are equally accurate on the benchmark (round 18),
+but both are graph methods, and building the exact k-NN graph is O(n² d).
+At n = 50k, d = 20 that graph build takes 8.7 s of LMM's 11.2 s fit time.
+The eigensolver takes 1.3 s and the mixture EM 0.4 s. The two new variants
+build the graph with NN-descent (`pynndescent`, optional extra `fast`), and
+nothing else changes:
+
+* `lmm_fast` is LMM with `knn="nndescent"`.
+* `spectral_fast` is scikit-learn spectral clustering on a precomputed
+  NN-descent graph, using the LOBPCG eigensolver.
+
+The helper is `src/clustbench/algorithms/_knn.py`. Measured switch-over
+points:
+
+* NN-descent beats exact search from about n = 10k when d ≥ 20. It is 12×
+  faster at n = 200k, d = 20 (11 s vs 138 s) and 10× faster at n = 40k,
+  d = 500.
+* At d ≤ 10, scikit-learn's k-d tree is as fast, so the exact search is
+  kept below 10k points and at d ≤ 10.
+* NN-descent recovers 95–98% of the exact neighbours at d = 20 and 77% at
+  d = 100.
+
+Two harness details. pynndescent compiles with numba on first use (about
+20 s), so the untimed warm-up compiles it. numba's default OpenMP layer
+aborts inside the harness's forked runs, so the helper selects numba's
+fork-safe `workqueue` layer.
+
+The test is `configs/benchmark.fastgraph.yaml`: 11 dataset families at
+d = 20, n ∈ {20k, 100k}, two seeds, 300 s limit. Exact spectral clustering
+is capped at 20k. Data are in `docs/data_fastgraph/` (`table.md`,
+`results.json`).
+
+| n | algorithm | mean ARI | median wall time (s) |
+|---|---|---|---|
+| 20k | `lmm` | 0.846 | 2.2 |
+| 20k | `lmm_fast` | 0.842 | 1.3 |
+| 20k | `spectral` | 0.853 | 7.2 |
+| 20k | `spectral_fast` | 0.844 | 2.8 |
+| 100k | `lmm` | 0.837 | 40.1 |
+| 100k | `lmm_fast` | **0.836** | **10.3** |
+| 100k | `spectral_fast` | 0.776 | 9.7 |
+| 100k | `gmm` | 0.557 | 1.3 |
+| 100k | `trident` | 0.570 | 2.5 |
+| 100k | `minibatch_kmeans` | 0.555 | 0.7 |
+
+* **`lmm_fast` keeps LMM's accuracy at a quarter of the time** at 100k
+  points. Its per-family ARI equals LMM's in every family at 100k, and at
+  20k it differs only on rings (0.85 vs 0.89).
+* **`spectral_fast` loses accuracy on rings and mixed shapes at 100k**
+  (0.29 and 0.71, vs LMM's 0.79 and 0.86). The EM refinement in LMM appears
+  to absorb errors in the approximate graph that a plain k-means on the
+  spectral embedding does not. On rings at 20k, exact spectral is the best
+  method (1.00).
+* The fast centroid methods (GMM, Trident, mini-batch k-means) are 4–15×
+  quicker again, but they score about 0.56 on these shapes against 0.84
+  for the graph methods. On this mix of families, the graph is what buys
+  the accuracy.
+* The remaining cost of `lmm_fast` at 100k is roughly half graph build and
+  half LOBPCG. A landmark or multigrid eigensolver is the next step if more
+  speed is needed.
+
+### Round 19b: AMG-preconditioned eigensolver
+
+After the graph build, the eigensolver was the other half of `lmm_fast`'s
+cost, and it depends heavily on the data:
+
+* On blob data, LOBPCG converges in 26 iterations (1.7 s at n = 100k).
+* On manifold data such as rings, it needs 184 iterations (16.6 s).
+* Within scikit-learn's iteration budget it does not converge at all on
+  rings. That is why `spectral_fast` collapsed there (ARI 0.29), and partly
+  why exact LMM scores only 0.79.
+
+Both fast variants now precondition LOBPCG with algebraic multigrid
+(`pyamg`, now in the `fast` extra):
+
+* LMM gains `eigensolver="amg"`, which `lmm_fast` uses by default. It uses
+  plain aggregation (`smooth=None`). Default smoothed aggregation spends
+  3.5 s on setup for a 100k-point graph with many components; plain
+  aggregation costs about the same as no preconditioner on blobs.
+* `spectral_fast` uses scikit-learn's `eigen_solver="amg"`.
+
+With the preconditioner, rings converges in about 6 iterations (1.7 s).
+
+Re-run on the same tasks (`docs/data_fastgraph/table.md`; the `*_lobpcg`
+rows are the earlier runs):
+
+| n | algorithm | mean ARI | median time (s) |
+|---|---|---|---|
+| 20k | `lmm` (exact graph) | 0.846 | 2.2 |
+| 20k | `lmm_fast` | 0.853 | 1.2 |
+| 20k | `spectral` (exact graph) | 0.853 | 7.2 |
+| 20k | `spectral_fast` | 0.855 | 2.5 |
+| 100k | `lmm` (exact graph) | 0.837 | 40.1 |
+| 100k | **`lmm_fast`** | **0.844** | **8.5** |
+| 100k | `spectral_fast` | 0.832 | 8.9 |
+
+* **`lmm_fast` is now 4.7× faster than LMM at 100k and slightly more
+  accurate.** Rings goes from 0.79 to 1.00 because the eigenvectors now
+  converge.
+* **It loses one case, and that loss is not a solver error.** On
+  mixed_shapes (n = 100k, seed 2) it drops from 1.00 to 0.72. The k-NN
+  graph there has 4 connected components for 5 clusters. Both solvers
+  return the same eigenvalues (1.47e-4 vs 1.51e-4 for the 5th), and
+  k-means on either embedding gives 0.72. So 0.72 is the converged spectral
+  answer, and the earlier 1.00 came from the EM recovering from an
+  unconverged basis.
+* **`spectral_fast` improves from 0.776 to 0.832 at 100k** (rings 0.29 to
+  1.00), but has one new failure: moons, n = 100k, seed 2, scores 0.49
+  where seed 1 scores 0.99. LMM's EM step is the more robust finaliser.
+* About 60% of `lmm_fast`'s time at 100k is now the NN-descent graph.
+  Tuning NN-descent (`delta`, `n_iters`, `n_trees`) saves at most 15%
+  before recall drops, so the defaults are kept.
+
+## Round 20: MCG, graph accuracy without the graph cost
+
+**What makes LMM and spectral clustering good.** Both cluster by
+*connectivity*: two points belong together when a chain of close neighbours
+links them. Centroid methods instead ask which centre a point is nearest to.
+On convex blobs the two notions agree, and GMM, k-means and Trident match
+LMM there. They disagree on curved or wrapped shapes. At n = 20k the ARIs
+are:
+
+| data | centroid methods | LMM / spectral |
+|---|---|---|
+| circles | 0.00 | 1.00 |
+| moons | 0.25–0.50 | 0.99 |
+| rings | 0.14–0.18 | 0.89–1.00 |
+| bridged and heavy-tailed data | about 0.7 | 0.88–0.89 |
+
+That is where the whole accuracy gap comes from. The eigenvectors and the
+EM step are just ways of reading off the graph's connected regions. The
+expensive part, a graph on all n points, is what the speed-ups of
+rounds 19 and 19b approximated.
+
+**MCG** (`src/clustbench/algorithms/mcg.py`) builds the graph on about 1000
+micro-clusters instead of on the points:
+
+1. Fit mini-batch k-means with m = min(1000, n/10) centres on a 20k-point
+   subsample.
+2. Each point votes for an edge between its nearest and second-nearest
+   centre. This is competitive Hebbian learning (Martinetz & Schulten 1994),
+   and the counts are the CONN similarity of Taşdemir & Merényi (2009).
+   Edges therefore exist only where data lies between two centres.
+3. Multiply each edge count by `exp(-|c_i - c_j|² / 2σ²)`, with σ² the
+   median squared edge length. Long edges come from points far from every
+   centre, and down-weighting them separates close concentric rings: 0.86
+   becomes 0.97 at 20k.
+4. Run spectral clustering on the m × m graph. Each point takes its nearest
+   centre's label.
+
+The cost is O(n m d) plus a fixed O(fit_n m d + m³), which is linear in n.
+
+Prior art: spectral clustering on k-means centroids is KASP (Yan, Huang &
+Jordan 2009), but KASP links centroids by a kernel on centroid positions
+only. That is the "spectral on centres" baseline here, and it scores 0.27 on
+rings at 20k against MCG's 0.97. The point-voted edges are what make the
+small graph follow the data.
+
+How the design was chosen (8 families, n = 20k, two seeds):
+
+* m = 300 gives a mean ARI of 0.76 and m = 1000 gives 0.85. Rings needs
+  centres spaced more closely than the gap between rings.
+* Size-normalised edges are worse than raw counts.
+* Mutual-k-NN pruning (0.66) and dropping edges with fewer than 2 votes
+  (0.72) both hurt.
+* Gaussian weighting gives 0.90.
+* With random or 3-step-Lloyd centres instead of mini-batch k-means, rings
+  falls to 0.4–0.5.
+* On small n, m ≈ n/10 is best. Smaller centres-to-points ratios are noisy:
+  m = n/2 scores 0.52.
+
+**Results** (paired with the existing runs; data in `docs/data_mcg/`):
+
+| benchmark | MCG | LMM | spectral | notes |
+|---|---|---|---|---|
+| in-distribution, 140 tasks | 0.745 (rank 12/58) | 0.765 (rank 8) | 0.763 (rank 9) | −0.020 vs LMM, p = 0.08 (n.s.) |
+| unseen, 35 tasks | **0.890 (rank 1/59)** | 0.858 | 0.860 | +0.031 vs LMM, p = 0.01; vs spectral p = 0.22 |
+| n = 20k, 22 tasks | 0.850 in 1.3 s | 0.846 in 2.2 s | 0.853 in 7.2 s | `lmm_fast` 0.853 in 1.2 s |
+| n = 100k, 22 tasks | **0.853 in 1.5 s** | 0.837 in 40.1 s | — (too slow) | `lmm_fast` 0.844 in 8.5 s |
+| 100k × 100 × 50 | **1.00 in 3.3 s** | 1.00 in 101.5 s | — | Trident 0.99 in 3.5 s |
+| 200k × 20 × 10 | **1.00 in 2.3 s** | did not finish | — | |
+
+At n = 100k MCG is 27× faster than LMM and 6× faster than `lmm_fast`, at
+equal or better accuracy. Its time barely grows from 20k to 100k
+(1.3 s → 1.5 s) because the fixed micro-cluster step dominates.
+
+Where it is weaker:
+
+* Small real datasets, where n/10 centres are too few to resolve
+  structure: breast cancer 0.24 vs LMM 0.45, wine 0.27 vs 0.41, iris 0.64
+  vs 0.74.
+* Extreme outliers (0.56 vs 0.70) and hierarchical-nested data (about
+  0.55 vs 0.63).
+
+On small data the graph on all points is cheap anyway, so a size switch
+(exact LMM below a few thousand points, MCG above) would combine the two.
+It gains on moons (0.98 vs 0.63 in-distribution) and on mixed shapes at
+large n (1.00 vs 0.86).
+
+## Round 21: tiered MCG with CF triples (`mcg_cf`)
+
+Flat MCG had two weaknesses:
+
+* **Small real datasets.** One centre per 10 points is too coarse there.
+* **One global edge bandwidth.** It cuts sparse clusters apart and lets
+  far outliers link up.
+
+`mcg_cf` borrows two ideas from BIRCH's clustering-feature (CF) tree.
+
+1. **Tiers.** A coarse k-means with about 2√m centres, then each coarse
+   cluster is split locally into children in proportion to its point count
+   (hierarchical k-means). Resolution goes where the points are, and the
+   local fits are cheaper than one k-means with m centres.
+2. **CF-triple edge weights.** Each micro-cluster's triple (N, LS, SS) gives
+   its mean squared radius R² = SS/N − |LS/N|² in one pass. Each edge is
+   then weighted `count · exp(-|c_i - c_j|² / (γ (R_i² + R_j²)))`, so the
+   bandwidth is local instead of a global median.
+
+How the setting was chosen:
+
+* Selection used only the unseen suite and the n = 20k suite. The 140
+  in-distribution tasks were held out.
+* γ = 1 was best on the selection suites (unseen 0.917, n = 20k 0.906).
+* On the held-out set, γ = 2 and a mixed local/global scale would have
+  scored higher (0.766 and 0.771), but they were not selected.
+* Allocating children by N·R (spread) instead of N was worse at 20k
+  (0.858 vs 0.876 with global weights). The two parts separately:
+  * Tiers alone fix small data (breast cancer 0.24 → 0.45) but break
+    extreme outliers (0.56 → 0.27) and variable-density bridges at 20k
+    (0.85 → 0.63).
+  * CF weights alone fix extreme outliers (0.81) but not small data.
+  * Together they fix both.
+
+Results, paired with the existing runs (data in `docs/data_mcg/results_cf_*.json`):
+
+| benchmark | `mcg_cf` | `mcg` | LMM | spectral | best other |
+|---|---|---|---|---|---|
+| in-distribution, 140 tasks (held out) | 0.760 (rank 11/59) | 0.745 | 0.765 | 0.763 | router v3 0.815 |
+| unseen, 35 tasks | **0.917 (rank 1/60)** | 0.890 | 0.858 | 0.860 | tbmm 0.869 |
+| n = 20k, 22 tasks | 0.855 in **0.54 s** | 0.850 in 1.30 s | 0.846 in 2.2 s | 0.853 in 7.2 s | `lmm_fast` 0.853 in 1.2 s |
+| n = 100k, 22 tasks | **0.859 in 0.74 s** | 0.853 in 1.50 s | 0.837 in 40.1 s | — | `lmm_fast` 0.844 in 8.5 s |
+| 100k × 100 × 50 | 1.00 in 1.34 s | 1.00 in 3.33 s | 1.00 in 101.5 s | — | |
+| 200k × 20 × 10 | 1.00 in 1.09 s | 1.00 in 2.28 s | did not finish | — | |
+
+Paired Wilcoxon tests:
+
+* In-distribution: `mcg_cf` − LMM = −0.005 (p = 0.053), and vs spectral
+  −0.003 (p = 0.14). Neither is significant, so `mcg_cf` is statistically
+  tied with both. The learned routers are still significantly better
+  (−0.055 vs router v3, p ≈ 1e-7).
+* Unseen: +0.059 vs LMM (p = 0.12) and +0.072 vs router v3 (p = 0.10).
+  It ranks first, but with 35 tasks the gaps are not significant.
+
+At n = 100k `mcg_cf` is 54× faster than LMM and 11× faster than `lmm_fast`,
+and more accurate than both. On the big-data scaling axes its cost is
+nearly flat in n (0.46 s at 10k, 0.65 s at 50k, 1.09 s at 200k), and its
+accuracy at k = 200 rises from 0.969 to 0.995.
+
+What it still does not do:
+
+* Spiral (0.17 for every method).
+* d = 5 overlap, where all methods score 0.49–0.66.
+* Hierarchical-nested data at 20k (0.57 vs LMM 0.63).
+
+Prior art for the parts: BIRCH CF triples (Zhang et al. 1996); hierarchical
+k-means; multi-resolution anchor graphs (U-SPEC, Huang et al. 2020).
+Locally scaled affinities follow self-tuning spectral clustering
+(Zelnik-Manor & Perona 2004), with the local scale read from CF radii
+instead of a k-th-neighbour distance.
+
+## Round 22: second stages after MCG (LMM, SVD, SVC)
+
+MCG ends with plain spectral clustering on its micro-cluster graph. Three
+alternative second stages were built on the same `mcg_cf` graph
+(`Mcg.build_graph` is now shared):
+
+* **`lmm_mcg`** (MCG → LMM). The bottom eigenvectors of the m × m graph
+  (dense, m ≤ 1000) replace LMM's all-points Laplacian basis. Each point
+  takes its nearest micro-cluster's row (`interp="hard"`) or a CF-kernel
+  blend of its two nearest (`"soft"`). LMM's EM and Yu-Shi initialisation
+  then run on the points unchanged.
+* **SVD of the bipartite graph** (anchor graph / transfer cut). Each point
+  links softly to its s nearest micro-clusters, and the left singular
+  vectors of the normalised n × m matrix give the embedding. A second
+  version also CF-kernel-weights the co-membership matrix.
+* **Support vector clustering** (Ben-Hur et al. 2001) on the micro-clusters:
+  1. Fit a one-class SVM, weighted by counts.
+  2. Join two centres when the segment between them (sampled at 4–8
+     points) stays inside the boundary.
+  3. Bisect the kernel width until there are k components holding at least
+     2% of the points each.
+
+Comparison (`scripts/mcg_second_stage.py`). Selection used the unseen and
+20k suites only; the 140-task suite is held out. Times are medians per
+task, from runs sharing the CPU:
+
+| second stage | in-distribution (held out) | unseen | 8 families, 20k | time at 20k |
+|---|---|---|---|---|
+| spectral (`mcg_cf`) | 0.760 | 0.917 | 0.906 | 0.42 s |
+| **LMM, hard** (`lmm_mcg`) | 0.764 | **0.925** | 0.906 | 0.70 s |
+| LMM, soft | 0.766 | 0.923 | 0.909 | 0.75 s |
+| SVD, s = 5, γ = 4 | 0.704 | 0.862 | 0.799 | 0.87 s |
+| SVD with CF co-membership, s = 5 | 0.600 | 0.915 | 0.780 | 0.84 s |
+| SVC, ν = 0.05 | 0.685 | 0.834 | 0.771 | 3.4 s |
+
+* **LMM is the only second stage that beats spectral.** Hard and soft tie
+  on the selection suites (0.9155 vs 0.916), so the pre-registered `hard`
+  is the default.
+* **Bipartite SVD loses the competitive-Hebbian edge structure.** Soft
+  point-to-centre links blur boundaries between touching clusters,
+  especially on small data (0.60).
+* **SVC finds connected density regions.** It cannot separate clusters
+  that touch or are bridged, so forcing exactly k components merges real
+  clusters and splits off fragments. It is also the slowest.
+
+Harness results for `lmm_mcg` (data in `docs/data_mcg/results_lmm_mcg_*.json`):
+
+| benchmark | `lmm_mcg` | `mcg_cf` | LMM | spectral | router v3 |
+|---|---|---|---|---|---|
+| in-distribution, 140 tasks | 0.764 (rank 9/60) | 0.760 | 0.765 | 0.763 | 0.815 |
+| unseen, 35 tasks | **0.925 (rank 1/61)** | 0.917 | 0.858 | 0.860 | 0.845 |
+| n = 20k, 22 tasks | 0.856 in 0.90 s | 0.855 in 0.54 s | 0.846 in 2.2 s | 0.853 in 7.2 s | |
+| n = 100k, 22 tasks | 0.858 in 1.96 s | 0.859 in 0.74 s | 0.837 in 40.1 s | — | |
+| 200k × 20 × 10 | 1.00 in 3.7 s | 1.00 in 1.1 s | did not finish | — | |
+| 100k × 100 × 50 | 1.00 in 20.9 s | 1.00 in 1.3 s | 1.00 in 101.5 s | — | |
+
+Paired Wilcoxon tests:
+
+* **In-distribution:** `lmm_mcg` and LMM are identical on average (−0.000,
+  p = 0.16). The routers remain significantly better (−0.051, p = 4e-7).
+* **Unseen:** `lmm_mcg` beats LMM (+0.066, p = 0.013), spectral (+0.065,
+  p = 0.044) and router v3 (+0.080, p = 0.013), uncorrected. Against
+  `mcg_cf` it is +0.008 (n.s.).
+  *Correction (round 23):* an earlier version of this section said these
+  wins survive Holm correction. That was true only over these three
+  comparisons, but four MCG variants were each compared with three
+  references. Over that family of 12 tests the smallest adjusted p is
+  0.142, so none of the unseen-set wins is significant.
+
+Cost:
+
+* At large n, LMM's EM dominates. `lmm_mcg` takes 2.6× `mcg_cf`'s time at
+  100k, but is still 20× faster than LMM.
+* EM cost grows with k: 20.9 s at k = 50.
+* At k = 200 the EM's Newton step allocates a (k, k, n) array (3 GB) and
+  fails, exactly as plain LMM does.
+
+Recommendation: use `lmm_mcg` for best accuracy up to moderate k, and
+`mcg_cf` when speed or large k matters.
+
+## Round 23: manifolds, `lmm_mcg_dual`, and every algorithm on every dataset
+
+### Why LMM is good on the S-curve and Swiss roll
+
+k-means is good on blobs because it assigns points by straight-line
+distance. LMM is good on manifolds because it effectively assigns points by
+distance *along the data*.
+
+The true clusters of `s_curve` and `swiss_roll` are equal-mass slices of the
+curve parameter t, with no gaps between them. On both, LMM's bottom
+Laplacian eigenvectors are cosine modes of position along the curve. With s
+the rank of t scaled to [0, 1], they match cos(π s), cos(2π s) and
+cos(3π s) with |r| = 1.00 / 1.00 / 0.99 on the S-curve and 0.99 / 0.97 /
+0.94 on the Swiss roll. They are uncorrelated with the sheet's height
+(|r| < 0.05). The embedding therefore unrolls the sheet, and clustering in
+it slices the curve.
+
+Graph distance tracks distance along the curve with rank correlation
+0.99 / 0.97. Straight-line distance does so with 0.88 on the S-curve, but
+only 0.25 on the Swiss roll, whose layers are close in 3-D. That is why:
+
+* k-means is good on the S-curve (0.91) but fails on the Swiss roll (0.21);
+* LMM gets 0.80 and 0.73.
+
+Clustering on t itself scores only 0.84, because the true slices have equal
+mass and k-means on t cuts equal widths. LMM is close to that ceiling.
+
+### Why `lmm_mcg` lost to LMM there, and the fix
+
+`lmm_mcg`'s basis is the normalised Laplacian of the CF-weighted
+micro-cluster graph. Its eigenvectors are distorted on the Swiss roll:
+modes 1–3 match at r = 0.89 / 0.62 / 0.22.
+
+Interpolation is not the cause; hard and soft give the same result. The
+Gaussian edge weights are. They sharpen cuts across gaps but bend the
+geometry of a gap-free sheet.
+
+The fix coarse-grains LMM's own point-graph Laplacian:
+
+* plain competitive-Hebbian counts as edges (a boundary-flux estimate);
+* micro-cluster point counts N as the mass, solving
+  `(D − W) v = λ diag(N) v`;
+* a linear blend of each point's two nearest micro-clusters.
+
+This is `basis="count"`. It recovers LMM's modes (r = 1.00 / 0.97 / 0.93 on
+the Swiss roll; 0.82 / 0.73 ARI on S-curve / Swiss roll vs LMM 0.81 / 0.73)
+at MCG's cost. Tiers matter: S-curve 0.87 with two tiers, 0.69 flat. The
+mass weighting barely does.
+
+But the count basis cuts gaps less sharply (unseen 0.863 vs 0.925 for the CF
+basis). `lmm_mcg_dual` (`basis="both"`) gives EM both bases, 2k columns.
+An eigengap switch between the two (use the CF basis when
+λ_k / λ_{k−1} ≥ 5 or 20) picked the count basis almost always and was no
+better.
+
+| variant | in-distribution (140) | unseen (35) | 20k (16) | curved shapes (48) |
+|---|---|---|---|---|
+| `lmm` | 0.765 | 0.858 | 0.894 | 0.738 |
+| `lmm_mcg` (CF basis) | 0.764 | **0.925** | **0.906** | 0.812 |
+| count basis | 0.766 | 0.863 | 0.902 | 0.780 |
+| **`lmm_mcg_dual`** | **0.769** | 0.892 | 0.905 | 0.833 |
+| eigengap switch | 0.760–0.764 | 0.863–0.864 | 0.902 | 0.780–0.793 |
+
+These suites were used for development here, so these are not held-out
+numbers. The harness reproduces them exactly.
+
+### Canonical tables now include the MCG family
+
+`docs/data` (61 algorithms, 8539 rows) and `docs/data_unseen` (62
+algorithms, 2170 rows) now include `mcg`, `mcg_cf`, `lmm_mcg` and
+`lmm_mcg_dual`. The merged runs are `runs/validity/indist_all61` and
+`unseen_all62`.
+
+**In-distribution, by mean ARI:**
+
+1. routers v3/v5/v7: 0.815
+2. ...
+8. `lmm_mcg_dual`: 0.769
+9. `lmm`: 0.765
+10. `lmm_mcg`: 0.764
+11. `spectral`: 0.763
+13. `mcg_cf`: 0.760
+15. `mcg`: 0.745
+
+Average ranks: LMM 20.95, spectral 21.57, `lmm_mcg_dual` 22.50. The Nemenyi
+critical difference is 8.70.
+
+**Unseen, by mean ARI:**
+
+1. `lmm_mcg`: 0.925
+2. `mcg_cf`: 0.917
+3. `lmm_mcg_dual`: 0.892
+4. `mcg`: 0.890
+5. `tbmm`: 0.869
+7. `spectral`: 0.860
+8. `lmm`: 0.858
+
+By average rank, `mcg` leads (17.51), then `lmm_mcg_dual` (18.31),
+`lmm_mcg` (18.37) and spectral (18.73). The critical difference is 17.6.
+
+**Paired Wilcoxon tests,** Holm-corrected over the family of 12 tests (four
+MCG variants × LMM, spectral and router v3):
+
+* **In-distribution:** no MCG variant differs from LMM or spectral
+  (adjusted p ≥ 0.47). All four are significantly below router v3
+  (adjusted p ≤ 6e-5).
+* **Unseen:** every MCG variant is ahead of LMM, spectral and router v3 on
+  average (+0.03 to +0.08), but none survives the correction (smallest
+  adjusted p = 0.117). This corrects round 22's claim.
+
+### Every algorithm on every dataset (`configs/benchmark.shapes.yaml`, `docs/data_shapes/`)
+
+The grid:
+
+* 63 algorithms, including `lmm_fast`, `spectral_fast` and `lmm_mcg_dual`.
+* 180 tasks: 20 shape and mixture generators at n = 2000, in their native
+  2-D/3-D and padded to d = 10 (rings and spirals at k = 3 and 5); all 14
+  real datasets at native size; the SBM graph and synthetic time series.
+* 3 seeds; 120 s / 3 GB per run, each run isolated.
+
+Of 11,328 runs, 12 did not finish: mean-shift on digits (d = 64) and
+Olivetti (d = 50). Overview (task-averaged mean ARI, DNF = 0; group rank in
+brackets):
+
+| algorithm | all | curved shapes | mixtures | density / imbalance / outliers | convex blobs | real |
+|---|---|---|---|---|---|---|
+| `lmm_mcg_dual` | **0.684** (1) | 0.833 (2) | 0.757 (7) | 0.670 (7) | 0.769 (24) | 0.366 (15) |
+| `lmm_mcg` | 0.674 (2) | 0.812 (3) | 0.748 (10) | 0.675 (5) | 0.768 (25) | 0.352 (26) |
+| `mcg_cf` | 0.667 (3) | 0.803 (4) | 0.739 (13) | 0.677 (2) | 0.766 (30) | 0.343 (32) |
+| `lmm_fast` | 0.667 (4) | 0.765 (7) | 0.788 (3) | 0.640 (23) | 0.770 (22) | 0.359 (21) |
+| `spectral` | 0.665 (5) | 0.776 (5) | 0.779 (5) | 0.661 (11) | 0.753 (36) | 0.345 (30) |
+| `mcg` | 0.662 (7) | **0.863** (1) | 0.673 (40) | 0.671 (6) | 0.743 (41) | 0.323 (45) |
+| `lmm` | 0.659 (8) | 0.738 (8) | 0.787 (4) | 0.639 (24) | 0.769 (23) | 0.359 (20) |
+| `tbmm_fl` | 0.649 (9) | 0.692 (11) | **0.790** (1) | 0.635 (27) | 0.775 (15) | 0.364 (17) |
+| `learned_router_v4` | 0.580 (16) | 0.354 (22) | 0.722 (18) | 0.668 (8) | 0.783 (14) | **0.490** (1) |
+| `gmm` | 0.539 (26) | 0.258 (38) | 0.755 (8) | 0.642 (21) | **0.804** (1) | 0.398 (8) |
+| `birch_algo` | 0.437 (50) | 0.223 (49) | 0.572 (52) | **0.687** (1) | 0.720 (43) | 0.251 (54) |
+
+Findings:
+
+* **Curved shapes split the field.**
+  * The MCG family takes the top four places. Flat `mcg`: moons 0.98,
+    rings 0.95, spirals 0.89. `lmm_mcg_dual`: S-curve 0.79, Swiss roll
+    0.72.
+  * Centroid methods and the routers collapse. Circles are 0.00 for
+    k-means, GMM and router v3; router v3 scores 0.17 on spirals.
+  * The routers were trained on families where centroid methods are
+    usually right, and they pick them here too.
+* **Flat `mcg` is the best curved-shape method in 2-D** (moons 0.99 vs 0.66
+  for the tiered variants and spectral; 5 rings 0.90 vs about 0.6; 5
+  spirals 0.76 vs 0.25 for spectral). The likely cause, not yet tested, is
+  that in 2-D neighbouring arms are closer than a micro-cluster's CF
+  spread, so the local bandwidth links them. At d = 10 the tiered variants
+  catch up.
+* **Mixtures favour the full-graph EM methods** (TBMM, LMM, spectral; about
+  0.78–0.79). MCG variants are 0.67–0.76: they trail on hierarchical-nested
+  and heavy-tailed data.
+* **Convex blobs favour GMM and k-means**, as expected (0.79–0.80).
+* **Real data favours the routers only where they have seen it.** Overall
+  they lead (0.49 vs 0.40 for GMM). On the 7 real datasets that are in their
+  training table (iris, wine, breast cancer, digits, ECG200, Trace, karate;
+  here at other n and d) they score 0.68 vs 0.52 for the best single
+  method. On the 7 they have never seen (ecoli, glass, yeast, vehicle,
+  segment, Olivetti, 20 newsgroups) they score 0.30, level with the best
+  single methods (0.30, `bico_stream`). This is the LOFO result again, on
+  real data.
+* **The MCG variants are weakest on real data** (0.32–0.37). `lmm_mcg`
+  scores 0.02 on Olivetti faces: with n = 400 and k = 40, the
+  `max(n/10, 10k)` rule asks for about 400 micro-clusters (one per point),
+  so there is no graph left to cut.
+* **Density and imbalance:** BIRCH, `mcg_cf` and agglomerative lead
+  (0.68–0.69).
+
+### Scaling of the MCG family
+
+Added to `docs/data_bigdata`, with exponents of wall time in n / d / k:
+
+| algorithm | exp. n | exp. d | exp. k | 200k × 20 × 10 | 100k × 100 × 50 |
+|---|---|---|---|---|---|
+| `mcg_cf` | 0.32 | 0.23 | 0.13 | 1.1 s | 1.3 s |
+| `mcg` | 0.48 | 0.35 | 0.01 | 2.3 s | 3.3 s |
+| `lmm_mcg` | 0.60 | 0.18 | 0.43 | 3.7 s | 20.9 s |
+| `lmm_mcg_dual` | 0.61 | 0.27 | 0.53 | 5.9 s | DNF |
+
+`lmm_mcg_dual`'s 2k basis makes LMM's Newton step allocate a (k, 2k, n)
+array. It runs out of memory at 100k × 100 × 50 (3.7 GB) and at k = 200,
+where `lmm_mcg` and plain LMM fail only at k = 200.

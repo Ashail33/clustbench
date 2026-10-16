@@ -1,0 +1,402 @@
+# Big-data scaling sweep: how does each algorithm's cost and quality grow
+# with the number of points (n), features (d) and clusters (k)?
+#
+# One-factor-at-a-time from a base of n=10,000, d=20, k=10 (MDCGen blobs),
+# plus one large corner (n=100k, d=100, k=50). Every algorithm gets a 120 s
+# budget per run; each run executes in its own forked child that may allocate
+# at most 3 GB and is hard-killed at the time limit, so runs that do not
+# finish are recorded (error_type Timeout / MemoryError) instead of stalling
+# or killing the sweep.
+#
+#   clustbench --config configs/benchmark.bigdata.yaml --out runs/bigdata
+#   python scripts/scaling_report.py runs/bigdata
+datasets:
+- id: mdcgen
+  n_samples:
+  - 2000
+  - 10000
+  - 50000
+  - 200000
+  n_features:
+  - 20
+  k_targets:
+  - 10
+  compactness:
+  - 1.0
+  outliers:
+  - 0
+  noise:
+  - 0
+  density:
+  - 1.0
+- id: mdcgen
+  n_samples:
+  - 10000
+  n_features:
+  - 5
+  - 100
+  - 500
+  k_targets:
+  - 10
+  compactness:
+  - 1.0
+  outliers:
+  - 0
+  noise:
+  - 0
+  density:
+  - 1.0
+- id: mdcgen
+  n_samples:
+  - 10000
+  n_features:
+  - 20
+  k_targets:
+  - 3
+  - 50
+  - 200
+  compactness:
+  - 1.0
+  outliers:
+  - 0
+  noise:
+  - 0
+  density:
+  - 1.0
+- id: mdcgen
+  n_samples:
+  - 100000
+  n_features:
+  - 100
+  k_targets:
+  - 50
+  compactness:
+  - 1.0
+  outliers:
+  - 0
+  noise:
+  - 0
+  density:
+  - 1.0
+algorithms:
+- name: parallel_kmeans
+  kind: python
+  entry: parallel_kmeans
+  params:
+    max_iter: 50
+    n_init: 2
+    n_workers: 1
+- name: minibatch_kmeans
+  kind: python
+  entry: minibatch_kmeans
+  params:
+    batch_size: 100
+    max_iter: 100
+- name: pwcc
+  kind: python
+  entry: pwcc
+  params:
+    base:
+    - kmeans
+    - minibatch_kmeans
+    - birch_algo
+- name: s5c
+  kind: python
+  entry: s5c
+  params:
+    sample_size: 200
+    n_nonzero_coefs: 5
+- name: kmeans
+  kind: python
+  entry: kmeans
+  params:
+    max_iter: 100
+    n_init: 3
+- name: dbscan
+  kind: python
+  entry: dbscan
+  params:
+    eps: 0.8
+    min_samples: 5
+- name: birch_algo
+  kind: python
+  entry: birch_algo
+  params:
+    threshold: 1.0
+- name: clarans
+  kind: python
+  entry: clarans
+  params:
+    numlocal: 2
+    maxneigh: 30
+- name: consensus
+  kind: python
+  entry: consensus
+  params:
+    base:
+    - kmeans
+    - minibatch_kmeans
+    - birch_algo
+- name: gmm
+  kind: python
+  entry: gmm
+  params:
+    max_iter: 100
+    n_init: 1
+- name: agglomerative
+  kind: python
+  entry: agglomerative
+  params:
+    linkage: ward
+- name: spectral
+  kind: python
+  entry: spectral
+  params:
+    n_neighbors: 10
+- name: meanshift
+  kind: python
+  entry: meanshift
+  params:
+    bin_seeding: true
+- name: optics
+  kind: python
+  entry: optics
+  params:
+    min_samples: 5
+    xi: 0.05
+  max_n: 20000
+- name: mri
+  kind: python
+  entry: mri
+  params:
+    n_neighbors: 15
+    n_echoes: 6
+    n_gradient_axes: 3
+- name: fmm
+  kind: python
+  entry: fmm
+  params:
+    n_frequencies: 64
+    n_scales: 3
+    max_iter: 40
+- name: lmm
+  kind: python
+  entry: lmm
+  params: {}
+- name: kmeans_trimmed
+  kind: python
+  entry: kmeans_trimmed
+  params:
+    trim: 0.1
+    n_init: 3
+    max_iter: 100
+- name: clarans_pp
+  kind: python
+  entry: clarans_pp
+  params:
+    numlocal: 2
+    maxneigh: 80
+- name: dbscan_auto
+  kind: python
+  entry: dbscan_auto
+  params:
+    min_samples: 5
+- name: meanshift_robust
+  kind: python
+  entry: meanshift_robust
+  params:
+    trim: 0.2
+    quantile: 0.2
+- name: pwcc_diverse
+  kind: python
+  entry: pwcc_diverse
+  params:
+    base:
+    - kmeans
+    - spectral
+    - gmm
+- name: aura
+  kind: python
+  entry: aura
+  params: {}
+- name: meta_clusterer
+  kind: python
+  entry: meta_clusterer
+  params: {}
+- name: rapid
+  kind: python
+  entry: rapid
+  params: {}
+- name: aura_v2
+  kind: python
+  entry: aura_v2
+  params: {}
+- name: meta_clusterer_v2
+  kind: python
+  entry: meta_clusterer_v2
+  params: {}
+- name: rapid_v2
+  kind: python
+  entry: rapid_v2
+  params: {}
+- name: aura_v3
+  kind: python
+  entry: aura_v3
+  params: {}
+- name: meta_clusterer_v3
+  kind: python
+  entry: meta_clusterer_v3
+  params: {}
+- name: rapid_v3
+  kind: python
+  entry: rapid_v3
+  params: {}
+- name: learned_router
+  kind: python
+  entry: learned_router
+  params:
+    k_neighbors: 5
+- name: learned_router_v2
+  kind: python
+  entry: learned_router_v2
+  params:
+    k_neighbors: 5
+- name: learned_router_v3
+  kind: python
+  entry: learned_router_v3
+  params:
+    k_neighbors: 5
+- name: learned_router_v4
+  kind: python
+  entry: learned_router_v4
+  params: {}
+- name: learned_router_v5
+  kind: python
+  entry: learned_router_v5
+  params: {}
+- name: learned_router_v6
+  kind: python
+  entry: learned_router_v6
+  params: {}
+- name: learned_router_v6b
+  kind: python
+  entry: learned_router_v6b
+  params: {}
+- name: learned_router_v6c
+  kind: python
+  entry: learned_router_v6c
+  params: {}
+- name: learned_router_v7
+  kind: python
+  entry: learned_router_v7
+  params: {}
+- name: learned_router_v8
+  kind: python
+  entry: learned_router_v8
+  params: {}
+- name: mutant_kmeans_meta
+  kind: python
+  entry: mutant_kmeans_meta
+  params: {}
+- name: louvain_knn
+  kind: python
+  entry: louvain_knn
+  params: {}
+- name: rl_pipeline
+  kind: python
+  entry: rl_pipeline
+  params:
+    n_rollouts: 16
+    exploration: 1.5
+    max_steps: 12
+- name: density_peaks_bridge
+  kind: python
+  entry: density_peaks_bridge
+  params: {}
+- name: bico_stream
+  kind: python
+  entry: bico_stream
+  params: {}
+- name: isomap_bgmm
+  kind: python
+  entry: isomap_bgmm
+  params: {}
+- name: trident
+  kind: python
+  entry: trident
+  params: {}
+- name: amm
+  kind: python
+  entry: amm
+  params: {}
+- name: tbmm
+  kind: python
+  entry: tbmm
+  params: {}
+- name: tbmm_fl
+  kind: python
+  entry: tbmm
+  params:
+    blocks:
+    - fourier
+    - laplacian
+- name: flhmm
+  kind: python
+  entry: flhmm
+  params: {}
+- name: flhmm_km
+  kind: python
+  entry: flhmm
+  params:
+    head: kmeans
+- name: flhmm_laplace_km
+  kind: python
+  entry: flhmm
+  params:
+    head: kmeans
+    blocks:
+    - laplace
+- name: flhmm_hilbert_km
+  kind: python
+  entry: flhmm
+  params:
+    head: kmeans
+    blocks:
+    - hilbert
+- name: flh_cycle
+  kind: python
+  entry: flh_cycle
+  params: {}
+- name: flh_cycle_product
+  kind: python
+  entry: flh_cycle
+  params:
+    estep: product
+    handoff: 0.5
+- name: mcg
+  kind: python
+  entry: mcg
+  params: {}
+- name: mcg_cf
+  kind: python
+  entry: mcg_cf
+  params: {}
+- name: lmm_mcg
+  kind: python
+  entry: lmm_mcg
+  params: {}
+- name: lmm_mcg_dual
+  kind: python
+  entry: lmm_mcg_dual
+  params: {}
+seeds:
+- 1
+strict_provenance: true
+timing:
+  repeats: 1
+  threads: 1
+  warmup: true
+  timeout_s: 120
+resources:
+  isolate: true
+  memory_limit_gb: 3

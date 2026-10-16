@@ -1,0 +1,18 @@
+[
+ {
+  "algo": "spectral",
+  "dataset_id": "heavy_tailed_mixture",
+  "n_samples": 20000,
+  "n_features": 20,
+  "k_target": 10,
+  "compactness": 1.0,
+  "seed": 2,
+  "outliers": 0,
+  "noise": 0,
+  "density": 1.0,
+  "outlier_extremity": 1.0,
+  "dataset_source": "synthetic",
+  "error_type": "Timeout",
+  "error_message": "exceeded 300s (killed)"
+ }
+]

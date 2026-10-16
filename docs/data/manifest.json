@@ -769,7 +769,7 @@
   },
   "shards": [
     {
-      "run_dir": "runs/validity/indist_a",
+      "run_dir": "runs/validity/indist_all",
       "config_sha256": "5fbc33e8fd7bcab5199a6f1fde9e4e694f542b4e7cb3651e78e680fac039cf81",
       "generated_at": "2026-10-15 09:28:45",
       "datasets": [
@@ -777,14 +777,7 @@
         "anisotropic",
         "moons",
         "circles",
-        "anisotropic"
-      ]
-    },
-    {
-      "run_dir": "runs/validity/indist_b",
-      "config_sha256": "6cc3321e7be8b5161685a56a10f1e065f29ce646772264fef11f11c714eb36aa",
-      "generated_at": "2026-10-15 09:28:44",
-      "datasets": [
+        "anisotropic",
         "iris",
         "wine",
         "breast_cancer",
@@ -794,14 +787,7 @@
         "ts_trace",
         "ts_synth",
         "graph_karate",
-        "graph_sbm"
-      ]
-    },
-    {
-      "run_dir": "runs/validity/indist_c",
-      "config_sha256": "5c5051e66281ef4d6e1d337b061d3f3b556d84dd9a7847f487c757afa2578d9e",
-      "generated_at": "2026-10-15 09:28:44",
-      "datasets": [
+        "graph_sbm",
         "inverse_pca",
         "hierarchical_nested",
         "imbalanced_blobs",
@@ -811,12 +797,115 @@
       ]
     },
     {
-      "run_dir": "runs/validity/indist_fix",
-      "config_sha256": "f86801e0a6c74fb06ad1b7b36834766af59fe9fe191e2a9027187804f438404d",
-      "generated_at": "2026-10-15 11:30:24",
+      "run_dir": "runs/mcg/paper",
+      "config_sha256": "f0dfa5f62c9c9d3f92a84df616aaffc8a284353e260df88912d874f6a6f9cc42",
+      "generated_at": "2026-10-16 20:58:11",
       "datasets": [
+        "mdcgen",
+        "anisotropic",
+        "moons",
+        "circles",
+        "iris",
+        "wine",
         "breast_cancer",
-        "imbalanced_blobs"
+        "digits",
+        "anisotropic",
+        "extreme_outliers",
+        "ts_ecg200",
+        "ts_trace",
+        "ts_synth",
+        "graph_karate",
+        "graph_sbm",
+        "inverse_pca",
+        "hierarchical_nested",
+        "imbalanced_blobs",
+        "heavy_tailed_mixture",
+        "PowerLawStudentT",
+        "VariableDensityBridges"
+      ]
+    },
+    {
+      "run_dir": "runs/mcg_cf/paper",
+      "config_sha256": "8a2f2bb24867a8464c615a6718cac61917b2deb6842773383f5dbf77a2a9f944",
+      "generated_at": "2026-10-16 21:12:47",
+      "datasets": [
+        "mdcgen",
+        "anisotropic",
+        "moons",
+        "circles",
+        "iris",
+        "wine",
+        "breast_cancer",
+        "digits",
+        "anisotropic",
+        "extreme_outliers",
+        "ts_ecg200",
+        "ts_trace",
+        "ts_synth",
+        "graph_karate",
+        "graph_sbm",
+        "inverse_pca",
+        "hierarchical_nested",
+        "imbalanced_blobs",
+        "heavy_tailed_mixture",
+        "PowerLawStudentT",
+        "VariableDensityBridges"
+      ]
+    },
+    {
+      "run_dir": "runs/lmm_mcg/paper",
+      "config_sha256": "890d9eff6d80360737823d91ce4501203d57637d097d957752634ff87cc2bed2",
+      "generated_at": "2026-10-16 21:35:30",
+      "datasets": [
+        "mdcgen",
+        "anisotropic",
+        "moons",
+        "circles",
+        "iris",
+        "wine",
+        "breast_cancer",
+        "digits",
+        "anisotropic",
+        "extreme_outliers",
+        "ts_ecg200",
+        "ts_trace",
+        "ts_synth",
+        "graph_karate",
+        "graph_sbm",
+        "inverse_pca",
+        "hierarchical_nested",
+        "imbalanced_blobs",
+        "heavy_tailed_mixture",
+        "PowerLawStudentT",
+        "VariableDensityBridges"
+      ]
+    },
+    {
+      "run_dir": "runs/lmm_mcg_dual/paper",
+      "config_sha256": "e654d785ffb444a05ad5b2a2f132aa5a2c4529482a1c671531778fe129ec2ef0",
+      "generated_at": "2026-10-16 22:40:46",
+      "datasets": [
+        "mdcgen",
+        "anisotropic",
+        "moons",
+        "circles",
+        "iris",
+        "wine",
+        "breast_cancer",
+        "digits",
+        "anisotropic",
+        "extreme_outliers",
+        "ts_ecg200",
+        "ts_trace",
+        "ts_synth",
+        "graph_karate",
+        "graph_sbm",
+        "inverse_pca",
+        "hierarchical_nested",
+        "imbalanced_blobs",
+        "heavy_tailed_mixture",
+        "PowerLawStudentT",
+        "VariableDensityBridges"
       ]
     }
   ]

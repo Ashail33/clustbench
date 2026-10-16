@@ -7,10 +7,16 @@ reproducible from a clean checkout without re-running the benchmark:
 
 Inputs
 ------
-docs/data/results.json          in-distribution benchmark (47 algorithms)
-docs/data_unseen/results.json   out-of-distribution benchmark (42 algorithms)
+docs/data/results.json          in-distribution benchmark (61 algorithms)
+docs/data_unseen/results.json   out-of-distribution benchmark (62 algorithms)
 docs/data/summary.json          average ranks + Friedman test
 docs/data/trajectories.json     per-step trajectory records
+docs/data_bigdata/              big-data scaling sweep (scaling_axes.pdf)
+docs/data_shapes/               every algorithm on every dataset
+docs/data_fastgraph/            graph clustering at n = 20k / 100k
+
+The manifold and gallery figures recompute labels / eigenvectors from the
+generators (same data and seeds as the benchmark).
 
 Outputs (PDF) go to ``paper/figures/``.
 """
@@ -57,6 +63,11 @@ ROUTERS = {
     "learned_router_v7",
     "learned_router_v8",
 }
+MCG = {"mcg", "mcg_cf", "lmm_mcg", "lmm_mcg_dual"}
+
+
+def colour(a: str) -> str:
+    return "#c0504d" if a in ROUTERS else "#2e8b57" if a in MCG else "#4f81bd"
 
 
 def load(path: str) -> list[dict]:
@@ -83,8 +94,8 @@ def fig_rank_bars(summary: dict) -> None:
     ranks = summary["ari"]["average_ranks"]
     names = [r["algo"] for r in ranks]
     vals = [r["rank"] for r in ranks]
-    colors = ["#c0504d" if n in ROUTERS else "#4f81bd" for n in names]
-    fig, ax = plt.subplots(figsize=(3.4, 6.2))
+    colors = [colour(n) for n in names]
+    fig, ax = plt.subplots(figsize=(3.4, 7.2))
     y = np.arange(len(names))[::-1]
     ax.barh(y, vals, color=colors, height=0.75)
     ax.set_yticks(y)
@@ -98,7 +109,8 @@ def fig_rank_bars(summary: dict) -> None:
     from matplotlib.patches import Patch
 
     ax.legend(
-        handles=[Patch(color="#c0504d", label="learned router"), Patch(color="#4f81bd", label="other")],
+        handles=[Patch(color="#c0504d", label="learned router"), Patch(color="#2e8b57", label="MCG family"),
+                 Patch(color="#4f81bd", label="other")],
         loc="upper right",
         frameon=False,
     )
@@ -124,12 +136,16 @@ def fig_heatmap(rows: list[dict]) -> None:
         "rapid",
         "aura_v3",
         "trident",
+        "tbmm_fl",
+        "mcg_cf",
+        "lmm_mcg",
+        "lmm_mcg_dual",
         "learned_router",
         "learned_router_v3",
     ]
     datasets = sorted({d for d, _ in pd_}, key=str.lower)
     M = np.array([[pd_.get((d, a), np.nan) for a in algos] for d in datasets])
-    fig, ax = plt.subplots(figsize=(6.8, 4.6))
+    fig, ax = plt.subplots(figsize=(7.0, 4.8))
     im = ax.imshow(M, cmap="viridis", vmin=0, vmax=1, aspect="auto")
     ax.set_xticks(range(len(algos)))
     ax.set_xticklabels(algos, rotation=60, ha="right")
@@ -140,7 +156,7 @@ def fig_heatmap(rows: list[dict]) -> None:
             v = M[i, j]
             if np.isnan(v):
                 continue
-            ax.text(j, i, f"{v:.2f}", ha="center", va="center", fontsize=4.6,
+            ax.text(j, i, f"{v:.2f}", ha="center", va="center", fontsize=4.0,
                     color="white" if v < 0.55 else "black")
     cb = fig.colorbar(im, ax=ax, fraction=0.03, pad=0.01)
     cb.set_label("mean ARI over seeds")
@@ -155,7 +171,7 @@ def fig_ood(rows_in: list[dict], rows_ood: list[dict]) -> None:
     fig, ax = plt.subplots(figsize=(3.4, 3.2))
     for a in common:
         is_r = a in ROUTERS
-        ax.scatter(a_in[a], a_ood[a], s=14, c="#c0504d" if is_r else "#4f81bd",
+        ax.scatter(a_in[a], a_ood[a], s=14, c=colour(a),
                    marker="s" if is_r else "o", zorder=3)
     label = {
         "lmm": ("lmm / spectral", (-58, 5)),
@@ -167,6 +183,10 @@ def fig_ood(rows_in: list[dict], rows_ood: list[dict]) -> None:
         "aura_v3": ("aura_v2/v3", (5, -9)),
         "meta_clusterer_v2": ("meta_clusterer_v2/v3", (5, -3)),
         "agglomerative": ("agglomerative", (-52, 3)),
+        "lmm_mcg": ("lmm_mcg", (-34, 3)),
+        "mcg_cf": ("mcg_cf", (5, -2)),
+        "lmm_mcg_dual": ("lmm_mcg_dual", (5, -3)),
+        "mcg": ("mcg", (-20, -7)),
     }
     for a, (txt, off) in label.items():
         if a in a_in and a in a_ood:
@@ -271,7 +291,7 @@ def fig_ci_forest(summary: dict, top: int = 25) -> None:
         c = ci.get(a)
         if not c:
             continue
-        col = "#c0504d" if a in ROUTERS else "#4f81bd"
+        col = colour(a)
         ax1.plot([c["ci_low"], c["ci_high"]], [yi, yi], c=col, lw=1.2)
         ax1.plot(c["mean"], yi, "o", c=col, ms=3)
         ax2.plot(rk[a], yi, "s", c=col, ms=3)
@@ -318,6 +338,180 @@ def fig_scaling(path: str = "docs/data_scaling/results.json") -> None:
     plt.close(fig)
 
 
+def fig_bigdata_scaling() -> None:
+    """The big-data sweep's wall time against n, d and k (from scaling_report.py)."""
+    import shutil
+
+    src = ROOT / "docs/data_bigdata/scaling_axes.pdf"
+    if src.exists():
+        shutil.copy(src, OUT / "bigdata_axes.pdf")
+
+
+SHAPE_GROUPS = {
+    "curved shapes": ["moons", "circles", "rings", "spiral", "s_curve", "swiss_roll"],
+    "mixtures": ["mixed_shapes", "mixed", "VariableDensityBridges", "hierarchical_nested",
+                 "heavy_tailed_mixture", "PowerLawStudentT"],
+    "density /\nimbalance /\noutliers": ["varying_density", "imbalanced", "imbalanced_blobs", "extreme_outliers"],
+    "convex blobs": ["blobs", "anisotropic", "mdcgen", "inverse_pca"],
+    "real data": ["iris", "wine", "breast_cancer", "digits", "ecoli", "glass", "yeast", "vehicle", "segment",
+                  "olivetti_faces", "text20news", "ts_ecg200", "ts_trace", "graph_karate"],
+}
+
+
+def fig_shapes_groups() -> None:
+    """Mean ARI per dataset group for selected algorithms (DNF counts as 0)."""
+    p = ROOT / "docs/data_shapes/results.json"
+    if not p.exists():
+        return
+    rows = json.load(open(p))
+    fails = json.load(open(ROOT / "docs/data_shapes/failures.json")) if (ROOT / "docs/data_shapes/failures.json").exists() else []
+    vals = defaultdict(list)
+    fam = {f: g for g, fs in SHAPE_GROUPS.items() for f in fs}
+    for r in rows:
+        if r["dataset_id"] in fam:
+            vals[(r["algo"], fam[r["dataset_id"]])].append(r["ari"] if r["ari"] is not None else 0.0)
+    for f in fails:
+        if f["dataset_id"] in fam:
+            vals[(f["algo"], fam[f["dataset_id"]])].append(0.0)
+    algos = ["kmeans", "gmm", "agglomerative", "birch_algo", "dbscan_auto", "spectral", "lmm", "tbmm_fl",
+             "mcg", "mcg_cf", "lmm_mcg", "lmm_mcg_dual", "learned_router_v3"]
+    groups = list(SHAPE_GROUPS)
+    M = np.array([[np.mean(vals[(a, g)]) if vals[(a, g)] else np.nan for g in groups] for a in algos])
+    fig, ax = plt.subplots(figsize=(4.6, 3.6))
+    im = ax.imshow(M, cmap="viridis", vmin=0, vmax=1, aspect="auto")
+    ax.set_xticks(range(len(groups)))
+    ax.set_xticklabels(groups, fontsize=6.5)
+    ax.set_yticks(range(len(algos)))
+    ax.set_yticklabels(algos, fontsize=6.5)
+    for i in range(M.shape[0]):
+        for j in range(M.shape[1]):
+            v = M[i, j]
+            ax.text(j, i, f"{v:.2f}", ha="center", va="center", fontsize=5.5,
+                    color="white" if v < 0.55 else "black",
+                    weight="bold" if v >= np.nanmax(M[:, j]) - 1e-9 else "normal")
+    fig.colorbar(im, ax=ax, fraction=0.04, pad=0.02).set_label("mean ARI")
+    fig.tight_layout()
+    fig.savefig(OUT / "shapes_groups.pdf")
+    plt.close(fig)
+
+
+def fig_shapes_gallery() -> None:
+    """Six 2-D shapes coloured by the truth and by seven algorithms (seed 1)."""
+    import warnings
+
+    from sklearn.metrics import adjusted_rand_score
+    from threadpoolctl import threadpool_limits
+
+    from clustbench.algorithms.base import ALGO_REGISTRY
+    from clustbench.datasets import DATASETS, DataSpec
+
+    sets = [("moons", 2, 2), ("rings", 2, 5), ("spiral", 2, 3), ("swiss_roll", 3, 4),
+            ("mixed_shapes", 2, 5), ("VariableDensityBridges", 2, 4)]
+    cols = ["truth", "kmeans", "gmm", "spectral", "lmm", "mcg", "lmm_mcg_dual", "learned_router_v3"]
+    fig, axes = plt.subplots(len(sets), len(cols), figsize=(7.0, 5.6))
+    with warnings.catch_warnings(), threadpool_limits(1):
+        warnings.simplefilter("ignore")
+        for i, (name, d, k) in enumerate(sets):
+            X, y = DATASETS[name](DataSpec(n_samples=2000, n_features=d, centers=k, compactness=1.0, seed=1))
+            X = np.asarray(X, float)
+            P = X[:, [0, 2]] if X.shape[1] == 3 else X[:, :2]
+            lo, hi = np.percentile(P, 1, axis=0), np.percentile(P, 99, axis=0)
+            pad = 0.08 * (hi - lo)
+            for j, c in enumerate(cols):
+                ax = axes[i, j]
+                if c == "truth":
+                    lab, title = y, "truth"
+                else:
+                    lab = ALGO_REGISTRY[c]().fit_predict(X, k=k).labels
+                    title = f"{c.replace('learned_router_v3', 'router v3')}\n{adjusted_rand_score(y, lab):.2f}"
+                ax.scatter(P[:, 0], P[:, 1], c=lab, s=0.4, cmap="tab10", linewidths=0, rasterized=True)
+                ax.set_xlim(lo[0] - pad[0], hi[0] + pad[0])
+                ax.set_ylim(lo[1] - pad[1], hi[1] + pad[1])
+                ax.set_xticks([])
+                ax.set_yticks([])
+                for sp_ in ax.spines.values():
+                    sp_.set_visible(True)
+                    sp_.set_linewidth(0.3)
+                ax.set_title(title, fontsize=5.5, pad=1.5)
+                if j == 0:
+                    ax.set_ylabel(name.replace("VariableDensityBridges", "density bridges"), fontsize=6)
+    fig.tight_layout(pad=0.3, h_pad=0.4, w_pad=0.2)
+    fig.savefig(OUT / "shapes_gallery.pdf", dpi=220)
+    plt.close(fig)
+
+
+def fig_manifold() -> None:
+    """Swiss roll: the first three non-trivial eigenvectors of each basis
+    against position along the roll, with the cosine modes cos(m pi s)."""
+    import warnings
+
+    from sklearn.datasets import make_swiss_roll
+    from sklearn.neighbors import NearestNeighbors
+
+    from clustbench.algorithms.base import ALGO_REGISTRY
+    from clustbench.datasets import DATASETS, DataSpec
+
+    X, _ = DATASETS["swiss_roll"](DataSpec(n_samples=2000, n_features=3, centers=4, compactness=1.0, seed=1))
+    X = np.asarray(X, float)
+    X3, t0 = make_swiss_roll(n_samples=2000, noise=0.05, random_state=1)
+    _, idx = NearestNeighbors(n_neighbors=1).fit(X3).kneighbors(X)
+    s = np.argsort(np.argsort(t0[idx[:, 0]])) / len(X)
+    bases = [("LMM (graph on all points)", ALGO_REGISTRY["lmm"](row_normalize=False)),
+             ("lmm_mcg (CF-weighted micro-cluster graph)", ALGO_REGISTRY["lmm_mcg"](row_normalize=False)),
+             ("count basis (coarse-grained Laplacian)", ALGO_REGISTRY["lmm_mcg"](basis="count", row_normalize=False))]
+    fig, axes = plt.subplots(1, 3, figsize=(7.0, 2.2), sharey=True)
+    order = np.argsort(s)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for ax, (title, alg) in zip(axes, bases):
+            alg._k_hint, alg.n_frequencies = 4, 4
+            _, V, _ = alg._build_basis(X, np.random.default_rng(42))
+            for m, colr in zip((1, 2, 3), ("#1f77b4", "#ff7f0e", "#2ca02c")):
+                v = V[:, m]
+                cm = np.cos(m * np.pi * s)
+                v = v * np.sign(np.corrcoef(v, cm)[0, 1])
+                v = (v - v.mean()) / (v.std() + 1e-12) * cm.std()
+                r = abs(np.corrcoef(V[:, m], cm)[0, 1])
+                ax.plot(s[order], v[order], ".", ms=0.6, color=colr, alpha=0.5, rasterized=True)
+                ax.plot(s[order], cm[order], "-", lw=0.6, color="k", alpha=0.6)
+                ax.text(0.03, 0.02 + 0.1 * (3 - m), f"mode {m}: |r| = {r:.2f}", transform=ax.transAxes,
+                        ha="left", va="bottom", fontsize=5.2, color=colr,
+                        bbox=dict(facecolor="white", edgecolor="none", pad=0.5, alpha=0.85))
+            ax.set_title(title, fontsize=6.5)
+            ax.set_xlabel("position along the roll, s")
+    axes[0].set_ylabel("eigenvector (scaled)")
+    fig.tight_layout()
+    fig.savefig(OUT / "manifold_eigvecs.pdf", dpi=220)
+    plt.close(fig)
+
+
+def fig_largen() -> None:
+    """Graph clustering at n = 100k: mean ARI against median wall time."""
+    p = ROOT / "docs/data_fastgraph/results_all.json"
+    if not p.exists():
+        return
+    rows = json.load(open(p))
+    acc, tim = defaultdict(list), defaultdict(list)
+    for r in rows:
+        if r["n_samples"] == 100000 and not r["algo"].endswith("_lobpcg"):
+            acc[r["algo"]].append(r["ari"])
+            tim[r["algo"]].append(r["wall_time_s"])
+    fig, ax = plt.subplots(figsize=(3.4, 2.6))
+    off = {"lmm_mcg": (-12, 7), "mcg_cf": (-8, -10), "mcg": (-4, -10), "lmm_mcg_dual": (4, -9),
+           "lmm_fast": (4, 2), "spectral_fast": (4, -8), "lmm": (-10, -9), "gmm": (-4, -9),
+           "minibatch_kmeans": (2, 5), "trident": (4, 2)}
+    for a in acc:
+        x, y = st.median(tim[a]), float(np.mean(acc[a]))
+        ax.scatter(x, y, s=16, c=colour(a), zorder=3)
+        ax.annotate(a, (x, y), fontsize=5.5, xytext=off.get(a, (4, 2)), textcoords="offset points")
+    ax.set_xscale("log")
+    ax.set_xlabel("median wall time at n = 100,000 (s)")
+    ax.set_ylabel("mean ARI (11 families, 2 seeds)")
+    fig.tight_layout()
+    fig.savefig(OUT / "largen.pdf")
+    plt.close(fig)
+
+
 def main() -> None:
     rows_in = load("docs/data/results.json")
     rows_ood = load("docs/data_unseen/results.json")
@@ -330,6 +524,11 @@ def main() -> None:
     fig_router_lineage()
     fig_ci_forest(summary)
     fig_scaling()
+    fig_bigdata_scaling()
+    fig_shapes_groups()
+    fig_largen()
+    fig_manifold()
+    fig_shapes_gallery()
     print("wrote", sorted(p.name for p in OUT.glob("*.pdf")))
 
 

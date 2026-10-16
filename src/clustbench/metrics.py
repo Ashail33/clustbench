@@ -1,5 +1,6 @@
 from __future__ import annotations
 import numpy as np
+from scipy.spatial.distance import cdist, pdist
 from sklearn.metrics import silhouette_score, davies_bouldin_score, adjusted_rand_score, normalized_mutual_info_score
 
 
@@ -44,8 +45,9 @@ def dunn_index(X: np.ndarray, labels: np.ndarray) -> float:
             continue
         m = min(len(C), 2000)
         CC = C[np.random.choice(len(C), size=m, replace=False)]
-        D = np.linalg.norm(CC[:, None, :] - CC[None, :, :], axis=2)
-        diam = max(diam, float(D.max()))
+        # pdist/cdist work in O(m^2) memory; the broadcast difference tensor
+        # this replaced was O(m^2 d) and reached 16 GB at m=2000, d=500.
+        diam = max(diam, float(pdist(CC).max()) if len(CC) > 1 else 0.0)
     if diam == 0:
         return float("nan")
     mind = np.inf
@@ -54,8 +56,7 @@ def dunn_index(X: np.ndarray, labels: np.ndarray) -> float:
             A, B = clusters[i], clusters[j]
             a = A[np.random.choice(len(A), size=min(len(A), 2000), replace=False)]
             b = B[np.random.choice(len(B), size=min(len(B), 2000), replace=False)]
-            D = np.linalg.norm(a[:, None, :] - b[None, :, :], axis=2)
-            mind = min(mind, float(D.min()))
+            mind = min(mind, float(cdist(a, b).min()))
     return float(mind / diam)
 
 

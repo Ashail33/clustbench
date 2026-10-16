@@ -139,3 +139,215 @@ def test_consensus_has_default_base():
 
     X = np.random.default_rng(0).normal(size=(60, 2))
     assert len(ALGO_REGISTRY["consensus"]().fit_predict(X, k=2).labels) == 60
+
+
+def test_tbmm_concatenates_blocks_and_solves_circles():
+    from sklearn.metrics import adjusted_rand_score
+
+    from clustbench.algorithms.base import ALGO_REGISTRY
+
+    X, y = DATASETS["circles"](DataSpec(n_samples=300, n_features=2, centers=2, compactness=1.0, seed=1))
+    res = ALGO_REGISTRY["tbmm"](ae_max_iter=50).fit_predict(X, k=2)
+    assert set(res.extra["blocks"]) == {"fourier", "laplacian", "autoencoder"}
+    assert all(v > 0 for v in res.extra["block_dims"].values())
+    assert adjusted_rand_score(y, res.labels) > 0.9
+    with pytest.raises(ValueError):
+        ALGO_REGISTRY["tbmm"](blocks=("wavelet",))
+
+
+def test_flhmm_transform_blocks_and_heads():
+    from clustbench.algorithms.base import ALGO_REGISTRY
+    from clustbench.algorithms.flhmm import hilbert_features, laplace_features
+
+    X, y = DATASETS["blobs"](DataSpec(n_samples=120, n_features=3, centers=3, compactness=1.0, seed=1))
+    rng = np.random.default_rng(0)
+    L = laplace_features(X, rng, n_s=5)
+    assert L.shape == (len(X), 5) and np.all((L > 0) & (L <= 1))
+    H = hilbert_features(X, rng, n_dirs=2)
+    assert H.shape == (len(X), 6) and np.allclose(H[:, 1] ** 2 + H[:, 2] ** 2, 1.0)
+    for head in ("mixture", "kmeans"):
+        res = ALGO_REGISTRY["flhmm"](head=head).fit_predict(X, k=3)
+        assert len(res.labels) == len(X) and res.extra["head"] == head
+        assert set(res.extra["blocks"]) == {"fourier", "laplace", "hilbert"}
+    with pytest.raises(ValueError):
+        ALGO_REGISTRY["flhmm"](head="dbscan")
+
+
+def test_flh_cycle_records_one_step_per_view():
+    from clustbench.algorithms.base import ALGO_REGISTRY
+
+    X, y = DATASETS["blobs"](DataSpec(n_samples=150, n_features=3, centers=3, compactness=1.0, seed=2))
+    for kw in ({}, {"estep": "product", "handoff": 0.5}):
+        res = ALGO_REGISTRY["flh_cycle"](n_cycles=4, **kw).fit_predict(X, k=3)
+        assert len(res.labels) == len(X)
+        views = [s.action["view"] for s in res.trajectory]
+        assert views[:3] == ["fourier", "laplace", "hilbert"]
+        assert len(views) == 3 * res.extra["cycles"]
+    with pytest.raises(ValueError):
+        ALGO_REGISTRY["flh_cycle"](estep="median")
+
+
+def test_timeout_records_did_not_finish(tmp_path):
+    import json as _json
+
+    from clustbench.algorithms.base import ALGO_REGISTRY, AlgoResult, Algorithm
+
+    class _Slow(Algorithm):
+        def fit_predict(self, X, k=None):
+            import time
+            t0 = time.time()
+            while time.time() - t0 < 5:
+                pass
+            return AlgoResult(labels=np.zeros(len(X), dtype=int), extra={})
+
+    ALGO_REGISTRY["_slow_test"] = _Slow
+    try:
+        algos = [AlgoCfg(name="slow", kind="python", entry="_slow_test", params={}, timeout_s=0.3)]
+        assert run_task("blobs", 50, 2, 2, 1.0, 1, algos, tmp_path) == []
+        err = _json.loads(next(tmp_path.glob("artifacts/error_slow__*.json")).read_text())
+        assert err["error_type"] == "Timeout"
+    finally:
+        ALGO_REGISTRY.pop("_slow_test", None)
+
+
+def test_isolated_runs_enforce_time_and_memory(tmp_path):
+    import json as _json
+
+    from clustbench.algorithms.base import ALGO_REGISTRY, AlgoResult, Algorithm
+
+    class _Hog(Algorithm):
+        def fit_predict(self, X, k=None):
+            np.ones((40000, 40000))  # ~12.8 GB
+            return AlgoResult(labels=np.zeros(len(X), dtype=int), extra={})
+
+    class _Spin(Algorithm):
+        def fit_predict(self, X, k=None):
+            import time
+            time.sleep(30)  # blocking call, not interruptible by SIGALRM handlers
+            return AlgoResult(labels=np.zeros(len(X), dtype=int), extra={})
+
+    ALGO_REGISTRY["_hog_test"], ALGO_REGISTRY["_spin_test"] = _Hog, _Spin
+    try:
+        algos = [AlgoCfg(name="km", kind="python", entry="kmeans", params={"n_init": 1}),
+                 AlgoCfg(name="hog", kind="python", entry="_hog_test", params={}),
+                 AlgoCfg(name="spin", kind="python", entry="_spin_test", params={}, timeout_s=1.0)]
+        recs = run_task("blobs", 80, 2, 2, 1.0, 1, algos, tmp_path, isolate=True, mem_budget_gb=1.0)
+        assert [r["algo"] for r in recs] == ["km"] and recs[0]["metrics"]["ari"] is not None
+        errs = {p.name.split("__")[0]: _json.loads(p.read_text())["error_type"]
+                for p in tmp_path.glob("artifacts/error_*.json")}
+        assert errs == {"error_hog": "MemoryError", "error_spin": "Timeout"}
+    finally:
+        ALGO_REGISTRY.pop("_hog_test", None)
+        ALGO_REGISTRY.pop("_spin_test", None)
+
+
+def test_knn_helper_matches_exact_and_drops_self():
+    from clustbench.algorithms._knn import knn_graph, knn_indices
+
+    X = np.random.default_rng(0).normal(size=(200, 3))
+    I, D = knn_indices(X, 5)
+    assert I.shape == (200, 5) and not (I == np.arange(200)[:, None]).any()
+    assert np.all(np.diff(D, axis=1) >= 0)
+    from sklearn.neighbors import kneighbors_graph
+
+    assert (knn_graph(X, 5) != kneighbors_graph(X, 5, include_self=False)).nnz == 0
+    with pytest.raises(ValueError):
+        knn_indices(X, 5, method="annoy")
+
+
+def test_nndescent_graph_is_close_to_exact_and_fast_variants_cluster():
+    pytest.importorskip("pynndescent")
+    from sklearn.metrics import adjusted_rand_score
+
+    from clustbench.algorithms._knn import knn_indices
+    from clustbench.algorithms.base import ALGO_REGISTRY
+
+    X, y = DATASETS["mdcgen"](DataSpec(n_samples=12000, n_features=20, centers=5, compactness=1.0, seed=1))
+    Ie, _ = knn_indices(X, 10)
+    Ia, _ = knn_indices(X, 10, method="nndescent")
+    recall = np.mean([len(set(a) & set(b)) / 10 for a, b in zip(Ia[:2000], Ie[:2000])])
+    assert recall > 0.85
+    for name in ("lmm_fast", "spectral_fast"):
+        res = ALGO_REGISTRY[name]().fit_predict(X, k=5)
+        assert adjusted_rand_score(y, res.labels) > 0.9
+
+
+def test_amg_eigensolver_matches_lobpcg_basis():
+    pytest.importorskip("pyamg")
+    from sklearn.metrics import adjusted_rand_score
+
+    from clustbench.algorithms.base import ALGO_REGISTRY
+
+    X, y = DATASETS["circles"](DataSpec(n_samples=1500, n_features=2, centers=2, compactness=1.0, seed=1))
+    res = ALGO_REGISTRY["lmm"](eigensolver="amg").fit_predict(X, k=2)
+    assert adjusted_rand_score(y, res.labels) > 0.9
+    assert ALGO_REGISTRY["lmm_fast"]().eigensolver == "amg"
+    with pytest.raises(ValueError):
+        ALGO_REGISTRY["lmm"](eigensolver="arpack")
+
+
+def test_mcg_follows_manifolds_and_scales_micro_clusters():
+    from sklearn.metrics import adjusted_rand_score
+
+    from clustbench.algorithms.base import ALGO_REGISTRY
+    from clustbench.algorithms.mcg import _top2
+
+    X, y = DATASETS["moons"](DataSpec(n_samples=3000, n_features=2, centers=2, compactness=1.0, seed=1))
+    res = ALGO_REGISTRY["mcg"]().fit_predict(X, k=2)
+    assert adjusted_rand_score(y, res.labels) > 0.9  # k-means scores ~0.25 here
+    assert res.extra["n_micro"] == 300  # n // 10 on small data
+    C = np.array([[0.0, 0.0], [1.0, 0.0], [5.0, 0.0]])
+    assert _top2(np.array([[0.4, 0.0], [4.0, 0.0]]), C).tolist() == [[0, 1], [2, 1]]
+    with pytest.raises(ValueError):
+        ALGO_REGISTRY["mcg"](edge_weight="cosine")
+
+
+def test_cf_triples_and_tiered_mcg():
+    from sklearn.metrics import adjusted_rand_score
+
+    from clustbench.algorithms.base import ALGO_REGISTRY
+    from clustbench.algorithms.mcg import cf_radius2, cf_triples
+
+    X = np.array([[0.0, 0.0], [2.0, 0.0], [10.0, 10.0]])
+    N, LS, SS = cf_triples(X, np.array([0, 0, 1]), 2)
+    assert N.tolist() == [2.0, 1.0] and np.allclose(LS[0], [2.0, 0.0])
+    assert np.allclose(cf_radius2(N, LS, SS), [1.0, 0.0])  # points at distance 1 from (1, 0)
+    Xm, y = DATASETS["moons"](DataSpec(n_samples=3000, n_features=2, centers=2, compactness=1.0, seed=1))
+    res = ALGO_REGISTRY["mcg_cf"]().fit_predict(Xm, k=2)
+    assert res.extra["tiers"] == 2 and res.extra["edge_weight"] == "cf"
+    assert adjusted_rand_score(y, res.labels) > 0.9
+    with pytest.raises(ValueError):
+        ALGO_REGISTRY["mcg"](tiers=3)
+
+
+def test_lmm_mcg_uses_micro_cluster_basis():
+    from sklearn.metrics import adjusted_rand_score
+
+    from clustbench.algorithms.base import ALGO_REGISTRY
+
+    X, y = DATASETS["circles"](DataSpec(n_samples=3000, n_features=2, centers=2, compactness=1.0, seed=1))
+    for interp in ("hard", "soft"):
+        res = ALGO_REGISTRY["lmm_mcg"](interp=interp).fit_predict(X, k=2)
+        assert adjusted_rand_score(y, res.labels) > 0.9
+    with pytest.raises(ValueError):
+        ALGO_REGISTRY["lmm_mcg"](interp="cubic")
+
+
+def test_lmm_mcg_count_basis_recovers_manifold_eigenvectors():
+    from scipy.stats import spearmanr
+
+    from clustbench.algorithms.base import ALGO_REGISTRY
+
+    X, y = DATASETS["swiss_roll"](DataSpec(n_samples=1500, n_features=3, centers=4, compactness=1.0, seed=1))
+    X = np.asarray(X, float)
+    algo = ALGO_REGISTRY["lmm_mcg"](basis="count", row_normalize=False)
+    algo._k_hint, algo.n_frequencies = 4, 4
+    _, phi, vals = algo._build_basis(X, np.random.default_rng(0))
+    assert phi.shape == (len(X), 4) and vals[0] < 1e-6
+    # The first non-trivial eigenvector orders points along the roll, so it is
+    # monotone in the true slice label (y bins the roll parameter).
+    assert abs(spearmanr(phi[:, 1], y)[0]) > 0.9
+    dual = ALGO_REGISTRY["lmm_mcg_dual"]()
+    assert dual.basis == "both" and len(dual.fit_predict(X, k=4).labels) == len(X)
+    with pytest.raises(ValueError):
+        ALGO_REGISTRY["lmm_mcg"](basis="pca")

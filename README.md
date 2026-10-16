@@ -204,7 +204,7 @@ subclass `Algorithm`, decorate with `@register`, return an `AlgoResult`
 | -------- | --------------------------------------------------- | ---------------------------------------------------- |
 | `blobs`  | `sklearn.datasets.make_blobs`                       | n, d, k, compactness                                 |
 | `mixed`  | `sklearn.datasets.make_classification`              | n, d, k, compactness                                 |
-| `mdcgen` | MDCGen-style Gaussian mixture (Lopez et al., reproduced) | n, d, k, compactness, **outliers**, **noise**, **density** |
+| `mdcgen` | MDCGen-style Gaussian mixture (Iglesias et al., 2019, reproduced) | n, d, k, compactness, **outliers**, **noise**, **density** |
 | `moons`  | `sklearn.datasets.make_moons` (non-convex) | n, compactness (drives noise) |
 | `circles`| `sklearn.datasets.make_circles` (concentric) | n, compactness (drives noise) |
 | `anisotropic` | sheared blobs | n, d, k, compactness |
