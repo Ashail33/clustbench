@@ -2088,7 +2088,7 @@ data are in `docs/data_bigdata/`: `scaling_table.md`, `scaling_axes.pdf`
 every task, with T/M/c marking timeout, memory and capped runs). Exponents
 are log-log slopes of median wall time along each axis.
 
-* **Finished n = 200k** (16 algorithms):
+* **Finished n = 200k** (15 algorithms):
   * Fast with good quality: `minibatch_kmeans` (3.6 s, ARI 1.00), `trident`
     (3.4 s, 1.00), `gmm` (2.8 s, 0.96) and `bico_stream` (5.2 s, 0.77).
   * Slower but complete: `kmeans` (28.5 s), `fmm` (37.1 s, 1.00),
