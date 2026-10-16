@@ -21,4 +21,5 @@ See `docs/ALGORITHM_ANALYSIS.md`, rounds 20–22.
 
 These files predate round 24's adaptive micro-cluster cap. The canonical
 MCG rows in `docs/data`, `docs/data_unseen` and `docs/data_shapes` are the
-round-24 re-runs; results at n ≥ 2000 per 10 clusters are identical.
+round-24 re-runs. Tasks where the cap does not bind (at least 30 points per
+cluster) give identical results.
