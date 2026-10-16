@@ -2319,3 +2319,74 @@ On small data the graph on all points is cheap anyway, so a size switch
 (exact LMM below a few thousand points, MCG above) would combine the two.
 It gains on moons (0.98 vs 0.63 in-distribution) and on mixed shapes at
 large n (1.00 vs 0.86).
+
+## Round 21: tiered MCG with CF triples (`mcg_cf`)
+
+Flat MCG had two weaknesses:
+
+* **Small real datasets.** One centre per 10 points is too coarse there.
+* **One global edge bandwidth.** It cuts sparse clusters apart and lets
+  far outliers link up.
+
+`mcg_cf` borrows two ideas from BIRCH's clustering-feature (CF) tree.
+
+1. **Tiers.** A coarse k-means with about 2√m centres, then each coarse
+   cluster is split locally into children in proportion to its point count
+   (hierarchical k-means). Resolution goes where the points are, and the
+   local fits are cheaper than one k-means with m centres.
+2. **CF-triple edge weights.** Each micro-cluster's triple (N, LS, SS) gives
+   its mean squared radius R² = SS/N − |LS/N|² in one pass. Each edge is
+   then weighted `count · exp(-|c_i - c_j|² / (γ (R_i² + R_j²)))`, so the
+   bandwidth is local instead of a global median.
+
+How the setting was chosen:
+
+* Selection used only the unseen suite and the n = 20k suite. The 140
+  in-distribution tasks were held out.
+* γ = 1 was best on the selection suites (unseen 0.917, n = 20k 0.906).
+* On the held-out set, γ = 2 and a mixed local/global scale would have
+  scored higher (0.766 and 0.771), but they were not selected.
+* Allocating children by N·R (spread) instead of N was worse at 20k
+  (0.858 vs 0.876 with global weights). The two parts separately:
+  * Tiers alone fix small data (breast cancer 0.24 → 0.45) but break
+    extreme outliers (0.56 → 0.27) and variable-density bridges at 20k
+    (0.85 → 0.63).
+  * CF weights alone fix extreme outliers (0.81) but not small data.
+  * Together they fix both.
+
+Results, paired with the existing runs (data in `docs/data_mcg/results_cf_*.json`):
+
+| benchmark | `mcg_cf` | `mcg` | LMM | spectral | best other |
+|---|---|---|---|---|---|
+| in-distribution, 140 tasks (held out) | 0.760 (rank 11/59) | 0.745 | 0.765 | 0.763 | router v3 0.815 |
+| unseen, 35 tasks | **0.917 (rank 1/60)** | 0.890 | 0.858 | 0.860 | tbmm 0.869 |
+| n = 20k, 22 tasks | 0.855 in **0.54 s** | 0.850 in 1.30 s | 0.846 in 2.2 s | 0.853 in 7.2 s | `lmm_fast` 0.853 in 1.2 s |
+| n = 100k, 22 tasks | **0.859 in 0.74 s** | 0.853 in 1.50 s | 0.837 in 40.1 s | — | `lmm_fast` 0.844 in 8.5 s |
+| 100k × 100 × 50 | 1.00 in 1.34 s | 1.00 in 3.33 s | 1.00 in 101.5 s | — | |
+| 200k × 20 × 10 | 1.00 in 1.09 s | 1.00 in 2.28 s | did not finish | — | |
+
+Paired Wilcoxon tests:
+
+* In-distribution: `mcg_cf` − LMM = −0.005 (p = 0.053), and vs spectral
+  −0.003 (p = 0.14). Neither is significant, so `mcg_cf` is statistically
+  tied with both. The learned routers are still significantly better
+  (−0.055 vs router v3, p ≈ 1e-7).
+* Unseen: +0.059 vs LMM (p = 0.12) and +0.072 vs router v3 (p = 0.10).
+  It ranks first, but with 35 tasks the gaps are not significant.
+
+At n = 100k `mcg_cf` is 54× faster than LMM and 11× faster than `lmm_fast`,
+and more accurate than both. On the big-data scaling axes its cost is
+nearly flat in n (0.46 s at 10k, 0.65 s at 50k, 1.09 s at 200k), and its
+accuracy at k = 200 rises from 0.969 to 0.995.
+
+What it still does not do:
+
+* Spiral (0.17 for every method).
+* d = 5 overlap, where all methods score 0.49–0.66.
+* Hierarchical-nested data at 20k (0.57 vs LMM 0.63).
+
+Prior art for the parts: BIRCH CF triples (Zhang et al. 1996); hierarchical
+k-means; multi-resolution anchor graphs (U-SPEC, Huang et al. 2020).
+Locally scaled affinities follow self-tuning spectral clustering
+(Zelnik-Manor & Perona 2004), with the local scale read from CF radii
+instead of a k-th-neighbour distance.
