@@ -232,6 +232,8 @@ class Mcg_cf(Mcg):
 
 def _lmm_mcg_class():
     """Defined lazily so importing mcg does not pull in the LMM/FMM stack first."""
+    from scipy.linalg import eigh
+
     from .lmm import Lmm
 
     @register
@@ -240,45 +242,98 @@ def _lmm_mcg_class():
 
         LMM's accuracy comes from the k-NN graph, and its cost from building
         that graph and eigendecomposing it on all n points. Here the graph
-        is ``mcg_cf``'s (tiered micro-clusters, CF-weighted competitive-
-        Hebbian edges; m <= 1000 nodes), its bottom eigenvectors are a dense
-        m x m problem, and each point takes the eigenvector row of its
-        nearest micro-cluster (``interp="hard"``) or a CF-kernel blend of its
-        two nearest (``"soft"``). LMM's EM then runs on the points as usual,
-        so the soft assignments and the Yu-Shi initialisation are LMM's.
-        ``interp="hard"`` was chosen on the unseen and n = 20k suites (round
-        22); the two tie there.
+        is built on ``mcg_cf``'s tiered micro-clusters (m <= 1000 nodes), its
+        bottom eigenvectors are a dense m x m problem, and they are carried
+        to the points; LMM's EM then runs on the points as usual.
+
+        ``basis`` picks the micro-cluster graph:
+
+        * ``"cf"``: ``mcg_cf``'s CF-weighted edges, normalised Laplacian.
+          The Gaussian edge weights sharpen cuts across gaps (rings,
+          outliers, the unseen families) but distort the geometry of smooth,
+          gap-free manifolds: on the Swiss roll its third eigenvector
+          matches LMM's cos(3 pi s) mode at r = 0.22.
+        * ``"count"``: plain competitive-Hebbian counts (the number of
+          points between two micro-clusters, a boundary-flux estimate) and
+          the mass-weighted eigenproblem ``(D - W) v = lambda N v``, a
+          finite-volume coarse-graining of the point-graph Laplacian. It
+          recovers LMM's eigenvectors on manifolds (Swiss roll modes
+          r = 1.00 / 0.97 / 0.93) but cuts gaps less sharply.
+        * ``"both"``: the two bases side by side (2k columns), so EM can
+          use whichever separates the data (round 23).
+
+        ``interp="hard"`` gives each point its nearest micro-cluster's row;
+        ``"soft"`` blends its two nearest. For ``"count"`` and ``"both"``
+        the blend is always the linear one, ``w_a = d_b / (d_a + d_b)``,
+        so the point-level basis is continuous across micro-cluster
+        boundaries.
         """
 
-        def __init__(self, interp: str = "hard", mcg_params: Optional[dict] = None,
-                     **kwargs: Any) -> None:
+        def __init__(self, interp: str = "hard", basis: str = "cf",
+                     mcg_params: Optional[dict] = None, **kwargs: Any) -> None:
             super().__init__(**kwargs)
             if interp not in ("hard", "soft"):
                 raise ValueError("interp must be 'hard' or 'soft'")
+            if basis not in ("cf", "count", "both"):
+                raise ValueError("basis must be 'cf', 'count' or 'both'")
             self.name = "lmm_mcg"
             self.interp = interp
+            self.basis = basis
             self.mcg_params = dict(mcg_params or {})
 
-        def _build_basis(self, X, rng):
-            k = self._k_hint or 2
-            mcg = Mcg_cf(random_state=self.random_state, **self.mcg_params)
-            g = mcg.build_graph(X, k)
+        @staticmethod
+        def _blend(X, g, V):
+            X = np.asarray(X, dtype=np.float64)
+            C, a, b = g["C"], g["a"], g["b"]
+            da = ((X - C[a]) ** 2).sum(axis=1)
+            db = ((X - C[b]) ** 2).sum(axis=1)
+            wa = db / (da + db + 1e-12)
+            return wa[:, None] * V[a] + (1.0 - wa)[:, None] * V[b]
+
+        def _cf_basis(self, X, g, me, linear):
             W = g["W"] + 1e-9  # connect stray micro-clusters for the eigensolver
             dinv = 1.0 / np.sqrt(W.sum(axis=1))
             L = np.eye(len(W)) - dinv[:, None] * W * dinv[None, :]
             vals, V = np.linalg.eigh(0.5 * (L + L.T))
-            me = int(min(self.n_frequencies, len(W) - 1))
             vals, V = np.clip(vals[:me], 0.0, None), V[:, :me]
+            if linear:
+                return vals, self._blend(X, g, V)
             if self.interp == "hard":
-                phi = V[g["a"]]
-            else:
-                X = np.asarray(X, dtype=np.float64)
-                C = g["C"]
-                d2 = np.stack([((X - C[g["a"]]) ** 2).sum(axis=1), ((X - C[g["b"]]) ** 2).sum(axis=1)], axis=1)
-                idx = np.stack([g["a"], g["b"]], axis=1)
-                w = np.exp(-(d2 - d2.min(axis=1, keepdims=True)) / (g["R2"][idx] + 1e-12))
-                w /= w.sum(axis=1, keepdims=True)
-                phi = (V[idx] * w[:, :, None]).sum(axis=1)
+                return vals, V[g["a"]]
+            X = np.asarray(X, dtype=np.float64)
+            C = g["C"]
+            d2 = np.stack([((X - C[g["a"]]) ** 2).sum(axis=1), ((X - C[g["b"]]) ** 2).sum(axis=1)], axis=1)
+            idx = np.stack([g["a"], g["b"]], axis=1)
+            w = np.exp(-(d2 - d2.min(axis=1, keepdims=True)) / (g["R2"][idx] + 1e-12))
+            w /= w.sum(axis=1, keepdims=True)
+            return vals, (V[idx] * w[:, :, None]).sum(axis=1)
+
+        def _count_basis(self, X, g0, me):
+            W = g0["W"]
+            m = len(W)
+            W = W + 1e-9 * (1.0 - np.eye(m))
+            L = np.diag(W.sum(axis=1)) - W
+            M = np.diag(np.maximum(g0["N"], 1.0))
+            vals, V = eigh(L, M, subset_by_index=[0, me - 1])
+            return np.clip(vals, 0.0, None), self._blend(X, g0, V)
+
+        def _build_basis(self, X, rng):
+            k = self._k_hint or 2
+            me = int(min(self.n_frequencies, self._resolve_n_eigvecs(k)))
+            parts = []
+            if self.basis in ("cf", "both"):
+                g = Mcg_cf(random_state=self.random_state, **self.mcg_params).build_graph(X, k)
+                me = int(min(me, len(g["W"]) - 1))
+                parts.append(self._cf_basis(X, g, me, linear=self.basis == "both"))
+            if self.basis in ("count", "both"):
+                kw = {**self.mcg_params, "edge_weight": "count"}
+                kw.setdefault("tiers", 2)
+                g0 = Mcg(random_state=self.random_state, **kw).build_graph(X, k)
+                me = int(min(me, len(g0["W"]) - 1))
+                parts.append(self._count_basis(X, g0, me))
+            vals = np.concatenate([p[0] for p in parts])
+            phi = np.hstack([p[1] for p in parts])
+            self.n_frequencies = phi.shape[1]
             rms = np.sqrt(np.mean(phi ** 2, axis=0)) + 1e-12
             phi = phi / rms[None, :]
             if self.row_normalize:
@@ -287,9 +342,20 @@ def _lmm_mcg_class():
 
         def _basis_action(self) -> dict:
             return {"type": "mcg_laplacian_basis", "n_eigvecs": int(self.n_frequencies),
-                    "interp": self.interp}
+                    "interp": self.interp, "basis": self.basis}
 
-    return Lmm_mcg
+    @register
+    class Lmm_mcg_dual(Lmm_mcg):
+        """``lmm_mcg`` with both micro-cluster bases (``basis="both"``): the
+        CF-weighted one for gaps and the count / mass-weighted one that
+        reproduces LMM's eigenvectors on smooth manifolds."""
+
+        def __init__(self, **kwargs: Any) -> None:
+            kwargs.setdefault("basis", "both")
+            super().__init__(**kwargs)
+            self.name = "lmm_mcg_dual"
+
+    return Lmm_mcg, Lmm_mcg_dual
 
 
-Lmm_mcg = _lmm_mcg_class()
+Lmm_mcg, Lmm_mcg_dual = _lmm_mcg_class()

@@ -78,7 +78,9 @@ def summary_md(a: pd.DataFrame) -> str:
     lines = ["# Every algorithm on every dataset",
              "",
              "Mean ARI over tasks and seeds. Runs that hit the 120 s / 3 GB limit count as ARI 0",
-             "(the DNF column says how many). Rank is within the group.",
+             "(the DNF column says how many). Rank is within the group. The overview averages over",
+             "tasks; the per-group tables below average the family means, so families with more",
+             "tasks (rings and spirals at two k) weigh less there and the two can differ slightly.",
              ""]
     overall = a.groupby("algo").ari.mean().sort_values(ascending=False)
     groups = [g for g in GROUPS if g in set(a.group)]
@@ -152,6 +154,8 @@ def gallery(path: pathlib.Path) -> None:
             X, y = DATASETS[name](DataSpec(n_samples=2000, n_features=d, centers=k, compactness=1.0, seed=1))
             X = np.asarray(X, float)
             P = X[:, [0, 2]] if X.shape[1] == 3 else X[:, :2]  # S-curve / Swiss roll: the unrolled view
+            lo, hi = np.percentile(P, 1, axis=0), np.percentile(P, 99, axis=0)
+            pad = 0.08 * (hi - lo)  # heavy tails / outliers would otherwise shrink the clusters to a dot
             for j, c in enumerate(cols):
                 ax = axes[i, j]
                 if c == "truth":
@@ -163,6 +167,8 @@ def gallery(path: pathlib.Path) -> None:
                     except Exception as e:  # noqa: BLE001
                         lab, title = np.zeros(len(X), int), f"{c}\n{type(e).__name__}"
                 ax.scatter(P[:, 0], P[:, 1], c=lab, s=0.6, cmap="tab10", linewidths=0, rasterized=True)
+                ax.set_xlim(lo[0] - pad[0], hi[0] + pad[0])
+                ax.set_ylim(lo[1] - pad[1], hi[1] + pad[1])
                 ax.set_xticks([])
                 ax.set_yticks([])
                 ax.set_title(title, fontsize=5, pad=2)

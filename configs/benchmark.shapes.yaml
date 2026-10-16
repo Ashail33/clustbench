@@ -618,6 +618,10 @@ algorithms:
   kind: python
   entry: lmm_mcg
   params: {}
+- name: lmm_mcg_dual
+  kind: python
+  entry: lmm_mcg_dual
+  params: {}
 - name: amm
   kind: python
   entry: amm

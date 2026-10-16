@@ -331,3 +331,23 @@ def test_lmm_mcg_uses_micro_cluster_basis():
         assert adjusted_rand_score(y, res.labels) > 0.9
     with pytest.raises(ValueError):
         ALGO_REGISTRY["lmm_mcg"](interp="cubic")
+
+
+def test_lmm_mcg_count_basis_recovers_manifold_eigenvectors():
+    from scipy.stats import spearmanr
+
+    from clustbench.algorithms.base import ALGO_REGISTRY
+
+    X, y = DATASETS["swiss_roll"](DataSpec(n_samples=1500, n_features=3, centers=4, compactness=1.0, seed=1))
+    X = np.asarray(X, float)
+    algo = ALGO_REGISTRY["lmm_mcg"](basis="count", row_normalize=False)
+    algo._k_hint, algo.n_frequencies = 4, 4
+    _, phi, vals = algo._build_basis(X, np.random.default_rng(0))
+    assert phi.shape == (len(X), 4) and vals[0] < 1e-6
+    # The first non-trivial eigenvector orders points along the roll, so it is
+    # monotone in the true slice label (y bins the roll parameter).
+    assert abs(spearmanr(phi[:, 1], y)[0]) > 0.9
+    dual = ALGO_REGISTRY["lmm_mcg_dual"]()
+    assert dual.basis == "both" and len(dual.fit_predict(X, k=4).labels) == len(X)
+    with pytest.raises(ValueError):
+        ALGO_REGISTRY["lmm_mcg"](basis="pca")

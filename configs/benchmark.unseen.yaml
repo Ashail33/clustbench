@@ -145,6 +145,7 @@ algorithms:
   - {name: mcg, kind: python, entry: mcg, params: {}}
   - {name: mcg_cf, kind: python, entry: mcg_cf, params: {}}
   - {name: lmm_mcg, kind: python, entry: lmm_mcg, params: {}}
+  - {name: lmm_mcg_dual, kind: python, entry: lmm_mcg_dual, params: {}}
 
 # Five unseen seeds (was three).
 seeds: [100, 101, 102, 103, 104]
