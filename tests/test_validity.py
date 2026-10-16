@@ -239,3 +239,34 @@ def test_isolated_runs_enforce_time_and_memory(tmp_path):
     finally:
         ALGO_REGISTRY.pop("_hog_test", None)
         ALGO_REGISTRY.pop("_spin_test", None)
+
+
+def test_knn_helper_matches_exact_and_drops_self():
+    from clustbench.algorithms._knn import knn_graph, knn_indices
+
+    X = np.random.default_rng(0).normal(size=(200, 3))
+    I, D = knn_indices(X, 5)
+    assert I.shape == (200, 5) and not (I == np.arange(200)[:, None]).any()
+    assert np.all(np.diff(D, axis=1) >= 0)
+    from sklearn.neighbors import kneighbors_graph
+
+    assert (knn_graph(X, 5) != kneighbors_graph(X, 5, include_self=False)).nnz == 0
+    with pytest.raises(ValueError):
+        knn_indices(X, 5, method="annoy")
+
+
+def test_nndescent_graph_is_close_to_exact_and_fast_variants_cluster():
+    pytest.importorskip("pynndescent")
+    from sklearn.metrics import adjusted_rand_score
+
+    from clustbench.algorithms._knn import knn_indices
+    from clustbench.algorithms.base import ALGO_REGISTRY
+
+    X, y = DATASETS["mdcgen"](DataSpec(n_samples=12000, n_features=20, centers=5, compactness=1.0, seed=1))
+    Ie, _ = knn_indices(X, 10)
+    Ia, _ = knn_indices(X, 10, method="nndescent")
+    recall = np.mean([len(set(a) & set(b)) / 10 for a, b in zip(Ia[:2000], Ie[:2000])])
+    assert recall > 0.85
+    for name in ("lmm_fast", "spectral_fast"):
+        res = ALGO_REGISTRY[name]().fit_predict(X, k=5)
+        assert adjusted_rand_score(y, res.labels) > 0.9

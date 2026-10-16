@@ -33,6 +33,7 @@ import scipy.sparse as sp
 from scipy.sparse.linalg import eigsh, lobpcg
 from sklearn.neighbors import kneighbors_graph
 
+from ._knn import knn_graph, warm
 from .base import register
 from .fmm import Fmm
 
@@ -90,6 +91,11 @@ class Lmm(Fmm):
         start. ``0`` disables refinement (pure landmark Nyström). A
         small budget (5-10) typically recovers full-LMM quality on
         non-convex shapes while keeping most of the Nyström speedup.
+    knn : {"exact", "nndescent"}
+        How the full-data k-NN graph is built. ``"nndescent"`` uses an
+        approximate graph (see :mod:`clustbench.algorithms._knn`) once
+        ``n`` reaches 10000 (and d > 10); exact search is O(n^2 d) and dominates LMM's
+        fit time at large ``n``.
     Other parameters are inherited from :class:`Fmm` (``max_iter``,
     ``l2``, ``adaptive_l2``, ``damping``, ``learn_bandwidth``, etc.).
     """
@@ -103,6 +109,7 @@ class Lmm(Fmm):
         nystrom: Any = False,
         n_landmarks: int = 200,
         nystrom_refine_iter: int = 10,
+        knn: str = "exact",
         **kwargs: Any,
     ) -> None:
         # ``n_frequencies`` in the Fmm parent is reused as the basis
@@ -127,6 +134,9 @@ class Lmm(Fmm):
         self.nystrom = nystrom
         self.n_landmarks = int(n_landmarks)
         self.nystrom_refine_iter = int(nystrom_refine_iter)
+        if knn not in ("exact", "nndescent"):
+            raise ValueError("knn must be 'exact' or 'nndescent'")
+        self.knn = knn
         self._k_hint: int | None = None
 
     def _use_nystrom(self, n: int) -> bool:
@@ -239,11 +249,14 @@ class Lmm(Fmm):
             "n_neighbors": self.n_neighbors,
             "affinity": str(self.affinity),
             "row_normalize": bool(self.row_normalize),
+            "knn": self.knn,
         }
 
     def fit_predict(self, X, k=None):
         # Stash k so ``_build_basis`` can size the basis to it.
         self._k_hint = k
+        if self.knn == "nndescent":
+            warm()  # JIT-compile once per process, before any timed fit
         self.n_frequencies = self._resolve_n_eigvecs(k)
         result = super().fit_predict(X, k=k)
         if result.extra is not None:
@@ -356,13 +369,13 @@ class Lmm(Fmm):
         # LOBPCG from random.
         if self.nystrom_refine_iter > 0:
             if self.affinity == "heat":
-                knn_full = kneighbors_graph(X, n_neighbors=k_nn, mode="distance", include_self=False)
+                knn_full = knn_graph(X, k_nn, self.knn, mode="distance", random_state=self.random_state)
                 knn_full_sym = knn_full.maximum(knn_full.T)
                 sigma_full = float(np.median(knn_full.data)) if knn_full.data.size else 1.0
                 W_full = knn_full_sym.copy()
                 W_full.data = np.exp(-(W_full.data ** 2) / max(sigma_full ** 2, 1e-12))
             else:
-                knn_full = kneighbors_graph(X, n_neighbors=k_nn, mode="connectivity", include_self=False)
+                knn_full = knn_graph(X, k_nn, self.knn, random_state=self.random_state)
                 W_full = knn_full.maximum(knn_full.T)
             deg_full = np.maximum(np.asarray(W_full.sum(axis=1)).ravel(), 1e-12)
             d_inv_full = 1.0 / np.sqrt(deg_full)
@@ -413,13 +426,13 @@ class Lmm(Fmm):
         k_nn = self._resolve_n_neighbors(n)
 
         if self.affinity == "heat":
-            knn = kneighbors_graph(X, n_neighbors=k_nn, mode="distance", include_self=False)
+            knn = knn_graph(X, k_nn, self.knn, mode="distance", random_state=self.random_state)
             knn_sym = knn.maximum(knn.T)
             sigma = float(np.median(knn.data)) if knn.data.size else 1.0
             W = knn_sym.copy()
             W.data = np.exp(-(W.data ** 2) / max(sigma ** 2, 1e-12))
         else:
-            knn = kneighbors_graph(X, n_neighbors=k_nn, mode="connectivity", include_self=False)
+            knn = knn_graph(X, k_nn, self.knn, random_state=self.random_state)
             W = knn.maximum(knn.T)
 
         # Normalised Laplacian L = I - D^{-1/2} W D^{-1/2}.
@@ -481,3 +494,13 @@ class Lmm(Fmm):
         omega = vals.reshape(-1, 1)
         omega_norm_sq = vals  # heat kernel: exp(-tau * lambda / 2)
         return omega, phi, omega_norm_sq
+
+
+@register
+class Lmm_fast(Lmm):
+    """LMM on an approximate (NN-descent) k-NN graph; identical otherwise."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs.setdefault("knn", "nndescent")
+        super().__init__(**kwargs)
+        self.name = "lmm_fast"

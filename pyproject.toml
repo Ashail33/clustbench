@@ -25,6 +25,8 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest>=7.0"]
+# Approximate k-NN graphs for lmm_fast / spectral_fast (falls back to exact without it).
+fast = ["pynndescent>=0.5"]
 
 [project.scripts]
 clustbench = "clustbench.cli.run:main"

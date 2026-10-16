@@ -86,33 +86,64 @@ class Agglomerative(Algorithm):
 
 @register
 class Spectral(Algorithm):
-    """Spectral clustering on a nearest-neighbours affinity."""
+    """Spectral clustering on a nearest-neighbours affinity.
+
+    ``knn="nndescent"`` builds the k-NN affinity with an approximate search
+    (see :mod:`clustbench.algorithms._knn`) instead of scikit-learn's exact
+    one, and ``eigen_solver`` is passed through (``"lobpcg"`` avoids ARPACK's
+    shift-invert cost at large ``n``).
+    """
 
     def __init__(
         self,
         affinity: str = "nearest_neighbors",
         n_neighbors: int = 10,
         random_state: int = 42,
+        knn: str = "exact",
+        eigen_solver: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         self.name = "spectral"
         self.affinity = affinity
         self.n_neighbors = n_neighbors
         self.random_state = random_state
+        if knn not in ("exact", "nndescent"):
+            raise ValueError("knn must be 'exact' or 'nndescent'")
+        self.knn = knn
+        self.eigen_solver = eigen_solver
 
     def fit_predict(self, X: np.ndarray, k: Optional[int] = None) -> AlgoResult:
         from sklearn.cluster import SpectralClustering
 
         assert k is not None
+        affinity, data = self.affinity, X
+        if self.knn != "exact" and self.affinity == "nearest_neighbors":
+            from ._knn import knn_graph, warm
+
+            warm()
+            A = knn_graph(X, self.n_neighbors, self.knn, random_state=self.random_state)
+            affinity, data = "precomputed", 0.5 * (A + A.T)  # as scikit-learn symmetrises
         sc = SpectralClustering(
             n_clusters=k,
-            affinity=self.affinity,
+            affinity=affinity,
             n_neighbors=self.n_neighbors,
+            eigen_solver=self.eigen_solver,
             assign_labels="kmeans",
             random_state=self.random_state,
         )
-        labels = sc.fit_predict(X)
-        return AlgoResult(labels=labels.astype(np.int64), extra={})
+        labels = sc.fit_predict(data)
+        return AlgoResult(labels=labels.astype(np.int64), extra={"knn": self.knn})
+
+
+@register
+class Spectral_fast(Spectral):
+    """Spectral clustering on an approximate (NN-descent) k-NN graph, LOBPCG eigensolver."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs.setdefault("knn", "nndescent")
+        kwargs.setdefault("eigen_solver", "lobpcg")
+        super().__init__(**kwargs)
+        self.name = "spectral_fast"
 
 
 @register
