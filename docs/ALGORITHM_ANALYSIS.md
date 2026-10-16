@@ -2118,3 +2118,66 @@ are log-log slopes of median wall time along each axis.
   broadcast tensor, about 16 GB at d = 500, which OOM-killed the benchmark
   parent process. It now uses `scipy.spatial.distance.pdist`/`cdist`, which
   peaks at about 0.3 GB.
+
+## Round 19: fast graph clustering (`lmm_fast`, `spectral_fast`)
+
+LMM and spectral clustering are equally accurate on the benchmark (round 18),
+but both are graph methods, and building the exact k-NN graph is O(n² d).
+At n = 50k, d = 20 that graph build takes 8.7 s of LMM's 11.2 s fit time.
+The eigensolver takes 1.3 s and the mixture EM 0.4 s. The two new variants
+build the graph with NN-descent (`pynndescent`, optional extra `fast`), and
+nothing else changes:
+
+* `lmm_fast` is LMM with `knn="nndescent"`.
+* `spectral_fast` is scikit-learn spectral clustering on a precomputed
+  NN-descent graph, using the LOBPCG eigensolver.
+
+The helper is `src/clustbench/algorithms/_knn.py`. Measured switch-over
+points:
+
+* NN-descent beats exact search from about n = 10k when d ≥ 20. It is 12×
+  faster at n = 200k, d = 20 (11 s vs 138 s) and 10× faster at n = 40k,
+  d = 500.
+* At d ≤ 10, scikit-learn's k-d tree is as fast, so the exact search is
+  kept below 10k points and at d ≤ 10.
+* NN-descent recovers 95–98% of the exact neighbours at d = 20 and 77% at
+  d = 100.
+
+Two harness details. pynndescent compiles with numba on first use (about
+20 s), so the untimed warm-up compiles it. numba's default OpenMP layer
+aborts inside the harness's forked runs, so the helper selects numba's
+fork-safe `workqueue` layer.
+
+The test is `configs/benchmark.fastgraph.yaml`: 11 dataset families at
+d = 20, n ∈ {20k, 100k}, two seeds, 300 s limit. Exact spectral clustering
+is capped at 20k. Data are in `docs/data_fastgraph/` (`table.md`,
+`results.json`).
+
+| n | algorithm | mean ARI | median wall time (s) |
+|---|---|---|---|
+| 20k | `lmm` | 0.846 | 2.2 |
+| 20k | `lmm_fast` | 0.842 | 1.3 |
+| 20k | `spectral` | 0.853 | 7.2 |
+| 20k | `spectral_fast` | 0.844 | 2.8 |
+| 100k | `lmm` | 0.837 | 40.1 |
+| 100k | `lmm_fast` | **0.836** | **10.3** |
+| 100k | `spectral_fast` | 0.776 | 9.7 |
+| 100k | `gmm` | 0.557 | 1.3 |
+| 100k | `trident` | 0.570 | 2.5 |
+| 100k | `minibatch_kmeans` | 0.555 | 0.7 |
+
+* **`lmm_fast` keeps LMM's accuracy at a quarter of the time** at 100k
+  points. Its per-family ARI equals LMM's in every family at 100k, and at
+  20k it differs only on rings (0.85 vs 0.89).
+* **`spectral_fast` loses accuracy on rings and mixed shapes at 100k**
+  (0.29 and 0.71, vs LMM's 0.79 and 0.86). The EM refinement in LMM appears
+  to absorb errors in the approximate graph that a plain k-means on the
+  spectral embedding does not. On rings at 20k, exact spectral is the best
+  method (1.00).
+* The fast centroid methods (GMM, Trident, mini-batch k-means) are 4–15×
+  quicker again, but they score about 0.56 on these shapes against 0.84
+  for the graph methods. On this mix of families, the graph is what buys
+  the accuracy.
+* The remaining cost of `lmm_fast` at 100k is roughly half graph build and
+  half LOBPCG. A landmark or multigrid eigensolver is the next step if more
+  speed is needed.
