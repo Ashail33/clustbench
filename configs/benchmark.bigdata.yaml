@@ -377,6 +377,10 @@ algorithms:
   kind: python
   entry: mcg
   params: {}
+- name: mcg_cf
+  kind: python
+  entry: mcg_cf
+  params: {}
 seeds:
 - 1
 strict_provenance: true

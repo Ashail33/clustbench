@@ -143,6 +143,7 @@ algorithms:
   - {name: flh_cycle, kind: python, entry: flh_cycle, params: {}}
   - {name: flh_cycle_product, kind: python, entry: flh_cycle, params: {estep: product, handoff: 0.5}}
   - {name: mcg, kind: python, entry: mcg, params: {}}
+  - {name: mcg_cf, kind: python, entry: mcg_cf, params: {}}
 
 # Five unseen seeds (was three).
 seeds: [100, 101, 102, 103, 104]

@@ -300,3 +300,21 @@ def test_mcg_follows_manifolds_and_scales_micro_clusters():
     assert _top2(np.array([[0.4, 0.0], [4.0, 0.0]]), C).tolist() == [[0, 1], [2, 1]]
     with pytest.raises(ValueError):
         ALGO_REGISTRY["mcg"](edge_weight="cosine")
+
+
+def test_cf_triples_and_tiered_mcg():
+    from sklearn.metrics import adjusted_rand_score
+
+    from clustbench.algorithms.base import ALGO_REGISTRY
+    from clustbench.algorithms.mcg import cf_radius2, cf_triples
+
+    X = np.array([[0.0, 0.0], [2.0, 0.0], [10.0, 10.0]])
+    N, LS, SS = cf_triples(X, np.array([0, 0, 1]), 2)
+    assert N.tolist() == [2.0, 1.0] and np.allclose(LS[0], [2.0, 0.0])
+    assert np.allclose(cf_radius2(N, LS, SS), [1.0, 0.0])  # points at distance 1 from (1, 0)
+    Xm, y = DATASETS["moons"](DataSpec(n_samples=3000, n_features=2, centers=2, compactness=1.0, seed=1))
+    res = ALGO_REGISTRY["mcg_cf"]().fit_predict(Xm, k=2)
+    assert res.extra["tiers"] == 2 and res.extra["edge_weight"] == "cf"
+    assert adjusted_rand_score(y, res.labels) > 0.9
+    with pytest.raises(ValueError):
+        ALGO_REGISTRY["mcg"](tiers=3)
