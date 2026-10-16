@@ -51,7 +51,7 @@ algorithm call alone, checked data provenance, inlier-only scoring, run
 isolation with time and memory limits, large-$n$ sweeps, and
 leave-one-dataset-family-out evaluation of the selectors. On the controlled
 release (61 algorithms, 20 dataset families, 140 tasks, 8{,}539 runs) the
-Friedman test rejects equal performance ($\chi^2 = 2698$), yet a Nemenyi
+Friedman test rejects equal performance ($\chi^2 = 2700$), yet a Nemenyi
 critical difference cannot separate the top 15 algorithms. The best selector
 beats the best single algorithm, an EM-trained graph-Laplacian mixture, by
 0.05 ARI in-distribution. It loses 0.03--0.07 ARI on held-out dataset
@@ -471,7 +471,7 @@ and none is a fallback.
 \subsection{Overall leaderboard}
 The in-distribution run covers 61 algorithms on 140 tasks, giving 8{,}539
 result rows. Over the 139 tasks every algorithm completed, the Friedman test
-gives $\chi^2 = 2698$ ($p < 10^{-300}$). Figure~\ref{fig:ranks} shows average
+gives $\chi^2 = 2700$ ($p < 10^{-300}$). Figure~\ref{fig:ranks} shows average
 ranks and Figure~\ref{fig:ci} adds confidence intervals.
 \begin{itemize}
   \item \textbf{Nemenyi cannot separate the top of the board.} The CD is 8.7
@@ -488,7 +488,7 @@ ranks and Figure~\ref{fig:ci} adds confidence intervals.
   distinguish 76 of the 96 pairs tested.
   \begin{itemize}
     \item The best selector beats LMM by 0.051 ARI (Holm $p = 2\times10^{-4}$)
-    and the best micro-cluster variant by 0.046 ($p_\text{Holm} = 2\times10^{-4}$).
+    and the best micro-cluster variant by 0.047 ($p_\text{Holm} = 1\times10^{-4}$).
     \item Selector v3 beats selector v1 ($p_\text{Holm} = 0.003$).
     \item LMM and spectral clustering are indistinguishable
     ($p_\text{Holm} = 1$).
@@ -713,7 +713,7 @@ count as ARI 0. Figure~\ref{fig:shapes} summarises it by dataset group.
   of \S\ref{sec:ood} on real data.
 \end{itemize}
 The overall order depends on the mix of dataset kinds. Over all 180 tasks the
-micro-cluster method \code{lmm\_mcg\_dual} leads (0.684), and the best
+micro-cluster method \code{lmm\_mcg\_dual} leads (0.686), and the best
 selector ranks 16th (0.580). That reverses the in-distribution ranking. A
 benchmark's headline winner is a statement about its dataset mix, so we
 report both splits and the per-group view.
