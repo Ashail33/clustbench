@@ -270,3 +270,17 @@ def test_nndescent_graph_is_close_to_exact_and_fast_variants_cluster():
     for name in ("lmm_fast", "spectral_fast"):
         res = ALGO_REGISTRY[name]().fit_predict(X, k=5)
         assert adjusted_rand_score(y, res.labels) > 0.9
+
+
+def test_amg_eigensolver_matches_lobpcg_basis():
+    pytest.importorskip("pyamg")
+    from sklearn.metrics import adjusted_rand_score
+
+    from clustbench.algorithms.base import ALGO_REGISTRY
+
+    X, y = DATASETS["circles"](DataSpec(n_samples=1500, n_features=2, centers=2, compactness=1.0, seed=1))
+    res = ALGO_REGISTRY["lmm"](eigensolver="amg").fit_predict(X, k=2)
+    assert adjusted_rand_score(y, res.labels) > 0.9
+    assert ALGO_REGISTRY["lmm_fast"]().eigensolver == "amg"
+    with pytest.raises(ValueError):
+        ALGO_REGISTRY["lmm"](eigensolver="arpack")

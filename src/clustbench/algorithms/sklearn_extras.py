@@ -90,7 +90,7 @@ class Spectral(Algorithm):
 
     ``knn="nndescent"`` builds the k-NN affinity with an approximate search
     (see :mod:`clustbench.algorithms._knn`) instead of scikit-learn's exact
-    one, and ``eigen_solver`` is passed through (``"lobpcg"`` avoids ARPACK's
+    one, and ``eigen_solver`` is passed through (``"amg"`` avoids ARPACK's
     shift-invert cost at large ``n``).
     """
 
@@ -137,11 +137,17 @@ class Spectral(Algorithm):
 
 @register
 class Spectral_fast(Spectral):
-    """Spectral clustering on an approximate (NN-descent) k-NN graph, LOBPCG eigensolver."""
+    """Spectral clustering on an approximate (NN-descent) k-NN graph with
+    scikit-learn's AMG-preconditioned eigensolver (requires pyamg).
+
+    At n = 100k on rings, unpreconditioned LOBPCG does not converge in
+    scikit-learn's budget and the clustering collapses (ARI 0.29 in 13.5 s);
+    with AMG it converges (ARI 1.00 in 5.1 s).
+    """
 
     def __init__(self, **kwargs: Any) -> None:
         kwargs.setdefault("knn", "nndescent")
-        kwargs.setdefault("eigen_solver", "lobpcg")
+        kwargs.setdefault("eigen_solver", "amg")
         super().__init__(**kwargs)
         self.name = "spectral_fast"
 

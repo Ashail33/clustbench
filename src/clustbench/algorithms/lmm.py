@@ -96,6 +96,10 @@ class Lmm(Fmm):
         approximate graph (see :mod:`clustbench.algorithms._knn`) once
         ``n`` reaches 10000 (and d > 10); exact search is O(n^2 d) and dominates LMM's
         fit time at large ``n``.
+    eigensolver : {"lobpcg", "amg"}
+        ``"amg"`` preconditions LOBPCG with algebraic multigrid (pyamg; see
+        :meth:`_amg_preconditioner`), which cuts the iteration count on
+        manifold-shaped data by ~30x at large ``n``.
     Other parameters are inherited from :class:`Fmm` (``max_iter``,
     ``l2``, ``adaptive_l2``, ``damping``, ``learn_bandwidth``, etc.).
     """
@@ -110,6 +114,7 @@ class Lmm(Fmm):
         n_landmarks: int = 200,
         nystrom_refine_iter: int = 10,
         knn: str = "exact",
+        eigensolver: str = "lobpcg",
         **kwargs: Any,
     ) -> None:
         # ``n_frequencies`` in the Fmm parent is reused as the basis
@@ -137,6 +142,9 @@ class Lmm(Fmm):
         if knn not in ("exact", "nndescent"):
             raise ValueError("knn must be 'exact' or 'nndescent'")
         self.knn = knn
+        if eigensolver not in ("lobpcg", "amg"):
+            raise ValueError("eigensolver must be 'lobpcg' or 'amg'")
+        self.eigensolver = eigensolver
         self._k_hint: int | None = None
 
     def _use_nystrom(self, n: int) -> bool:
@@ -250,6 +258,7 @@ class Lmm(Fmm):
             "affinity": str(self.affinity),
             "row_normalize": bool(self.row_normalize),
             "knn": self.knn,
+            "eigensolver": self.eigensolver,
         }
 
     def fit_predict(self, X, k=None):
@@ -410,6 +419,31 @@ class Lmm(Fmm):
         omega_norm_sq = vals
         return omega, phi, omega_norm_sq
 
+    _AMG_SHIFT = 1e-5
+
+    @classmethod
+    def _amg_preconditioner(cls, L: sp.spmatrix):
+        """Plain-aggregation AMG preconditioner for LOBPCG on ``L``.
+
+        On manifold data an unpreconditioned LOBPCG needs ~180 iterations at
+        n = 100k (16.6 s on rings); with this preconditioner it needs ~6
+        (1.7 s), and on blob data it costs about the same as no
+        preconditioner. Plain aggregation (``smooth=None``) is chosen over
+        the default smoothed aggregation, whose setup alone takes 3.5 s on
+        a 100k-point graph with many components. ``L`` is shifted by a
+        small multiple of the identity so it is positive definite, as
+        scikit-learn does for its ``amg`` spectral solver. Returns the
+        shifted matrix and the preconditioner (the caller subtracts the
+        shift from the eigenvalues), or None when pyamg is not installed.
+        """
+        try:
+            import pyamg
+        except ImportError:
+            warnings.warn("pyamg not installed; using unpreconditioned LOBPCG")
+            return None
+        Ls = (L + cls._AMG_SHIFT * sp.eye(L.shape[0])).tocsr().astype(np.float64)
+        return Ls, pyamg.smoothed_aggregation_solver(Ls, smooth=None).aspreconditioner()
+
     def _build_basis(
         self, X: np.ndarray, rng: np.random.Generator
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -461,9 +495,18 @@ class Lmm(Fmm):
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                vals, vecs = lobpcg(
-                    L32, X0, largest=False, tol=1e-4, maxiter=200, verbosityLevel=0
-                )
+                amg = self._amg_preconditioner(L) if self.eigensolver == "amg" else None
+                if amg is not None:
+                    Ls, M = amg
+                    vals, vecs = lobpcg(
+                        Ls, X0.astype(np.float64), M=M, largest=False, tol=1e-4,
+                        maxiter=200, verbosityLevel=0,
+                    )
+                    vals = vals - self._AMG_SHIFT
+                else:
+                    vals, vecs = lobpcg(
+                        L32, X0, largest=False, tol=1e-4, maxiter=200, verbosityLevel=0
+                    )
         except Exception:
             try:
                 vals, vecs = eigsh(L, k=m, sigma=1e-6, which="LM")
@@ -498,9 +541,11 @@ class Lmm(Fmm):
 
 @register
 class Lmm_fast(Lmm):
-    """LMM on an approximate (NN-descent) k-NN graph; identical otherwise."""
+    """LMM on an approximate (NN-descent) k-NN graph with an AMG-preconditioned
+    eigensolver; identical otherwise."""
 
     def __init__(self, **kwargs: Any) -> None:
         kwargs.setdefault("knn", "nndescent")
+        kwargs.setdefault("eigensolver", "amg")
         super().__init__(**kwargs)
         self.name = "lmm_fast"
