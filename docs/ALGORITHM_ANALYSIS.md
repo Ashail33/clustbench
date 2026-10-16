@@ -2452,11 +2452,13 @@ Paired Wilcoxon tests:
 * **In-distribution:** `lmm_mcg` and LMM are identical on average (−0.000,
   p = 0.16). The routers remain significantly better (−0.051, p = 4e-7).
 * **Unseen:** `lmm_mcg` beats LMM (+0.066, p = 0.013), spectral (+0.065,
-  p = 0.044) and router v3 (+0.080, p = 0.013). All three stay below 0.05
-  after Holm correction over the three comparisons (adjusted 0.039, 0.026,
-  0.044). It is the first method in this repo to beat the original graph
-  methods significantly on the held-out families. Against `mcg_cf` it is
-  +0.008 (n.s.).
+  p = 0.044) and router v3 (+0.080, p = 0.013), uncorrected. Against
+  `mcg_cf` it is +0.008 (n.s.).
+  *Correction (round 23):* an earlier version of this section said these
+  wins survive Holm correction. That was true only over these three
+  comparisons, but four MCG variants were each compared with three
+  references. Over that family of 12 tests the smallest adjusted p is
+  0.142, so none of the unseen-set wins is significant.
 
 Cost:
 
@@ -2468,3 +2470,185 @@ Cost:
 
 Recommendation: use `lmm_mcg` for best accuracy up to moderate k, and
 `mcg_cf` when speed or large k matters.
+
+## Round 23: manifolds, `lmm_mcg_dual`, and every algorithm on every dataset
+
+### Why LMM is good on the S-curve and Swiss roll
+
+k-means is good on blobs because it assigns points by straight-line
+distance. LMM is good on manifolds because it effectively assigns points by
+distance *along the data*.
+
+The true clusters of `s_curve` and `swiss_roll` are equal-mass slices of the
+curve parameter t, with no gaps between them. On both, LMM's bottom
+Laplacian eigenvectors are cosine modes of position along the curve. With s
+the rank of t scaled to [0, 1], they match cos(π s), cos(2π s) and
+cos(3π s) with |r| = 1.00 / 1.00 / 0.99 on the S-curve and 0.99 / 0.97 /
+0.94 on the Swiss roll. They are uncorrelated with the sheet's height
+(|r| < 0.05). The embedding therefore unrolls the sheet, and clustering in
+it slices the curve.
+
+Graph distance tracks distance along the curve with rank correlation
+0.99 / 0.97. Straight-line distance does so with 0.88 on the S-curve, but
+only 0.25 on the Swiss roll, whose layers are close in 3-D. That is why:
+
+* k-means is good on the S-curve (0.91) but fails on the Swiss roll (0.21);
+* LMM gets 0.80 and 0.73.
+
+Clustering on t itself scores only 0.84, because the true slices have equal
+mass and k-means on t cuts equal widths. LMM is close to that ceiling.
+
+### Why `lmm_mcg` lost to LMM there, and the fix
+
+`lmm_mcg`'s basis is the normalised Laplacian of the CF-weighted
+micro-cluster graph. Its eigenvectors are distorted on the Swiss roll:
+modes 1–3 match at r = 0.89 / 0.62 / 0.22.
+
+Interpolation is not the cause; hard and soft give the same result. The
+Gaussian edge weights are. They sharpen cuts across gaps but bend the
+geometry of a gap-free sheet.
+
+The fix coarse-grains LMM's own point-graph Laplacian:
+
+* plain competitive-Hebbian counts as edges (a boundary-flux estimate);
+* micro-cluster point counts N as the mass, solving
+  `(D − W) v = λ diag(N) v`;
+* a linear blend of each point's two nearest micro-clusters.
+
+This is `basis="count"`. It recovers LMM's modes (r = 1.00 / 0.97 / 0.93 on
+the Swiss roll; 0.82 / 0.73 ARI on S-curve / Swiss roll vs LMM 0.81 / 0.73)
+at MCG's cost. Tiers matter: S-curve 0.87 with two tiers, 0.69 flat. The
+mass weighting barely does.
+
+But the count basis cuts gaps less sharply (unseen 0.863 vs 0.925 for the CF
+basis). `lmm_mcg_dual` (`basis="both"`) gives EM both bases, 2k columns.
+An eigengap switch between the two (use the CF basis when
+λ_k / λ_{k−1} ≥ 5 or 20) picked the count basis almost always and was no
+better.
+
+| variant | in-distribution (140) | unseen (35) | 20k (16) | curved shapes (48) |
+|---|---|---|---|---|
+| `lmm` | 0.765 | 0.858 | 0.894 | 0.738 |
+| `lmm_mcg` (CF basis) | 0.764 | **0.925** | **0.906** | 0.812 |
+| count basis | 0.766 | 0.863 | 0.902 | 0.780 |
+| **`lmm_mcg_dual`** | **0.769** | 0.892 | 0.905 | 0.833 |
+| eigengap switch | 0.760–0.764 | 0.863–0.864 | 0.902 | 0.780–0.793 |
+
+These suites were used for development here, so these are not held-out
+numbers. The harness reproduces them exactly.
+
+### Canonical tables now include the MCG family
+
+`docs/data` (61 algorithms, 8539 rows) and `docs/data_unseen` (62
+algorithms, 2170 rows) now include `mcg`, `mcg_cf`, `lmm_mcg` and
+`lmm_mcg_dual`. The merged runs are `runs/validity/indist_all61` and
+`unseen_all62`.
+
+**In-distribution, by mean ARI:**
+
+1. routers v3/v5/v7: 0.815
+2. ...
+8. `lmm_mcg_dual`: 0.769
+9. `lmm`: 0.765
+10. `lmm_mcg`: 0.764
+11. `spectral`: 0.763
+13. `mcg_cf`: 0.760
+15. `mcg`: 0.745
+
+Average ranks: LMM 20.95, spectral 21.57, `lmm_mcg_dual` 22.50. The Nemenyi
+critical difference is 8.70.
+
+**Unseen, by mean ARI:**
+
+1. `lmm_mcg`: 0.925
+2. `mcg_cf`: 0.917
+3. `lmm_mcg_dual`: 0.892
+4. `mcg`: 0.890
+5. `tbmm`: 0.869
+7. `spectral`: 0.860
+8. `lmm`: 0.858
+
+By average rank, `mcg` leads (17.51), then `lmm_mcg_dual` (18.31),
+`lmm_mcg` (18.37) and spectral (18.73). The critical difference is 17.6.
+
+**Paired Wilcoxon tests,** Holm-corrected over the family of 12 tests (four
+MCG variants × LMM, spectral and router v3):
+
+* **In-distribution:** no MCG variant differs from LMM or spectral
+  (adjusted p ≥ 0.47). All four are significantly below router v3
+  (adjusted p ≤ 6e-5).
+* **Unseen:** every MCG variant is ahead of LMM, spectral and router v3 on
+  average (+0.03 to +0.08), but none survives the correction (smallest
+  adjusted p = 0.117). This corrects round 22's claim.
+
+### Every algorithm on every dataset (`configs/benchmark.shapes.yaml`, `docs/data_shapes/`)
+
+The grid:
+
+* 63 algorithms, including `lmm_fast`, `spectral_fast` and `lmm_mcg_dual`.
+* 180 tasks: 20 shape and mixture generators at n = 2000, in their native
+  2-D/3-D and padded to d = 10 (rings and spirals at k = 3 and 5); all 14
+  real datasets at native size; the SBM graph and synthetic time series.
+* 3 seeds; 120 s / 3 GB per run, each run isolated.
+
+Of 11,328 runs, 12 did not finish: mean-shift on digits (d = 64) and
+Olivetti (d = 50). Overview (task-averaged mean ARI, DNF = 0; group rank in
+brackets):
+
+| algorithm | all | curved shapes | mixtures | density / imbalance / outliers | convex blobs | real |
+|---|---|---|---|---|---|---|
+| `lmm_mcg_dual` | **0.684** (1) | 0.833 (2) | 0.757 (7) | 0.670 (7) | 0.769 (24) | 0.366 (15) |
+| `lmm_mcg` | 0.674 (2) | 0.812 (3) | 0.748 (10) | 0.675 (5) | 0.768 (25) | 0.352 (26) |
+| `mcg_cf` | 0.667 (3) | 0.803 (4) | 0.739 (13) | 0.677 (2) | 0.766 (30) | 0.343 (32) |
+| `lmm_fast` | 0.667 (4) | 0.765 (7) | 0.788 (3) | 0.640 (23) | 0.770 (22) | 0.359 (21) |
+| `spectral` | 0.665 (5) | 0.776 (5) | 0.779 (5) | 0.661 (11) | 0.753 (36) | 0.345 (30) |
+| `mcg` | 0.662 (7) | **0.863** (1) | 0.673 (40) | 0.671 (6) | 0.743 (41) | 0.323 (45) |
+| `lmm` | 0.659 (8) | 0.738 (8) | 0.787 (4) | 0.639 (24) | 0.769 (23) | 0.359 (20) |
+| `tbmm_fl` | 0.649 (9) | 0.692 (11) | **0.790** (1) | 0.635 (27) | 0.775 (15) | 0.364 (17) |
+| `learned_router_v4` | 0.580 (16) | 0.354 (22) | 0.722 (18) | 0.668 (8) | 0.783 (14) | **0.490** (1) |
+| `gmm` | 0.539 (26) | 0.258 (38) | 0.755 (8) | 0.642 (21) | **0.804** (1) | 0.398 (8) |
+| `birch_algo` | 0.437 (50) | 0.223 (49) | 0.572 (52) | **0.687** (1) | 0.720 (43) | 0.251 (54) |
+
+Findings:
+
+* **Curved shapes split the field.**
+  * The MCG family takes the top four places. Flat `mcg`: moons 0.98,
+    rings 0.95, spirals 0.89. `lmm_mcg_dual`: S-curve 0.79, Swiss roll
+    0.72.
+  * Centroid methods and the routers collapse. Circles are 0.00 for
+    k-means, GMM and router v3; router v3 scores 0.17 on spirals.
+  * The routers were trained on families where centroid methods are
+    usually right, and they pick them here too.
+* **Flat `mcg` is the best curved-shape method in 2-D** (moons 0.99 vs 0.66
+  for the tiered variants and spectral; 5 rings 0.90 vs about 0.6; 5
+  spirals 0.76 vs 0.25 for spectral). The likely cause, not yet tested, is
+  that in 2-D neighbouring arms are closer than a micro-cluster's CF
+  spread, so the local bandwidth links them. At d = 10 the tiered variants
+  catch up.
+* **Mixtures favour the full-graph EM methods** (TBMM, LMM, spectral; about
+  0.78–0.79). MCG variants are 0.67–0.76: they trail on hierarchical-nested
+  and heavy-tailed data.
+* **Convex blobs favour GMM and k-means**, as expected (0.79–0.80).
+* **Real data favours the routers clearly** (0.49 vs 0.40 for the best
+  single method, GMM).
+* **The MCG variants are weakest on real data** (0.32–0.37). `lmm_mcg`
+  scores 0.02 on Olivetti faces: with n = 400 and k = 40, the
+  `max(n/10, 10k)` rule asks for about 400 micro-clusters (one per point),
+  so there is no graph left to cut.
+* **Density and imbalance:** BIRCH, `mcg_cf` and agglomerative lead
+  (0.68–0.69).
+
+### Scaling of the MCG family
+
+Added to `docs/data_bigdata`, with exponents of wall time in n / d / k:
+
+| algorithm | exp. n | exp. d | exp. k | 200k × 20 × 10 | 100k × 100 × 50 |
+|---|---|---|---|---|---|
+| `mcg_cf` | 0.32 | 0.23 | 0.13 | 1.1 s | 1.3 s |
+| `mcg` | 0.48 | 0.35 | 0.01 | 2.3 s | 3.3 s |
+| `lmm_mcg` | 0.60 | 0.18 | 0.43 | 3.7 s | 20.9 s |
+| `lmm_mcg_dual` | 0.61 | 0.27 | 0.53 | 5.9 s | DNF |
+
+`lmm_mcg_dual`'s 2k basis makes LMM's Newton step allocate a (k, 2k, n)
+array. It runs out of memory at 100k × 100 × 50 (3.7 GB) and at k = 200,
+where `lmm_mcg` and plain LMM fail only at k = 200.

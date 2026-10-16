@@ -1,0 +1,34 @@
+[
+ {
+  "algo": "lmm_mcg_dual",
+  "dataset_id": "mdcgen",
+  "n_samples": 100000,
+  "n_features": 100,
+  "k_target": 50,
+  "compactness": 1.0,
+  "seed": 1,
+  "outliers": 0,
+  "noise": 0,
+  "density": 1.0,
+  "outlier_extremity": 1.0,
+  "dataset_source": "synthetic",
+  "error_type": "MemoryError",
+  "error_message": "Unable to allocate 3.73 GiB for an array with shape (50, 100, 100000) and data type float64"
+ },
+ {
+  "algo": "lmm_mcg_dual",
+  "dataset_id": "mdcgen",
+  "n_samples": 10000,
+  "n_features": 20,
+  "k_target": 200,
+  "compactness": 1.0,
+  "seed": 1,
+  "outliers": 0,
+  "noise": 0,
+  "density": 1.0,
+  "outlier_extremity": 1.0,
+  "dataset_source": "synthetic",
+  "error_type": "MemoryError",
+  "error_message": "Unable to allocate 5.96 GiB for an array with shape (200, 400, 10000) and data type float64"
+ }
+]

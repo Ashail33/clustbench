@@ -79,6 +79,18 @@
   .stat .label { color: var(--muted); font-size: 12px; }
   .stat .value { font-size: 22px; font-variant-numeric: tabular-nums; }
   a { color: var(--accent); }
+  th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sortable:hover { color: var(--fg); }
+  th.sortable.sorted { color: var(--fg); }
+  td.top3 { font-weight: 700; color: #ffffff; }
+  p.na-note { color: var(--muted); font-size: 13px; margin: 0; font-style: italic; }
+  figure.result-fig { margin: 16px 0 0; }
+  figure.result-fig img { max-width: 100%; height: auto; display: block; border: 1px solid var(--border); border-radius: 4px; background: #ffffff; }
+  figure.result-fig figcaption { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  button.toggle {
+    background: #0b0d11; color: var(--fg); border: 1px solid var(--border);
+    border-radius: 4px; padding: 6px 10px; font-size: 12px; cursor: pointer; margin-top: 10px;
+  }
 </style>
 </head>
 <body>
@@ -146,6 +158,100 @@
         <tbody></tbody>
       </table>
     </div>
+  </section>
+
+  <section class="panel" id="shapes-panel">
+    <h2>Every algorithm on every dataset: odd shapes and mixtures</h2>
+    <p class="hint">
+      Every algorithm was run on every dataset family below: non-convex shapes
+      (moons, rings, spirals, ...), mixtures of differently shaped clusters,
+      clusters of uneven density or size with outliers, classic convex blobs,
+      real data sets and a few other synthetic sources. Scores are the
+      adjusted Rand index (ARI, 1 = perfect agreement with the true labels,
+      about 0 = no better than chance). A run that crashed or did not finish
+      (DNF) counts as ARI 0, so an algorithm cannot look good by skipping hard
+      cases. Click a column header to sort; pick a group to see each dataset
+      family in it. The three best values in each ARI column are in bold.
+    </p>
+    <div class="stats" id="shapes-stats" style="margin-bottom:16px"></div>
+    <div class="controls">
+      <label>Group
+        <select id="shapes-group"><option value="">all groups (summary)</option></select>
+      </label>
+    </div>
+    <div style="overflow-x:auto">
+      <table id="shapes-table"><thead></thead><tbody></tbody></table>
+    </div>
+    <p class="rank-note" id="shapes-note"></p>
+    <figure class="result-fig">
+      <a href="data_shapes/gallery.png" target="_blank" rel="noopener"><img src="data_shapes/gallery.png" alt="Gallery of 2-D shapes clustered by each algorithm" loading="lazy" /></a>
+      <figcaption>2-D shapes coloured by ground truth and by each algorithm; numbers are ARI; seed 1. Click for full size.</figcaption>
+    </figure>
+    <figure class="result-fig">
+      <a href="data_shapes/heatmap.png" target="_blank" rel="noopener"><img src="data_shapes/heatmap.png" alt="Heatmap of mean ARI per algorithm and dataset" loading="lazy" /></a>
+      <figcaption>Mean ARI, every algorithm &times; every dataset; DNF counts as 0. Click for full size.</figcaption>
+    </figure>
+  </section>
+
+  <section class="panel" id="bigdata-panel">
+    <h2>Big-data scaling</h2>
+    <p class="hint">
+      How does each algorithm cope as the data grows? Starting from a base
+      problem of n=10,000 points, d=20 features and k=10 clusters, one factor at
+      a time is increased (n up to 200,000, d up to 500, k up to 200) while the
+      other two stay at the base. Each run is limited to 120 s and 3 GB of
+      memory. The exponents are log-log slopes of wall time against n, d or k:
+      1 means time grows linearly, 2 quadratically. DNF counts runs that hit the
+      time limit, ran out of memory, or were skipped because a smaller size
+      already failed (capped).
+    </p>
+    <div style="overflow-x:auto">
+      <table id="bigdata-table"><thead></thead><tbody></tbody></table>
+    </div>
+    <figure class="result-fig">
+      <a href="data_bigdata/scaling_axes.png" target="_blank" rel="noopener"><img src="data_bigdata/scaling_axes.png" alt="Wall time against n, d and k" loading="lazy" /></a>
+      <figcaption>Wall time as n, d and k grow (log-log), one line per algorithm. Click for full size.</figcaption>
+    </figure>
+    <figure class="result-fig">
+      <a href="data_bigdata/scaling_grid.png" target="_blank" rel="noopener"><img src="data_bigdata/scaling_grid.png" alt="Grid of scaling results per algorithm" loading="lazy" /></a>
+      <figcaption>Per-algorithm overview of which sweep points finished. Click for full size.</figcaption>
+    </figure>
+  </section>
+
+  <section class="panel" id="fastgraph-panel">
+    <h2>Graph clustering at large n</h2>
+    <p class="hint">
+      Graph-based methods are accurate on odd shapes but are usually slow on
+      big data. Here 11 dataset families at d=20 were run at n=20,000 and
+      n=100,000 with two seeds. lmm and spectral build an exact k-nearest-neighbour
+      graph, whose cost grows quadratically in n; lmm_fast and spectral_fast use
+      an approximate graph and an algebraic-multigrid (AMG) eigensolver;
+      mcg, mcg_cf, lmm_mcg and lmm_mcg_dual build the graph on about 1,000
+      micro-clusters, so their cost grows linearly in n. Exact spectral is
+      capped at 20k. Click a header to sort.
+    </p>
+    <div style="overflow-x:auto">
+      <table id="fastgraph-table"><thead></thead><tbody></tbody></table>
+    </div>
+    <div style="margin-top:16px">
+      <canvas id="chart-fastgraph" height="110"></canvas>
+    </div>
+    <p class="rank-note">Each point is one algorithm at n=100,000: median wall time (log scale) against mean ARI. Up and to the left is better. Hover for the name.</p>
+  </section>
+
+  <section class="panel" id="unseen-panel">
+    <h2>Held-out dataset families</h2>
+    <p class="hint">
+      A check against overfitting: 35 tasks drawn from dataset families and
+      settings that were not used to train or tune the learned routers. If a
+      learned method only looked good because it had seen similar data, it
+      should drop here. Mean ARI is over all held-out runs of that algorithm.
+      Click a header to sort.
+    </p>
+    <div style="overflow-x:auto">
+      <table id="unseen-table"><thead></thead><tbody></tbody></table>
+    </div>
+    <button type="button" class="toggle" id="unseen-toggle" hidden>Show all</button>
   </section>
 
   <section class="panel">
@@ -287,6 +393,12 @@
     <a href="data/results.json">results.json</a> +
     <a href="data/trajectories.json">trajectories.json</a>
     (produced by <code>scripts/build_site.py</code>).
+    Newer results:
+    <a href="data_shapes/results.json">data_shapes/results.json</a>,
+    <a href="data_shapes/failures.json">data_shapes/failures.json</a>,
+    <a href="data_bigdata/scaling_table.json">data_bigdata/scaling_table.json</a>,
+    <a href="data_fastgraph/results_all.json">data_fastgraph/results_all.json</a>,
+    <a href="data_unseen/results.json">data_unseen/results.json</a>.
   </footer>
 </main>
 

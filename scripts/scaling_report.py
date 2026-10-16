@@ -29,7 +29,7 @@ AXES = {"n": "n_samples", "d": "n_features", "k": "k_target"}
 # Representative algorithms drawn in colour in scaling_axes.pdf.
 HIGHLIGHT = ["minibatch_kmeans", "kmeans", "gmm", "bico_stream", "trident", "fmm", "lmm",
              "spectral", "agglomerative", "birch_algo", "louvain_knn", "learned_router_v3",
-             "dbscan_auto", "tbmm_fl"]
+             "dbscan_auto", "tbmm_fl", "mcg_cf", "lmm_mcg"]
 
 
 def load(runs: list[pathlib.Path]) -> tuple[pd.DataFrame, pd.DataFrame]:

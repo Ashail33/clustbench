@@ -769,7 +769,7 @@
   },
   "shards": [
     {
-      "run_dir": "runs/validity/indist",
+      "run_dir": "runs/validity/indist_all",
       "config_sha256": "5fbc33e8fd7bcab5199a6f1fde9e4e694f542b4e7cb3651e78e680fac039cf81",
       "generated_at": "2026-10-15 09:28:45",
       "datasets": [
@@ -797,9 +797,9 @@
       ]
     },
     {
-      "run_dir": "runs/validity/tbmm_indist_0",
-      "config_sha256": "05135fdd107e928b1fd399230821ce608cfe4517164723787f5fc03f32fd6ec0",
-      "generated_at": "2026-10-15 19:59:01",
+      "run_dir": "runs/mcg/paper",
+      "config_sha256": "f0dfa5f62c9c9d3f92a84df616aaffc8a284353e260df88912d874f6a6f9cc42",
+      "generated_at": "2026-10-16 20:58:11",
       "datasets": [
         "mdcgen",
         "anisotropic",
@@ -810,14 +810,7 @@
         "breast_cancer",
         "digits",
         "anisotropic",
-        "extreme_outliers"
-      ]
-    },
-    {
-      "run_dir": "runs/validity/tbmm_indist_1",
-      "config_sha256": "1f2ffda551905388c16bd9bdd12c5b75216d91cd22f600dfbb08da17097876de",
-      "generated_at": "2026-10-15 19:59:00",
-      "datasets": [
+        "extreme_outliers",
         "ts_ecg200",
         "ts_trace",
         "ts_synth",
@@ -832,9 +825,9 @@
       ]
     },
     {
-      "run_dir": "runs/validity/flh_indist_0",
-      "config_sha256": "201180b87d571adb6e47a1ef813395a534704d4ac714502bea82e39d8fb90edc",
-      "generated_at": "2026-10-15 20:05:11",
+      "run_dir": "runs/mcg_cf/paper",
+      "config_sha256": "8a2f2bb24867a8464c615a6718cac61917b2deb6842773383f5dbf77a2a9f944",
+      "generated_at": "2026-10-16 21:12:47",
       "datasets": [
         "mdcgen",
         "anisotropic",
@@ -845,14 +838,7 @@
         "breast_cancer",
         "digits",
         "anisotropic",
-        "extreme_outliers"
-      ]
-    },
-    {
-      "run_dir": "runs/validity/flh_indist_1",
-      "config_sha256": "75414195a0637a7d7d277c9a12a609a058a51160c968cb2b10d8db0270745e49",
-      "generated_at": "2026-10-15 20:05:11",
-      "datasets": [
+        "extreme_outliers",
         "ts_ecg200",
         "ts_trace",
         "ts_synth",
@@ -867,9 +853,9 @@
       ]
     },
     {
-      "run_dir": "runs/validity/cyc_indist_0",
-      "config_sha256": "7e066cc331c771cc13535d9fa148b890d811730848a78f3b897484b80932f00e",
-      "generated_at": "2026-10-15 20:06:08",
+      "run_dir": "runs/lmm_mcg/paper",
+      "config_sha256": "890d9eff6d80360737823d91ce4501203d57637d097d957752634ff87cc2bed2",
+      "generated_at": "2026-10-16 21:35:30",
       "datasets": [
         "mdcgen",
         "anisotropic",
@@ -880,14 +866,35 @@
         "breast_cancer",
         "digits",
         "anisotropic",
-        "extreme_outliers"
+        "extreme_outliers",
+        "ts_ecg200",
+        "ts_trace",
+        "ts_synth",
+        "graph_karate",
+        "graph_sbm",
+        "inverse_pca",
+        "hierarchical_nested",
+        "imbalanced_blobs",
+        "heavy_tailed_mixture",
+        "PowerLawStudentT",
+        "VariableDensityBridges"
       ]
     },
     {
-      "run_dir": "runs/validity/cyc_indist_1",
-      "config_sha256": "e95d68a97ab9f0cc0b73bf530605dd34a67431fd10a4b4791c1a1acc756681c6",
-      "generated_at": "2026-10-15 20:05:51",
+      "run_dir": "runs/lmm_mcg_dual/paper",
+      "config_sha256": "e654d785ffb444a05ad5b2a2f132aa5a2c4529482a1c671531778fe129ec2ef0",
+      "generated_at": "2026-10-16 22:40:46",
       "datasets": [
+        "mdcgen",
+        "anisotropic",
+        "moons",
+        "circles",
+        "iris",
+        "wine",
+        "breast_cancer",
+        "digits",
+        "anisotropic",
+        "extreme_outliers",
         "ts_ecg200",
         "ts_trace",
         "ts_synth",

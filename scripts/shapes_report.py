@@ -34,7 +34,7 @@ GROUPS = {
     "other synthetic": ["graph_sbm", "ts_synth"],
 }
 FAMILY_GROUP = {f: g for g, fs in GROUPS.items() for f in fs}
-GALLERY_ALGOS = ["kmeans", "gmm", "dbscan_auto", "agglomerative", "spectral", "lmm", "mcg_cf", "lmm_mcg",
+GALLERY_ALGOS = ["kmeans", "gmm", "dbscan_auto", "agglomerative", "spectral", "lmm", "mcg", "mcg_cf", "lmm_mcg", "lmm_mcg_dual",
                  "learned_router_v3"]
 GALLERY_SETS = [("moons", 2, 2), ("circles", 2, 2), ("rings", 2, 5), ("spiral", 2, 3), ("s_curve", 3, 4),
                 ("swiss_roll", 3, 4), ("mixed_shapes", 2, 5), ("mixed", 2, 4), ("VariableDensityBridges", 2, 4),
