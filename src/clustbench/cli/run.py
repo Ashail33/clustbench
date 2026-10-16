@@ -90,16 +90,7 @@ def main() -> None:
     repeats = int(timing.get("repeats", 1))
     threads = timing.get("threads")
     strict = bool(cfg.get("strict_provenance", False))
-    # resources: {memory_limit_gb: 6} caps this process's address space, so an
-    # algorithm that tries to allocate an n x n matrix at large n raises
-    # MemoryError (recorded as a failed run) instead of being OOM-killed and
-    # taking the whole sweep with it.
     mem_gb = (cfg.get("resources", {}) or {}).get("memory_limit_gb")
-    if mem_gb:
-        import resource
-
-        limit = int(float(mem_gb) * 1024 ** 3)
-        resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
     if threads is not None:
         from threadpoolctl import threadpool_limits
 
@@ -125,6 +116,23 @@ def main() -> None:
 
     if timing.get("warmup", True):
         warm_up(algos)
+
+    # resources: {memory_limit_gb: 3} is a per-process allocation budget on
+    # top of what is already mapped after warm-up (libraries, router caches).
+    # It is enforced as an address-space limit, so an algorithm that tries to
+    # allocate an n x n matrix at large n raises MemoryError (recorded as a
+    # failed run) instead of being OOM-killed and taking the sweep with it.
+    if mem_gb:
+        import resource
+
+        import psutil
+
+        base = psutil.Process().memory_info().vms
+        limit = int(base + float(mem_gb) * 1024 ** 3)
+        resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+        manifest["env"]["memory_budget"] = {"baseline_vms_gb": round(base / 1024 ** 3, 2),
+                                            "budget_gb": float(mem_gb)}
+        (outdir / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
     rows: List[dict] = []
     for ds in cfg["datasets"]:

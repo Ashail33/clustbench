@@ -3,7 +3,7 @@
 #
 # One-factor-at-a-time from a base of n=10,000, d=20, k=10 (MDCGen blobs),
 # plus one large corner (n=100k, d=100, k=50). Every algorithm gets a 150 s
-# budget per run and each process is capped at 3.5 GB, so runs that do not
+# budget per run and each run may allocate at most 3 GB beyond the warmed-up process, so runs that do not
 # finish are recorded (error_type Timeout / MemoryError) instead of stalling
 # or killing the sweep.
 #
@@ -381,4 +381,4 @@ timing:
   warmup: true
   timeout_s: 150
 resources:
-  memory_limit_gb: 3.5
+  memory_limit_gb: 3
