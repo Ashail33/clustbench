@@ -1024,5 +1024,329 @@ load().catch(err => {
   console.error(err);
 });
 </script>
+<script>
+// Newer-results panels (shapes, big-data scaling, fast graph, held-out families).
+// Each panel loads its own JSON and degrades to a short note if the file is missing.
+(function () {
+  const loadJSON = (path) => fetch(path).then(r => r.ok ? r.json() : Promise.reject(new Error(r.status))).catch(() => null);
+  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const num = (v, d = 3) => (v == null || !Number.isFinite(Number(v))) ? "" : Number(v).toFixed(d);
+  const dash = (v, d = 3) => (v == null || !Number.isFinite(Number(v))) ? "—" : Number(v).toFixed(d);
+  const fmtTime = (v) => {
+    if (v == null || !Number.isFinite(Number(v))) return "—";
+    const x = Number(v);
+    return x >= 100 ? x.toFixed(0) : x >= 10 ? x.toFixed(1) : x >= 1 ? x.toFixed(2) : x.toFixed(3);
+  };
+  const avg = (xs) => {
+    const vs = xs.filter(x => x != null && Number.isFinite(Number(x))).map(Number);
+    return vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : null;
+  };
+  const median = (xs) => {
+    const vs = xs.filter(x => x != null && Number.isFinite(Number(x))).map(Number).sort((a, b) => a - b);
+    if (!vs.length) return null;
+    const m = Math.floor(vs.length / 2);
+    return vs.length % 2 ? vs[m] : (vs[m - 1] + vs[m]) / 2;
+  };
+  const byKey = (rows, key) => {
+    const m = new Map();
+    for (const r of rows) {
+      const k = r[key];
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(r);
+    }
+    return m;
+  };
+  function showUnavailable(panelId, what) {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+    const keep = panel.querySelectorAll("h2, p.hint");
+    panel.innerHTML = "";
+    keep.forEach(el => panel.appendChild(el));
+    const p = document.createElement("p");
+    p.className = "na-note";
+    p.textContent = `Data not available (${what} could not be loaded).`;
+    panel.appendChild(p);
+  }
+
+  // Generic sortable table.
+  // columns: [{key, label, num, render(row), value(row), top3: "high"|"low", sortDir}]
+  // state: {key, dir, tiebreak(a,b)} ; opts.limit: number|null
+  function sortableTable(table, columns, rows, state, opts = {}) {
+    const thead = table.querySelector("thead");
+    const tbody = table.querySelector("tbody");
+    const valueOf = (col, r) => col.value ? col.value(r) : r[col.key];
+    function cmp(a, b) {
+      const col = columns.find(c => c.key === state.key);
+      if (!col) return 0;
+      const va = valueOf(col, a), vb = valueOf(col, b);
+      const na = va == null || (typeof va === "number" && !Number.isFinite(va));
+      const nb = vb == null || (typeof vb === "number" && !Number.isFinite(vb));
+      if (na && nb) return state.tiebreak ? state.tiebreak(a, b) : 0;
+      if (na) return 1;
+      if (nb) return -1;
+      let c = (typeof va === "number" && typeof vb === "number") ? va - vb : String(va).localeCompare(String(vb));
+      if (state.dir === "desc") c = -c;
+      if (c === 0 && state.tiebreak) c = state.tiebreak(a, b);
+      return c;
+    }
+    function draw() {
+      const sorted = [...rows].sort(cmp);
+      const shown = opts.limit ? sorted.slice(0, opts.limit) : sorted;
+      // top-3 sets per highlighted column, computed over all rows
+      const top = new Map();
+      for (const col of columns) {
+        if (!col.top3) continue;
+        const vals = [...new Set(rows.map(r => valueOf(col, r)).filter(v => v != null && Number.isFinite(v)))]
+          .sort((a, b) => col.top3 === "high" ? b - a : a - b).slice(0, 3);
+        top.set(col.key, new Set(vals));
+      }
+      thead.innerHTML = "<tr>" + columns.map(col => {
+        const arrow = state.key === col.key ? (state.dir === "desc" ? " ▼" : " ▲") : "";
+        const cls = ["sortable", col.num ? "num" : "", state.key === col.key ? "sorted" : ""].join(" ").trim();
+        return `<th class="${cls}" data-key="${esc(col.key)}" title="${esc(col.title || "Click to sort")}">${esc(col.label)}${arrow}</th>`;
+      }).join("") + "</tr>";
+      tbody.innerHTML = shown.map((r, idx) => "<tr>" + columns.map(col => {
+        const v = valueOf(col, r);
+        const isTop = top.has(col.key) && v != null && top.get(col.key).has(v);
+        const cls = [col.num ? "num" : "", isTop ? "top3" : ""].join(" ").trim();
+        const content = col.render ? col.render(r, idx) : esc(v ?? "");
+        return `<td class="${cls}">${content}</td>`;
+      }).join("") + "</tr>").join("");
+      thead.querySelectorAll("th").forEach(th => th.addEventListener("click", () => {
+        const key = th.dataset.key;
+        const col = columns.find(c => c.key === key);
+        if (state.key === key) state.dir = state.dir === "desc" ? "asc" : "desc";
+        else { state.key = key; state.dir = col.sortDir || (col.num ? "desc" : "asc"); }
+        state.tiebreak = null;
+        draw();
+      }));
+      if (opts.onDraw) opts.onDraw(sorted.length, shown.length);
+    }
+    draw();
+    return { redraw: draw, setLimit: (n) => { opts.limit = n; draw(); } };
+  }
+
+  // ---------------------------------------------------------------- 1. shapes
+  const SHAPE_GROUPS = [
+    ["non-convex shapes", ["moons", "circles", "rings", "spiral", "s_curve", "swiss_roll"]],
+    ["mixtures", ["mixed_shapes", "mixed", "VariableDensityBridges", "hierarchical_nested", "heavy_tailed_mixture", "PowerLawStudentT"]],
+    ["density / imbalance / outliers", ["varying_density", "imbalanced", "imbalanced_blobs", "extreme_outliers"]],
+    ["convex blobs", ["blobs", "anisotropic", "mdcgen", "inverse_pca"]],
+    ["real data", ["iris", "wine", "breast_cancer", "digits", "ecoli", "glass", "yeast", "vehicle", "segment", "olivetti_faces", "text20news", "ts_ecg200", "ts_trace", "graph_karate"]],
+    ["other synthetic", ["graph_sbm", "ts_synth"]],
+  ];
+  const GROUP_OF = new Map();
+  SHAPE_GROUPS.forEach(([g, ids]) => ids.forEach(id => GROUP_OF.set(id, g)));
+  const groupOf = (ds) => GROUP_OF.get(ds) || "other synthetic";
+
+  async function renderShapes() {
+    const [results, failures] = await Promise.all([
+      loadJSON("data_shapes/results.json"),
+      loadJSON("data_shapes/failures.json"),
+    ]);
+    if (!Array.isArray(results)) { showUnavailable("shapes-panel", "data_shapes/results.json"); return; }
+    const fails = Array.isArray(failures) ? failures : [];
+    // Every attempted run; DNF (failure or missing ARI) scores 0.
+    const runs = [
+      ...results.map(r => ({ algo: r.algo, ds: r.dataset_id, ari: Number.isFinite(Number(r.ari)) && r.ari != null ? Number(r.ari) : 0, wall: r.wall_time_s, dnf: !(r.ari != null && Number.isFinite(Number(r.ari))) })),
+      ...fails.map(r => ({ algo: r.algo, ds: r.dataset_id, ari: 0, wall: null, dnf: true })),
+    ];
+    const algos = [...new Set(runs.map(r => r.algo))].sort();
+    const datasets = new Set(runs.map(r => r.ds));
+    const stats = document.getElementById("shapes-stats");
+    const stat = (label, value) => `<div class="stat"><div class="label">${label}</div><div class="value">${value}</div></div>`;
+    stats.innerHTML = stat("algorithms", algos.length) + stat("dataset families", datasets.size) +
+      stat("runs", runs.length) + stat("DNF runs", runs.filter(r => r.dnf).length);
+
+    const byAlgo = byKey(runs, "algo");
+    const rowFor = (algo) => {
+      const rs = byAlgo.get(algo);
+      const row = { algo, overall: avg(rs.map(r => r.ari)), dnf: rs.filter(r => r.dnf).length, wall: median(rs.map(r => r.wall)) };
+      for (const [g] of SHAPE_GROUPS) row["g:" + g] = avg(rs.filter(r => groupOf(r.ds) === g).map(r => r.ari));
+      const byDs = byKey(rs, "ds");
+      for (const [ds, dsr] of byDs) row["d:" + ds] = avg(dsr.map(r => r.ari));
+      for (const [g] of SHAPE_GROUPS) row["dnf:" + g] = rs.filter(r => r.dnf && groupOf(r.ds) === g).length;
+      for (const [g] of SHAPE_GROUPS) row["wall:" + g] = median(rs.filter(r => groupOf(r.ds) === g).map(r => r.wall));
+      return row;
+    };
+    const rows = algos.map(rowFor);
+
+    const sel = document.getElementById("shapes-group");
+    for (const [g, ids] of SHAPE_GROUPS) {
+      if (!ids.some(id => datasets.has(id))) continue;
+      const o = document.createElement("option");
+      o.value = g; o.textContent = g;
+      sel.appendChild(o);
+    }
+    const table = document.getElementById("shapes-table");
+    const note = document.getElementById("shapes-note");
+    const ariCol = (key, label, title) => ({ key, label, title, num: true, top3: "high", render: r => num(r[key]) });
+    function draw() {
+      const g = sel.value;
+      let columns, state;
+      if (!g) {
+        columns = [
+          { key: "algo", label: "algorithm" },
+          ariCol("overall", "mean ARI (all)", "Mean ARI over every run, DNF = 0"),
+          ...SHAPE_GROUPS.map(([gname]) => ariCol("g:" + gname, gname, `Mean ARI over ${gname}, DNF = 0`)),
+          { key: "dnf", label: "DNF", num: true, sortDir: "asc", title: "Runs that did not finish" },
+          { key: "wall", label: "median wall (s)", num: true, sortDir: "asc", render: r => fmtTime(r.wall) },
+        ];
+        state = { key: "overall", dir: "desc" };
+        note.textContent = `${rows.length} algorithms. Means include did-not-finish runs as ARI 0. Bold = top 3 in that column.`;
+      } else {
+        const ids = (SHAPE_GROUPS.find(([x]) => x === g) || [g, []])[1].filter(id => datasets.has(id));
+        columns = [
+          { key: "algo", label: "algorithm" },
+          ariCol("g:" + g, "group mean", `Mean ARI over ${g}, DNF = 0`),
+          ...ids.map(id => ariCol("d:" + id, id, `Mean ARI on ${id}, DNF = 0`)),
+          { key: "dnf:" + g, label: "DNF", num: true, sortDir: "asc", title: "Runs in this group that did not finish" },
+          { key: "wall:" + g, label: "median wall (s)", num: true, sortDir: "asc", render: r => fmtTime(r["wall:" + g]) },
+        ];
+        state = { key: "g:" + g, dir: "desc" };
+        note.textContent = `${rows.length} algorithms × ${ids.length} dataset families in “${g}”. Sorted by group mean ARI. Bold = top 3 in that column.`;
+      }
+      sortableTable(table, columns, rows, state);
+    }
+    sel.addEventListener("change", draw);
+    draw();
+  }
+
+  // ---------------------------------------------------------------- 2. big data
+  async function renderBigdata() {
+    const rows = await loadJSON("data_bigdata/scaling_table.json");
+    if (!Array.isArray(rows)) { showUnavailable("bigdata-panel", "data_bigdata/scaling_table.json"); return; }
+    const columns = [
+      { key: "algo", label: "algorithm" },
+      { key: "exp_n", label: "exp. n", num: true, sortDir: "asc", render: r => num(r.exp_n, 2), title: "log-log slope of wall time vs n" },
+      { key: "exp_d", label: "exp. d", num: true, sortDir: "asc", render: r => num(r.exp_d, 2), title: "log-log slope of wall time vs d" },
+      { key: "exp_k", label: "exp. k", num: true, sortDir: "asc", render: r => num(r.exp_k, 2), title: "log-log slope of wall time vs k" },
+      { key: "wall_base_s", label: "wall @ base (s)", num: true, sortDir: "asc", render: r => r.wall_base_s == null ? "" : fmtTime(r.wall_base_s) },
+      { key: "ari_base", label: "ARI @ base", num: true, render: r => num(r.ari_base) },
+      { key: "largest_n_done", label: "largest n done", num: true, render: r => r.largest_n_done == null ? "" : Number(r.largest_n_done).toLocaleString("en-US") },
+      { key: "wall_largest_n_s", label: "wall @ largest n (s)", num: true, sortDir: "asc", render: r => r.wall_largest_n_s == null ? "" : fmtTime(r.wall_largest_n_s) },
+      { key: "ari_largest_n", label: "ARI @ largest n", num: true, render: r => num(r.ari_largest_n) },
+      { key: "dnf", label: "DNF (timeout / memory / capped)", num: true, sortDir: "asc",
+        value: r => (r.dnf_timeout || 0) + (r.dnf_memoryerror || 0) + (r.dnf_capped || 0),
+        render: r => `${r.dnf_timeout ?? 0} / ${r.dnf_memoryerror ?? 0} / ${r.dnf_capped ?? 0}` },
+    ];
+    const state = {
+      key: "largest_n_done", dir: "desc",
+      tiebreak: (a, b) => {
+        const wa = a.wall_base_s, wb = b.wall_base_s;
+        if (wa == null && wb == null) return 0;
+        if (wa == null) return 1;
+        if (wb == null) return -1;
+        return wa - wb;
+      },
+    };
+    sortableTable(document.getElementById("bigdata-table"), columns, rows, state);
+  }
+
+  // ---------------------------------------------------------------- 3. fast graph
+  async function renderFastgraph() {
+    const all = await loadJSON("data_fastgraph/results_all.json");
+    if (!Array.isArray(all)) { showUnavailable("fastgraph-panel", "data_fastgraph/results_all.json"); return; }
+    const runs = all.filter(r => !String(r.algo).endsWith("_lobpcg"));
+    const algos = [...new Set(runs.map(r => r.algo))].sort();
+    const rows = algos.map(algo => {
+      const rs = runs.filter(r => r.algo === algo);
+      const at = (n) => rs.filter(r => Number(r.n_samples) === n);
+      const r20 = at(20000), r100 = at(100000);
+      return {
+        algo,
+        ari20: r20.length ? avg(r20.map(r => r.ari)) : null,
+        t20: r20.length ? median(r20.map(r => r.wall_time_s)) : null,
+        ari100: r100.length ? avg(r100.map(r => r.ari)) : null,
+        t100: r100.length ? median(r100.map(r => r.wall_time_s)) : null,
+      };
+    });
+    const columns = [
+      { key: "algo", label: "algorithm" },
+      { key: "ari20", label: "mean ARI @ 20k", num: true, top3: "high", render: r => dash(r.ari20) },
+      { key: "t20", label: "median time @ 20k (s)", num: true, sortDir: "asc", render: r => fmtTime(r.t20) },
+      { key: "ari100", label: "mean ARI @ 100k", num: true, top3: "high", render: r => dash(r.ari100) },
+      { key: "t100", label: "median time @ 100k (s)", num: true, sortDir: "asc", render: r => fmtTime(r.t100) },
+    ];
+    sortableTable(document.getElementById("fastgraph-table"), columns, rows, { key: "ari100", dir: "desc" });
+
+    const pts = rows.filter(r => r.ari100 != null && r.t100 != null && r.t100 > 0);
+    new Chart(document.getElementById("chart-fastgraph"), {
+      type: "scatter",
+      data: {
+        datasets: pts.map(r => ({
+          label: r.algo,
+          data: [{ x: r.t100, y: r.ari100 }],
+          backgroundColor: colorFor(r.algo),
+          borderColor: colorFor(r.algo),
+          pointRadius: 6,
+          pointHoverRadius: 8,
+        })),
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: { display: true, text: "n = 100,000: accuracy vs time" },
+          legend: { display: true, labels: { boxWidth: 8 } },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.dataset.label}: ARI ${ctx.parsed.y.toFixed(3)}, ${fmtTime(ctx.parsed.x)} s`,
+            },
+          },
+        },
+        scales: {
+          x: { type: "logarithmic", title: { display: true, text: "median wall time at 100k, s (log)" } },
+          y: { title: { display: true, text: "mean ARI at 100k" } },
+        },
+      },
+    });
+  }
+
+  // ---------------------------------------------------------------- 4. held-out
+  async function renderUnseen() {
+    const runs = await loadJSON("data_unseen/results.json");
+    if (!Array.isArray(runs)) { showUnavailable("unseen-panel", "data_unseen/results.json"); return; }
+    const byAlgo = byKey(runs, "algo");
+    const rows = [...byAlgo.entries()].map(([algo, rs]) => ({
+      algo,
+      ari: avg(rs.map(r => r.ari)),
+      wall: median(rs.map(r => r.wall_time_s)),
+      runs: rs.length,
+    }));
+    const ranked = [...rows].sort((a, b) => (b.ari ?? -Infinity) - (a.ari ?? -Infinity));
+    ranked.forEach((r, i) => { r.rank = i + 1; });
+    const LIMIT = 25;
+    const columns = [
+      { key: "rank", label: "#", num: true, sortDir: "asc",
+        render: r => `<span class="rank-badge ${r.rank === 1 ? "first" : ""}">${r.rank}</span>` },
+      { key: "algo", label: "algorithm" },
+      { key: "ari", label: "mean ARI", num: true, top3: "high", render: r => num(r.ari) },
+      { key: "wall", label: "median wall (s)", num: true, sortDir: "asc", render: r => fmtTime(r.wall) },
+    ];
+    const btn = document.getElementById("unseen-toggle");
+    let showAll = false;
+    const tbl = sortableTable(document.getElementById("unseen-table"), columns, rows, { key: "ari", dir: "desc" }, {
+      limit: LIMIT,
+      onDraw: (total, shown) => {
+        btn.hidden = total <= LIMIT;
+        btn.textContent = showAll ? `Show top ${LIMIT}` : `Show all ${total}`;
+      },
+    });
+    btn.addEventListener("click", () => {
+      showAll = !showAll;
+      tbl.setLimit(showAll ? null : LIMIT);
+    });
+  }
+
+  const guard = (fn, panelId, what) => fn().catch(err => {
+    console.error(err);
+    showUnavailable(panelId, what);
+  });
+  guard(renderShapes, "shapes-panel", "data_shapes/results.json");
+  guard(renderBigdata, "bigdata-panel", "data_bigdata/scaling_table.json");
+  guard(renderFastgraph, "fastgraph-panel", "data_fastgraph/results_all.json");
+  guard(renderUnseen, "unseen-panel", "data_unseen/results.json");
+})();
+</script>
 </body>
 </html>
