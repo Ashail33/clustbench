@@ -26,6 +26,10 @@ import pandas as pd
 
 BASE = {"n_samples": 10000, "n_features": 20, "k_target": 10}
 AXES = {"n": "n_samples", "d": "n_features", "k": "k_target"}
+# Representative algorithms drawn in colour in scaling_axes.pdf.
+HIGHLIGHT = ["minibatch_kmeans", "kmeans", "gmm", "bico_stream", "trident", "fmm", "lmm",
+             "spectral", "agglomerative", "birch_algo", "louvain_knn", "learned_router_v3",
+             "dbscan_auto", "tbmm_fl"]
 
 
 def load(runs: list[pathlib.Path]) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -125,17 +129,24 @@ def main() -> None:
     fig, axes = plt.subplots(1, 3, figsize=(10, 3.6), sharey=True)
     for ax_i, (ax, col) in enumerate(AXES.items()):
         a = axes[ax_i]
-        for i, algo in enumerate(algos):
+        hi = [h for h in HIGHLIGHT if h in algos]
+        for algo in algos:
+            if algo in hi:
+                continue
             s = axis_rows(res[res.algo == algo], ax).groupby(col)["wall_time_s"].median()
             if len(s) >= 2:
-                a.plot(s.index, s.values, "o-", ms=2, lw=0.7, color=cmap(i % 20),
-                       ls=["-", "--", ":"][(i // 20) % 3], label=algo)
+                a.plot(s.index, s.values, "-", lw=0.4, color="0.85", zorder=1)
+        for i, algo in enumerate(hi):
+            s = axis_rows(res[res.algo == algo], ax).groupby(col)["wall_time_s"].median()
+            if len(s) >= 2:
+                a.plot(s.index, s.values, "o-", ms=2.5, lw=1.0, color=cmap(i % 20), label=algo, zorder=3)
         a.set_xscale("log")
         a.set_yscale("log")
         a.set_xlabel({"n": "points n", "d": "features d", "k": "clusters k"}[ax])
         a.axhline(150, color="grey", lw=0.6, ls="--")
     axes[0].set_ylabel("wall time (s), fit_predict")
-    axes[2].legend(fontsize=4.5, ncol=2, frameon=False, bbox_to_anchor=(1.02, 1), loc="upper left")
+    axes[2].legend(fontsize=6, frameon=False, bbox_to_anchor=(1.02, 1), loc="upper left",
+                   title="grey: other algorithms", title_fontsize=6)
     fig.tight_layout()
     fig.savefig(args.out / "scaling_axes.pdf")
     plt.close(fig)

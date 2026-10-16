@@ -2073,3 +2073,48 @@ Fourier+Laplacian ablation `tbmm_fl` scores the same and is 5x faster.
 Concatenating bases neither helps nor hurts: the graph-Laplacian block
 carries the signal. AMM, benchmarked for the first time, ranks 40th of 57
 (0.625).
+
+## Round 18: big-data scaling
+
+Config `configs/benchmark.bigdata.yaml` runs all 57 algorithms on MDCGen data
+along three one-factor axes through a base point (n=10k, d=20, k=10):
+n ∈ {2k, 10k, 50k, 200k}, d ∈ {5, 20, 100, 500}, k ∈ {3, 10, 50, 200}. A
+corner task (n=100k, d=100, k=50) is also included. Each run executes in a
+forked child process with a single thread, a 120 s `fit_predict` limit and a
+3 GB memory budget. The scripts record runs that hit either limit instead of
+dropping them. That gives 489 finished runs and 138 that did not finish. The
+data are in `docs/data_bigdata/`: `scaling_table.md`, `scaling_axes.pdf`
+(wall time against n, d and k) and `scaling_grid.pdf` (every algorithm on
+every task, with T/M/c marking timeout, memory and capped runs). Exponents
+are log-log slopes of median wall time along each axis.
+
+* **Finished n = 200k** (16 algorithms):
+  * Fast with good quality: `minibatch_kmeans` (3.6 s, ARI 1.00), `trident`
+    (3.4 s, 1.00), `gmm` (2.8 s, 0.96) and `bico_stream` (5.2 s, 0.77).
+  * Slower but complete: `kmeans` (28.5 s), `fmm` (37.1 s, 1.00),
+    `parallel_kmeans` and `kmeans_trimmed`.
+  * `dbscan` finished at 96.7 s but scored ARI 0.
+  * `trident` has the flattest curve of any algorithm (n exponent 0.30).
+* **Corner task (100k × 100 × 50)**: only 10 algorithms finished. The best
+  were `trident` (0.99 in 3.5 s), `bico_stream` (1.00 in 18.5 s), `gmm`
+  (0.97 in 64 s) and `lmm` (1.00 in 101.5 s). LMM has n exponent 1.53, so it
+  is the best-quality new algorithm at scale but not the fastest.
+* **Quadratic in n**:
+  * `agglomerative` (2.36), `density_peaks_bridge` (2.29), `spectral`
+    (2.18), `rapid` (2.02) and `birch_algo` (2.01) never get beyond 10k.
+  * The learned routers (exponents 1.3–1.8) inherit the cost of the
+    candidates they run. None reaches 200k; v4, v5, v7 and v8 stop at 10k.
+  * `rl_pipeline` only finishes n = 2k.
+* **k-axis**: the cost of the k-means family grows with k (exponent 1.5–1.9;
+  `kmeans` takes 83 s at k = 200). `agglomerative` and BIRCH are almost flat
+  in k and reach ARI 1.00 at k = 200.
+* **d-axis**: most exponents are below 0.6. The cost of high dimension is
+  mainly memory, not time.
+* **Memory**: the FLH family (FLHMM, flh_cycle) fails with MemoryError at
+  n ≥ 50k because the Laplace block allocates an n × 300 × d tensor. A
+  chunked Laplace feature map is the obvious fix. `flhmm_hilbert_km`, which
+  has no Laplace block, scales to 200k in 3.7 s.
+* **Harness bug found by this sweep**: `dunn_index` built an O(m²·d)
+  broadcast tensor, about 16 GB at d = 500, which OOM-killed the benchmark
+  parent process. It now uses `scipy.spatial.distance.pdist`/`cdist`, which
+  peaks at about 0.3 GB.
