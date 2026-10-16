@@ -2233,3 +2233,89 @@ rows are the earlier runs):
 * About 60% of `lmm_fast`'s time at 100k is now the NN-descent graph.
   Tuning NN-descent (`delta`, `n_iters`, `n_trees`) saves at most 15%
   before recall drops, so the defaults are kept.
+
+## Round 20: MCG, graph accuracy without the graph cost
+
+**What makes LMM and spectral clustering good.** Both cluster by
+*connectivity*: two points belong together when a chain of close neighbours
+links them. Centroid methods instead ask which centre a point is nearest to.
+On convex blobs the two notions agree, and GMM, k-means and Trident match
+LMM there. They disagree on curved or wrapped shapes. At n = 20k the ARIs
+are:
+
+| data | centroid methods | LMM / spectral |
+|---|---|---|
+| circles | 0.00 | 1.00 |
+| moons | 0.25–0.50 | 0.99 |
+| rings | 0.14–0.18 | 0.89–1.00 |
+| bridged and heavy-tailed data | about 0.7 | 0.88–0.89 |
+
+That is where the whole accuracy gap comes from. The eigenvectors and the
+EM step are just ways of reading off the graph's connected regions. The
+expensive part, a graph on all n points, is what the speed-ups of
+rounds 19 and 19b approximated.
+
+**MCG** (`src/clustbench/algorithms/mcg.py`) builds the graph on about 1000
+micro-clusters instead of on the points:
+
+1. Fit mini-batch k-means with m = min(1000, n/10) centres on a 20k-point
+   subsample.
+2. Each point votes for an edge between its nearest and second-nearest
+   centre. This is competitive Hebbian learning (Martinetz & Schulten 1994),
+   and the counts are the CONN similarity of Taşdemir & Merényi (2009).
+   Edges therefore exist only where data lies between two centres.
+3. Multiply each edge count by `exp(-|c_i - c_j|² / 2σ²)`, with σ² the
+   median squared edge length. Long edges come from points far from every
+   centre, and down-weighting them separates close concentric rings: 0.86
+   becomes 0.97 at 20k.
+4. Run spectral clustering on the m × m graph. Each point takes its nearest
+   centre's label.
+
+The cost is O(n m d) plus a fixed O(fit_n m d + m³), which is linear in n.
+
+Prior art: spectral clustering on k-means centroids is KASP (Yan, Huang &
+Jordan 2009), but KASP links centroids by a kernel on centroid positions
+only. That is the "spectral on centres" baseline here, and it scores 0.27 on
+rings at 20k against MCG's 0.97. The point-voted edges are what make the
+small graph follow the data.
+
+How the design was chosen (8 families, n = 20k, two seeds):
+
+* m = 300 gives a mean ARI of 0.76 and m = 1000 gives 0.85. Rings needs
+  centres spaced more closely than the gap between rings.
+* Size-normalised edges are worse than raw counts.
+* Mutual-k-NN pruning (0.66) and dropping edges with fewer than 2 votes
+  (0.72) both hurt.
+* Gaussian weighting gives 0.90.
+* With random or 3-step-Lloyd centres instead of mini-batch k-means, rings
+  falls to 0.4–0.5.
+* On small n, m ≈ n/10 is best. Smaller centres-to-points ratios are noisy:
+  m = n/2 scores 0.52.
+
+**Results** (paired with the existing runs; data in `docs/data_mcg/`):
+
+| benchmark | MCG | LMM | spectral | notes |
+|---|---|---|---|---|
+| in-distribution, 140 tasks | 0.745 (rank 12/58) | 0.765 (rank 8) | 0.763 (rank 9) | −0.020 vs LMM, p = 0.08 (n.s.) |
+| unseen, 35 tasks | **0.890 (rank 1/59)** | 0.858 | 0.860 | +0.031 vs LMM, p = 0.01; vs spectral p = 0.22 |
+| n = 20k, 22 tasks | 0.850 in 1.3 s | 0.846 in 2.2 s | 0.853 in 7.2 s | `lmm_fast` 0.853 in 1.2 s |
+| n = 100k, 22 tasks | **0.853 in 1.5 s** | 0.837 in 40.1 s | — (too slow) | `lmm_fast` 0.844 in 8.5 s |
+| 100k × 100 × 50 | **1.00 in 3.3 s** | 1.00 in 101.5 s | — | Trident 0.99 in 3.5 s |
+| 200k × 20 × 10 | **1.00 in 2.3 s** | did not finish | — | |
+
+At n = 100k MCG is 27× faster than LMM and 6× faster than `lmm_fast`, at
+equal or better accuracy. Its time barely grows from 20k to 100k
+(1.3 s → 1.5 s) because the fixed micro-cluster step dominates.
+
+Where it is weaker:
+
+* Small real datasets, where n/10 centres are too few to resolve
+  structure: breast cancer 0.24 vs LMM 0.45, wine 0.27 vs 0.41, iris 0.64
+  vs 0.74.
+* Extreme outliers (0.56 vs 0.70) and hierarchical-nested data (about
+  0.55 vs 0.63).
+
+On small data the graph on all points is cheap anyway, so a size switch
+(exact LMM below a few thousand points, MCG above) would combine the two.
+It gains on moons (0.98 vs 0.63 in-distribution) and on mixed shapes at
+large n (1.00 vs 0.86).
