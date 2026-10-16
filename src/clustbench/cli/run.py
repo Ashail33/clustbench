@@ -117,21 +117,16 @@ def main() -> None:
     if timing.get("warmup", True):
         warm_up(algos)
 
-    # resources: {memory_limit_gb: 3} is a per-process allocation budget on
-    # top of what is already mapped after warm-up (libraries, router caches).
-    # It is enforced as an address-space limit, so an algorithm that tries to
-    # allocate an n x n matrix at large n raises MemoryError (recorded as a
-    # failed run) instead of being OOM-killed and taking the sweep with it.
-    if mem_gb:
-        import resource
-
-        import psutil
-
-        base = psutil.Process().memory_info().vms
-        limit = int(base + float(mem_gb) * 1024 ** 3)
-        resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
-        manifest["env"]["memory_budget"] = {"baseline_vms_gb": round(base / 1024 ** 3, 2),
-                                            "budget_gb": float(mem_gb)}
+    # resources: {isolate: true, memory_limit_gb: 3} runs every (algorithm,
+    # task) in a forked child of this warmed-up process, with its own
+    # allocation budget of memory_limit_gb on top of the child's baseline and
+    # a hard kill at the timeout. A run that tries to allocate an n x n matrix
+    # at large n then fails alone (MemoryError / Killed) instead of taking the
+    # sweep with it, and nothing it leaks carries over to the next run.
+    resources = cfg.get("resources", {}) or {}
+    isolate = bool(resources.get("isolate", bool(mem_gb)))
+    if isolate:
+        manifest["env"]["isolation"] = {"per_run_fork": True, "memory_budget_gb": mem_gb}
         (outdir / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
     rows: List[dict] = []
@@ -166,6 +161,8 @@ def main() -> None:
                                                     outlier_extremity=float(x),
                                                     timing_repeats=repeats,
                                                     default_timeout_s=timing.get("timeout_s"),
+                                                    isolate=isolate,
+                                                    mem_budget_gb=float(mem_gb) if mem_gb else None,
                                                     strict_provenance=strict,
                                                 )
                                             )

@@ -208,3 +208,34 @@ def test_timeout_records_did_not_finish(tmp_path):
         assert err["error_type"] == "Timeout"
     finally:
         ALGO_REGISTRY.pop("_slow_test", None)
+
+
+def test_isolated_runs_enforce_time_and_memory(tmp_path):
+    import json as _json
+
+    from clustbench.algorithms.base import ALGO_REGISTRY, AlgoResult, Algorithm
+
+    class _Hog(Algorithm):
+        def fit_predict(self, X, k=None):
+            np.ones((40000, 40000))  # ~12.8 GB
+            return AlgoResult(labels=np.zeros(len(X), dtype=int), extra={})
+
+    class _Spin(Algorithm):
+        def fit_predict(self, X, k=None):
+            import time
+            time.sleep(30)  # blocking call, not interruptible by SIGALRM handlers
+            return AlgoResult(labels=np.zeros(len(X), dtype=int), extra={})
+
+    ALGO_REGISTRY["_hog_test"], ALGO_REGISTRY["_spin_test"] = _Hog, _Spin
+    try:
+        algos = [AlgoCfg(name="km", kind="python", entry="kmeans", params={"n_init": 1}),
+                 AlgoCfg(name="hog", kind="python", entry="_hog_test", params={}),
+                 AlgoCfg(name="spin", kind="python", entry="_spin_test", params={}, timeout_s=1.0)]
+        recs = run_task("blobs", 80, 2, 2, 1.0, 1, algos, tmp_path, isolate=True, mem_budget_gb=1.0)
+        assert [r["algo"] for r in recs] == ["km"] and recs[0]["metrics"]["ari"] is not None
+        errs = {p.name.split("__")[0]: _json.loads(p.read_text())["error_type"]
+                for p in tmp_path.glob("artifacts/error_*.json")}
+        assert errs == {"error_hog": "MemoryError", "error_spin": "Timeout"}
+    finally:
+        ALGO_REGISTRY.pop("_hog_test", None)
+        ALGO_REGISTRY.pop("_spin_test", None)

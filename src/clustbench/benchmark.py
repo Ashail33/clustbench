@@ -149,6 +149,62 @@ class _time_limit:
         return False
 
 
+class RunKilled(Exception):
+    """The isolated child process died without reporting (e.g. OOM-killed)."""
+
+
+def _run_isolated(fit, timeout_s: float | None, mem_budget_gb: float | None):
+    """Run ``fit()`` in a forked child of this (warmed-up) process.
+
+    The child inherits loaded libraries and router caches copy-on-write, sets
+    an address-space limit of its own baseline + ``mem_budget_gb`` (so an
+    oversized allocation raises MemoryError there and nothing leaks into the
+    next run), and is SIGKILLed if it exceeds ``timeout_s``, which also stops
+    long native calls that SIGALRM cannot interrupt.
+    """
+    import multiprocessing as mp
+
+    ctx = mp.get_context("fork")
+    parent_conn, child_conn = ctx.Pipe(duplex=False)
+
+    def _child():
+        try:
+            if mem_budget_gb:
+                import resource
+
+                vms = psutil.Process().memory_info().vms
+                lim = int(vms + float(mem_budget_gb) * 1024 ** 3)
+                resource.setrlimit(resource.RLIMIT_AS, (lim, lim))
+            out = ("ok", fit())
+        except BaseException as e:  # noqa: BLE001 - everything is reported to the parent
+            out = ("err", type(e).__name__, str(e)[:500])
+        try:
+            child_conn.send(out)
+        except BaseException as e:  # e.g. result not picklable, or MemoryError while pickling
+            child_conn.send(("err", type(e).__name__, f"while returning result: {str(e)[:400]}"))
+        child_conn.close()
+
+    proc = ctx.Process(target=_child, daemon=True)
+    proc.start()
+    child_conn.close()
+    got = parent_conn.poll(timeout_s) if timeout_s else parent_conn.poll(None)
+    if not got:
+        proc.kill()
+        proc.join()
+        raise AlgoTimeout(f"exceeded {timeout_s:g}s (killed)")
+    try:
+        msg = parent_conn.recv()
+    except EOFError:
+        proc.join()
+        raise RunKilled(f"child exited with code {proc.exitcode} without a result")
+    proc.join()
+    if msg[0] == "ok":
+        return msg[1]
+    if msg[1] == "MemoryError":
+        raise MemoryError(msg[2])
+    raise RuntimeError(f"{msg[1]}: {msg[2]}")
+
+
 def run_task(
     dataset_id: str,
     n: int,
@@ -164,6 +220,8 @@ def run_task(
     outlier_extremity: float = 1.0,
     timing_repeats: int = 1,
     default_timeout_s: float | None = None,
+    isolate: bool = False,
+    mem_budget_gb: float | None = None,
     strict_provenance: bool = False,
 ):
     X, y, dataset_source = generate_with_provenance(
@@ -237,8 +295,12 @@ def run_task(
         try:
             # Only the algorithm call is timed; saving labels and scoring
             # (silhouette is O(n^2)) happen outside the measured window.
-            with _time_limit(cfg.timeout_s if cfg.timeout_s is not None else default_timeout_s):
-                payload = fit()
+            budget = cfg.timeout_s if cfg.timeout_s is not None else default_timeout_s
+            if isolate:
+                payload = _run_isolated(fit, budget, mem_budget_gb)
+            else:
+                with _time_limit(budget):
+                    payload = fit()
             labels = np.asarray(labels_of(payload))
             npy_path = artifacts / f"labels_{cfg.name}__{task_suffix}.npy"
             np.save(npy_path, labels)
@@ -256,7 +318,8 @@ def run_task(
             err_path = artifacts / f"error_{cfg.name}__{task_suffix}.json"
             err_path.write_text(json.dumps({
                 "algo": cfg.name, **task_stub,
-                "error_type": "Timeout" if isinstance(e, AlgoTimeout) else type(e).__name__,
+                "error_type": ("Timeout" if isinstance(e, AlgoTimeout)
+                               else "Killed" if isinstance(e, RunKilled) else type(e).__name__),
                 "error_message": str(e)[:500],
             }, indent=2, default=str))
             print(f"  [skip] {cfg.name}{kind_tag} on {task_suffix}: {type(e).__name__}: {str(e)[:120]}")
