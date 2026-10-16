@@ -47,18 +47,28 @@ machine-readable \emph{algorithm cards} with theoretical predictions; and a
 benchmark's own output. We pair each threat to the validity of such a
 benchmark with a control in the harness: post-hoc tests and
 configuration-level confidence intervals, five seeds, repeated timing of the
-algorithm call alone, checked data provenance, inlier-only scoring, a
-large-$n$ sweep, and leave-one-dataset-family-out evaluation of the
-selectors. On the controlled release (48 algorithms, 20 dataset families,
-140 tasks, 6{,}719 runs) the Friedman test rejects equal performance
-($\chi^2 = 2062$), yet a Nemenyi critical difference cannot separate the top
-11 algorithms. The best selector beats the best single algorithm (an
-EM-trained graph-Laplacian mixture) by 0.05 ARI in-distribution, but loses
-0.03--0.07 ARI on held-out dataset families, where no selector differs
-significantly from that algorithm. The controls also corrected three earlier
-results: the ``real'' time series had silently been synthetic, BIRCH scales
-quadratically beyond $n \approx 3{,}000$ in 10 dimensions, and the treatment of
-injected outliers reorders the leaderboard on contaminated data.
+algorithm call alone, checked data provenance, inlier-only scoring, run
+isolation with time and memory limits, large-$n$ sweeps, and
+leave-one-dataset-family-out evaluation of the selectors. On the controlled
+release (61 algorithms, 20 dataset families, 140 tasks, 8{,}539 runs) the
+Friedman test rejects equal performance ($\chi^2 = 2698$), yet a Nemenyi
+critical difference cannot separate the top 15 algorithms. The best selector
+beats the best single algorithm, an EM-trained graph-Laplacian mixture, by
+0.05 ARI in-distribution. It loses 0.03--0.07 ARI on held-out dataset
+families, where no selector differs significantly from that algorithm. Two
+wider runs show where the selectors' advantage ends. A run-isolated big-data
+sweep to $n = 200{,}000$, $d = 500$ and $k = 200$ measures each algorithm's
+growth exponents and records 141 runs that hit a limit. An
+every-algorithm-on-every-dataset run (63 algorithms, 36 dataset families,
+11{,}328 runs) finds the selectors at 0.31--0.35 ARI on curved shapes, against
+0.74--0.86 for graph-based methods. On real data they lead only on the
+datasets in their training table; on seven real datasets they have never
+seen, they tie the best single methods. The
+controls also corrected four earlier results: the ``real'' time series had
+silently been synthetic, BIRCH scales quadratically beyond
+$n \approx 3{,}000$ in 10 dimensions, the treatment of injected outliers
+reorders the leaderboard on contaminated data, and an internal validity index
+needed 16\,GB at $d = 500$.
 \end{abstract}
 
 \section{Introduction}
@@ -100,16 +110,16 @@ recommendation into software and keeps the grid cheap to re-run.
   \item \textbf{A benchmark suite} (\S\ref{sec:suite}) of more than thirty
   dataset generators across convex, non-convex, heterogeneous-density,
   outlier-heavy, low-rank high-dimensional, real tabular, time-series, graph
-  and deliberately adversarial regimes, and a registry of 50 algorithm
+  and deliberately adversarial regimes, and a registry of 59 algorithm
   implementations.
   \item \textbf{Validity controls} (\S\ref{sec:validity}) for each threat we
   identified in our own earlier results: post-hoc statistics, seed count,
-  timing method, data provenance, outlier scoring, scale, and selector
-  leakage.
+  timing method, data provenance, outlier scoring, run isolation, scale, and
+  selector leakage.
   \item \textbf{An empirical study} (\S\ref{sec:results}) with
-  in-distribution, leave-one-dataset-family-out, out-of-distribution and
-  large-$n$ evaluations, including the earlier results that the controls
-  overturned (\S\ref{sec:corrections}).
+  in-distribution, leave-one-dataset-family-out, out-of-distribution,
+  big-data and every-algorithm-on-every-dataset evaluations, including the
+  earlier results that the controls overturned (\S\ref{sec:corrections}).
 \end{enumerate}
 A companion paper~\cite{clustbenchalgos} describes the new algorithms
 developed with the harness. This paper covers the harness, the suite and what
@@ -242,9 +252,9 @@ proposals). The negative of $\Delta c_t$ is a natural reward. Concatenated
 across runs, trajectories are a dataset for value models over
 $(s, a) \mapsto \Delta c$, for learned proposal distributions, and for
 imitation learning of clustering policies. The companion
-paper~\cite{clustbenchalgos} trains such a policy. In the current release, 37
-of the 48 benchmarked algorithms emit trajectories, and the in-distribution
-run stores 5{,}180 of them. Figure~\ref{fig:traj} shows three.
+paper~\cite{clustbenchalgos} trains such a policy. In the current release, 45
+of the 61 benchmarked algorithms emit trajectories, and the in-distribution
+run stores 6{,}300 of them. Figure~\ref{fig:traj} shows three.
 
 \begin{figure}[t]
   \centering
@@ -321,6 +331,17 @@ memory, package versions, git commit and a hash of the configuration.
 back to synthetic data. The UCR loader now downloads the archive's canonical
 zips, verifies a pinned SHA-256, and concatenates the TRAIN and TEST splits.
 
+\paragraph{Isolation.} Large sweeps fail in ways a small grid never shows: a
+single run can exhaust memory and have the whole sweep killed by the
+operating system, or block in native code that a Python alarm cannot
+interrupt. With \code{resources.isolate} set, each run executes in a child
+process forked from the warmed-up harness. The child limits its own address
+space to its baseline plus a budget (3\,GB below), and the parent kills it
+when a per-algorithm time limit expires. Runs that hit a limit are recorded
+as \code{Timeout}, \code{MemoryError} or \code{Killed} rows with the task
+key, so a slow or memory-hungry algorithm appears as a
+did-not-finish result instead of silently disappearing from its mean.
+
 \paragraph{Selector leakage.} All learned selectors read their training table
 through one module, which can exclude dataset families. A
 leave-one-dataset-family-out (LOFO) script retrains every selector without
@@ -341,7 +362,8 @@ the test family, one family at a time.
     Single noisy timing; threads uncontrolled & median of 3; one BLAS/OpenMP thread; hardware in manifest \\
     Real data silently replaced by synthetic & \code{dataset\_source} per row; \code{strict\_provenance}; checksummed UCR zips \\
     Injected outliers scored as a class & \code{ari\_inliers}, \code{nmi\_inliers} \\
-    $n \le 2000$ & sweep to $n = 50{,}000$ with logged \code{max\_n} caps \\
+    $n \le 2000$ & sweeps to $n = 200{,}000$, $d = 500$, $k = 200$; logged \code{max\_n} caps \\
+    Runaway runs stall or kill the sweep & each run in a forked child with time and memory limits; DNF rows recorded \\
     Selector leakage through sibling seeds & leave-one-dataset-family-out retraining \\
     Selectors and agent trained from git-ignored files & one committed training table; agent rebuilds its traces \\
     Algorithms missing from OOD split & unseen config covers every algorithm \\
@@ -354,7 +376,9 @@ the test family, one family at a time.
 A static, dependency-free HTML dashboard served from the repository's
 \code{docs/} folder reads the results and trajectory JSON. It shows
 per-algorithm comparisons, a filterable per-task leaderboard, rank and
-Friedman tests computed in the browser, and a trajectory viewer. A build
+Friedman tests computed in the browser, and a trajectory viewer. Further
+panels show the every-dataset run by dataset group, the big-data scaling
+table, graph clustering at $n = 100{,}000$ and the held-out split. A build
 script converts any run directory into dashboard JSON, so refreshing the
 public leaderboard is one command plus a commit.
 
@@ -419,10 +443,20 @@ method, ten learned selectors and a behaviour-cloned agent.
   configurations with $(n, d, k)$ tuples, outlier extremities and seeds
   ($100$--$104$) absent from training, e.g.\ MDCGen at $d{=}25, k{=}7$, moons
   embedded in $d{=}5$, inverse-PCA at $d{=}150$, and outlier extremity 10,
-  giving 35 tasks for all 49 algorithms (the 48 above plus Chameleon).
+  giving 35 tasks for all 62 algorithms (the 61 above plus Chameleon).
   \item \emph{Large-$n$} (\code{benchmark.scaling.large.yaml}): MDCGen
   ($d{=}10, k{=}5$) and moons at $n \in \{10^3, 3\cdot10^3, 10^4,
   3\cdot10^4, 5\cdot10^4\}$, two seeds, 18 algorithms.
+  \item \emph{Big data} (\code{benchmark.bigdata.yaml}): MDCGen along three
+  one-factor axes through $n{=}10^4, d{=}20, k{=}10$, namely
+  $n \in \{2\cdot10^3, \dots, 2\cdot10^5\}$, $d \in \{5, \dots, 500\}$ and
+  $k \in \{3, \dots, 200\}$, plus a $10^5 \times 100 \times 50$ corner; one
+  seed, 120\,s and 3\,GB per isolated run, 61 algorithms.
+  \item \emph{Every dataset} (\code{benchmark.shapes.yaml}): every dataset
+  generator. The twenty shape and mixture generators run at $n = 2000$, both
+  in their native two or three dimensions and padded to $d = 10$ (rings and
+  spirals also at two values of $k$). Every real dataset runs at close to
+  native size. Three seeds, isolated runs, 63 algorithms, 180 tasks.
 \end{itemize}
 
 \section{Results}\label{sec:results}
@@ -431,23 +465,34 @@ All numbers below come from the data committed in the repository
 under \code{docs/}: the in-distribution, unseen and scaling runs and the
 LOFO results. The figures are regenerated from those
 files by the script \code{make\_figures.py} in \code{paper/scripts}. Every real
-dataset loaded as real data: 1{,}680 rows are \code{real} and none is a
-fallback.
+dataset loaded as real data: 2{,}135 in-distribution rows are \code{real}
+and none is a fallback.
 
 \subsection{Overall leaderboard}
-The in-distribution run covers 48 algorithms on 140 tasks, giving 6{,}719
+The in-distribution run covers 61 algorithms on 140 tasks, giving 8{,}539
 result rows. Over the 139 tasks every algorithm completed, the Friedman test
-gives $\chi^2 = 2062$ ($p < 10^{-300}$). Figure~\ref{fig:ranks} shows average
+gives $\chi^2 = 2698$ ($p < 10^{-300}$). Figure~\ref{fig:ranks} shows average
 ranks and Figure~\ref{fig:ci} adds confidence intervals.
 \begin{itemize}
-  \item \textbf{Nemenyi cannot separate the top of the board.} The CD is 6.7
-  ranks, and eleven algorithms are within one CD of the best: seven learned
-  selectors, LMM, spectral clustering, AURA-v3 and PWCC with diverse bases.
+  \item \textbf{Nemenyi cannot separate the top of the board.} The CD is 8.7
+  ranks, and fifteen algorithms are within one CD of the best:
+  \begin{itemize}
+    \item seven learned selectors;
+    \item LMM and spectral clustering;
+    \item the tri-basis mixtures TBMM and TBMM-FL;
+    \item the micro-cluster-graph variants \code{lmm\_mcg\_dual} and
+    \code{lmm\_mcg};
+    \item AURA-v3 and PWCC with diverse bases.
+  \end{itemize}
   \item \textbf{Pairwise tests are sharper.} Holm-corrected Wilcoxon tests
-  distinguish 66 of the 83 pairs tested. The best selector beats LMM by 0.051
-  ARI (Holm $p = 2\times10^{-4}$), selector v3 beats selector v1
-  ($p_\text{Holm} = 0.003$), and LMM and spectral clustering are
-  indistinguishable ($p_\text{Holm} = 1$).
+  distinguish 76 of the 96 pairs tested.
+  \begin{itemize}
+    \item The best selector beats LMM by 0.051 ARI (Holm $p = 2\times10^{-4}$)
+    and the best micro-cluster variant by 0.046 ($p_\text{Holm} = 2\times10^{-4}$).
+    \item Selector v3 beats selector v1 ($p_\text{Holm} = 0.003$).
+    \item LMM and spectral clustering are indistinguishable
+    ($p_\text{Holm} = 1$).
+  \end{itemize}
   \item \textbf{Intervals are wide.} Configuration-level 95\% bootstrap
   intervals are about $\pm 0.09$ ARI. For example, the best selector scores
   0.815 [0.727, 0.894] and LMM 0.765 [0.661, 0.857]. Most of this width
@@ -463,7 +508,8 @@ ranks and Figure~\ref{fig:ci} adds confidence intervals.
   \includegraphics[width=0.55\linewidth]{rank_bars.pdf}
   \caption{Average ARI rank over the in-distribution split (139 complete
   tasks). Red bars are learned selectors, which are trained on benchmark
-  results (task-level leave-one-out).}
+  results (task-level leave-one-out); green bars are the micro-cluster-graph
+  methods of the companion paper.}
   \label{fig:ranks}
 \end{figure}
 
@@ -477,20 +523,22 @@ ranks and Figure~\ref{fig:ci} adds confidence intervals.
 \end{figure}
 
 \subsection{No algorithm dominates}
-Figure~\ref{fig:heatmap} breaks ARI down by dataset family. Among
-non-selectors, 27 different algorithms are best or tied-best on at least one
-family.
+Figure~\ref{fig:heatmap} breaks ARI down by dataset family. Among the 51
+non-selectors, 35 different algorithms are best on at least one family.
 \begin{itemize}
   \item \emph{Convex-only} methods ($k$-means family, BIRCH, Ward) score
   $\approx 0$ on circles.
   \item \emph{Graph-Laplacian} methods (spectral, LMM, AURA) solve circles,
-  but spectral and LMM reach only about 0.63 on moons.
-  \item \code{louvain\_knn} is the only non-selector at 1.00 on moons and the
-  best on the karate graph (0.73) and Digits (0.55), but it is weak on
-  imbalanced blobs (0.57) and power-law Student-$t$ mixtures (0.50).
+  but spectral and LMM reach only about 0.63 on moons. The micro-cluster
+  graph methods of the companion paper reach 0.98--0.99 there, close to
+  \code{louvain\_knn} (1.00).
+  \item \code{louvain\_knn} is best on the karate graph (0.73) and Digits
+  (0.55), but weak on imbalanced blobs (0.57) and power-law Student-$t$
+  mixtures (0.50).
   \item Gaussian mixtures win Iris (0.90) and Wine (0.58).
-  \item Real time series are hard for everyone. On ECG200 the best method
-  reaches 0.28 ARI, and on Trace 0.65.
+  \item Real time series are hard for everyone. On ECG200 the best method (a
+  mixture on Fourier, Laplace and Hilbert transform features) reaches
+  0.36 ARI, and on Trace the best reaches 0.66.
 \end{itemize}
 
 \begin{figure}[t]
@@ -508,7 +556,8 @@ together and penalised for absorbing them into the nearest cluster.
 Restricted to inliers, the picture changes:
 \begin{itemize}
   \item LMM rises from 0.733 to 0.990 and spectral from 0.723 to 0.989, while
-  GMM falls from 0.702 to 0.668.
+  GMM falls from 0.702 to 0.668. The micro-cluster graph methods rise less
+  (\code{lmm\_mcg} from 0.729 to 0.937).
   \item On these tasks the inlier-only ranking is led by LMM and spectral
   ($\chi^2 = 380$), whereas the plain-ARI ranking is led by the selectors.
 \end{itemize}
@@ -578,6 +627,107 @@ therefore not be read as real.
   \label{fig:scaling}
 \end{figure}
 
+\subsection{Big data: growth in \texorpdfstring{$n$, $d$ and $k$}{n, d and k}}\label{sec:bigdata}
+The big-data sweep runs all 61 algorithms with run isolation, 120\,s and 3\,GB
+per run. Of 671 runs, 530 finished; 78 hit the time limit, 60 the memory
+limit and 3 a \code{max\_n} cap. Figure~\ref{fig:bigdata} plots wall time
+along each axis, and the repository's scaling table lists each algorithm's
+log--log growth exponent in $n$, $d$ and $k$.
+\begin{itemize}
+  \item \textbf{Nineteen algorithms finish $n = 200{,}000$.}
+  \begin{itemize}
+    \item Fast and exact: mini-batch $k$-means (3.6\,s, ARI 1.00), Trident
+    (3.4\,s, 1.00) and GMM (2.8\,s, 0.96).
+    \item The micro-cluster graph method \code{mcg\_cf}: 1.1\,s, 1.00.
+    \item Slower but complete: $k$-means and FMM (28--37\,s).
+  \end{itemize}
+  \item \textbf{Only 13 finish the $10^5 \times 100 \times 50$ corner.} The
+  accurate ones:
+  \begin{itemize}
+    \item \code{mcg\_cf}: 1.00 in 1.3\,s;
+    \item Trident: 0.99 in 3.5\,s;
+    \item streaming coresets: 1.00 in 18.5\,s;
+    \item GMM: 0.97 in 64\,s;
+    \item LMM: 1.00 in 102\,s.
+  \end{itemize}
+  \item \textbf{Graph and hierarchical methods are quadratic in $n$.} Ward
+  (exponent 2.36), density peaks (2.29), spectral (2.18) and BIRCH (2.01)
+  never finish beyond $n = 10^4$. The learned selectors inherit their
+  candidates' cost (exponents 1.3--1.8), and none reaches $2\cdot10^5$.
+  LMM's exponent is 1.53.
+  \item \textbf{Cost in $k$ separates the families.} Lloyd-type $k$-means
+  variants grow with exponents 1.5--1.9 ($k$-means takes 83\,s at $k = 200$). Ward
+  and BIRCH are almost flat in $k$ and reach ARI 1.00 at $k = 200$ in about
+  4--5\,s.
+  \item \textbf{Dimension costs memory more than time.} Most exponents in
+  $d$ are below 0.6. The FLH transform-feature mixtures fail at
+  $n \ge 5\cdot10^4$ because one feature block allocates an
+  $n \times 300 \times d$ tensor.
+\end{itemize}
+The sweep uses one seed per configuration, so it measures cost, not small
+differences in accuracy.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{bigdata_axes.pdf}
+  \caption{Big-data sweep: wall time (\code{fit\_predict}, one thread) against
+  $n$, $d$ and $k$ along one-factor axes through $n{=}10^4$, $d{=}20$,
+  $k{=}10$. Coloured lines are representative algorithms; grey lines are the
+  rest. The dashed line is the 120\,s limit, and lines stop where runs hit the
+  time or memory limit.}
+  \label{fig:bigdata}
+\end{figure}
+
+\subsection{Every algorithm on every dataset}\label{sec:shapes}
+The every-dataset run asks a practitioner's question: on data of a given
+\emph{kind}, which methods work? It runs 63 algorithms on all 36 dataset
+generators, 11{,}328 runs in total. Only 12 did not finish, all of them mean
+shift on the 64-dimensional Digits and 50-dimensional Olivetti faces; they
+count as ARI 0. Figure~\ref{fig:shapes} summarises it by dataset group.
+\begin{itemize}
+  \item \textbf{Curved shapes split the field.} On moons, circles, rings,
+  spirals, the S-curve and the Swiss roll:
+  \begin{itemize}
+    \item Graph-based methods lead. The four micro-cluster graph methods
+    score 0.80--0.86; spectral clustering and LMM 0.74--0.78.
+    \item Centroid methods score 0.21--0.26, and the main selectors (v1--v5,
+    v7, v8) 0.31--0.35.
+    \item Circles are 0.00 for $k$-means, GMM and selector v3.
+  \end{itemize}
+  The selectors were trained on families where a centroid method is often
+  right, and they keep choosing one here.
+  \item \textbf{Mixtures favour full-graph mixture models.} On mixed shapes,
+  density bridges, nested and heavy-tailed mixtures, TBMM, LMM and spectral
+  clustering lead (0.78--0.79).
+  \item \textbf{Convex blobs favour GMM and $k$-means} (0.79--0.80).
+  \item \textbf{Density, imbalance and outliers favour hierarchical
+  summaries.} BIRCH, \code{mcg\_cf} and Ward lead (0.68--0.69).
+  \item \textbf{Real data favours the selectors only where they have seen it.}
+  Over all fourteen real datasets the best selector leads (0.49 against 0.40
+  for GMM, the best single method). Seven of them (Iris, Wine, Breast Cancer,
+  Digits, ECG200, Trace, karate) are in the selectors' training table, at
+  other sizes and dimensions; there the selectors score 0.68 against 0.52.
+  On the seven they have never seen (E.~coli, Glass, Yeast, Vehicle, Segment,
+  Olivetti faces, 20 Newsgroups) they score 0.30, level with the best single
+  methods (0.30, streaming coresets). This is the leave-one-family-out result
+  of \S\ref{sec:ood} on real data.
+\end{itemize}
+The overall order depends on the mix of dataset kinds. Over all 180 tasks the
+micro-cluster method \code{lmm\_mcg\_dual} leads (0.684), and the best
+selector ranks 16th (0.580). That reverses the in-distribution ranking. A
+benchmark's headline winner is a statement about its dataset mix, so we
+report both splits and the per-group view.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.75\linewidth]{shapes_groups.pdf}
+  \caption{Every-dataset run: mean ARI by dataset group (runs that did not
+  finish count as 0) for representative algorithms. Bold marks the best value
+  per group. Rows are classical baselines, graph and mixture methods, the
+  micro-cluster graph family and the best learned selector.}
+  \label{fig:shapes}
+\end{figure}
+
 \subsection{Generalisation of the learned selectors}\label{sec:ood}
 The selectors are trained on benchmark results. Their in-distribution
 scores drop only an exact fingerprint match, so sibling seeds of the same
@@ -599,10 +749,11 @@ clustering on the same 140 tasks, no LOFO selector differs significantly
 $-0.037$ to $+0.020$.
 
 \paragraph{Unseen configurations.} On the out-of-distribution split
-(Figure~\ref{fig:ood}), spectral clustering (0.860), LMM (0.858),
-\code{louvain\_knn} (0.846) and selectors v3, v5 and v7 (0.845) lead. None of
-the selector-versus-LMM, spectral or \code{louvain\_knn} differences is
-significant after Holm correction, and with 35 tasks the CD is 13.6 ranks.
+(Figure~\ref{fig:ood}), the four micro-cluster graph methods lead by mean ARI
+(0.890--0.925). They are followed by TBMM (0.869), spectral clustering
+(0.860), LMM (0.858), \code{louvain\_knn} (0.846) and selectors v3, v5 and v7
+(0.845). None of the differences among these is significant after Holm
+correction, and with 35 tasks the CD is 17.6 ranks.
 These seven configurations are on average easier than the in-distribution
 families (most algorithms sit above the diagonal in Figure~\ref{fig:ood}), so
 the split tests transfer of the dispatch rule rather than difficulty.
@@ -617,7 +768,8 @@ removes.
   \centering
   \includegraphics[width=0.5\linewidth]{ood_scatter.pdf}
   \caption{Mean ARI in-distribution vs.\ on the out-of-distribution split for
-  the 48 algorithms run on both. Squares are learned selectors.}
+  the 61 algorithms run on both. Red squares are learned selectors, green
+  points the micro-cluster graph methods.}
   \label{fig:ood}
 \end{figure}
 
@@ -638,8 +790,8 @@ draft of this paper and in the repository's analysis notes.
   \item \textbf{The UCR time series were synthetic.} Both UCR mirrors in the
   loader had gone dead (a 404 and a 44-byte page), so ECG200 and Trace had
   silently been replaced by noisy sinusoids, on which most algorithms scored
-  ARI 1.0. On the real series the best algorithm reaches 0.28 on ECG200 and
-  0.65 on Trace. The conclusion that ``engineered features make time series
+  ARI 1.0. On the real series even the best of the 61 algorithms now
+  benchmarked reaches only 0.36 on ECG200 and 0.66 on Trace. The conclusion that ``engineered features make time series
   easy'' does not hold.
   \item \textbf{BIRCH does not scale linearly} in 10 dimensions beyond
   $n \approx 3{,}000$ (\S\ref{sec:scaling}).
@@ -673,6 +825,12 @@ draft of this paper and in the repository's analysis notes.
   I/O and the $O(n^2)$ silhouette, and the first task of each selector
   contained its training. Comparisons of those numbers across algorithms with
   very different runtimes are unreliable.
+  \item \textbf{A metric, not an algorithm, killed the first big-data sweep.}
+  The Dunn index materialised an $m^2 \times d$ distance tensor per cluster
+  pair, about 16\,GB at $d = 500$. The operating system's out-of-memory
+  killer then ended the whole benchmark process, and every remaining run of
+  that shard was lost. It now uses pairwise-distance routines (peak about
+  0.3\,GB), and run isolation confines any such failure to one row.
 \end{enumerate}
 
 \section{Discussion}\label{sec:discussion}
@@ -694,8 +852,9 @@ every single algorithm, but only on families they have seen.
   \item \emph{Breadth.} Twenty families and seven unseen configurations give
   wide intervals. Most conclusions about closely matched algorithms are not
   significant, and more families, not more seeds, would tighten them.
-  \item \emph{Scale.} The large-$n$ sweep stops at $n = 50{,}000$ on two
-  families and a single machine; distributed algorithms run with one worker.
+  \item \emph{Scale.} The big-data sweep reaches $n = 200{,}000$ on one
+  generator with one seed on a single machine, and distributed algorithms
+  run with one worker. The every-dataset run stays at $n = 2000$.
   \item \emph{Timing.} Runs share one machine; median-of-3 timing still
   varies by 5--16\%.
   \item \emph{Hyperparameters.} Algorithms run at fixed, hand-chosen
@@ -703,8 +862,8 @@ every single algorithm, but only on families they have seen.
   \item \emph{Unseen split.} Its configurations are synthetic and easier than
   the in-distribution families.
   \item \emph{CI cost.} The public dashboard workflow re-runs the controlled
-  configuration on every push, which now takes roughly four times longer than
-  before.
+  configuration, now 61 algorithms, on every push to the main branch. The
+  big-data and every-dataset results are committed rather than re-run.
 \end{itemize}
 
 \section{Conclusion}
@@ -715,8 +874,12 @@ measurements, and feeds its own output to selectors that improve when the
 registry grows. Adding validity controls changed what we can claim. Learned
 selection is significantly better than any single algorithm on families it
 has seen, and statistically tied with the best graph-Laplacian methods on
-families it has not. Three earlier results were artefacts of silent data
-fallbacks, small $n$, and missing rows. Future work is more dataset families,
+families it has not. The every-dataset run makes the same point at a glance:
+selectors lead on real data they were trained on, tie on real data they were
+not, and fail on curved shapes, where graph-based methods are best. Big-data
+runs need isolation as much as statistics: one memory-hungry metric was
+enough to lose a shard. Four earlier results were artefacts of silent data
+fallbacks, small $n$, missing rows and an unbounded metric. Future work is more dataset families,
 tuned-hyperparameter comparisons, larger-$n$ distributed runs, importing
 external dataset batteries such as Gagolewski's~\cite{gagolewski2022framework},
 and using the trajectory corpus to train components inside algorithms.

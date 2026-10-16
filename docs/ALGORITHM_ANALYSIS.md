@@ -2629,8 +2629,14 @@ Findings:
   0.78–0.79). MCG variants are 0.67–0.76: they trail on hierarchical-nested
   and heavy-tailed data.
 * **Convex blobs favour GMM and k-means**, as expected (0.79–0.80).
-* **Real data favours the routers clearly** (0.49 vs 0.40 for the best
-  single method, GMM).
+* **Real data favours the routers only where they have seen it.** Overall
+  they lead (0.49 vs 0.40 for GMM). On the 7 real datasets that are in their
+  training table (iris, wine, breast cancer, digits, ECG200, Trace, karate;
+  here at other n and d) they score 0.68 vs 0.52 for the best single
+  method. On the 7 they have never seen (ecoli, glass, yeast, vehicle,
+  segment, Olivetti, 20 newsgroups) they score 0.30, level with the best
+  single methods (0.30, `bico_stream`). This is the LOFO result again, on
+  real data.
 * **The MCG variants are weakest on real data** (0.32–0.37). `lmm_mcg`
   scores 0.02 on Olivetti faces: with n = 400 and k = 40, the
   `max(n/10, 10k)` rule asks for about 400 micro-clusters (one per point),

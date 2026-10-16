@@ -21,7 +21,7 @@
 \newcommand{\R}{\mathbb{R}}
 
 \title{\textbf{Synthesising Clustering Algorithms from Benchmark Failure Modes:}\\
-\large Basis Mixtures, Region-Adaptive Pipelines, Learned Routers\\ and a Behaviour-Cloned Clustering Agent}
+\large Basis Mixtures, Region-Adaptive Pipelines, Learned Routers,\\ a Behaviour-Cloned Agent and Micro-Cluster Graphs}
 \author{Ashail Maharaj\\\small\url{https://github.com/Ashail33/clustbench}}
 \date{October 2026}
 
@@ -29,39 +29,46 @@
 \maketitle
 
 \begin{abstract}
-We report fifteen rounds of algorithm development carried out inside
+We report twenty-three rounds of algorithm development carried out inside
 Clustbench~\cite{clustbenchharness}, a benchmark harness that re-ranks every
 candidate against a registry of clustering algorithms on every run. The
 algorithms were not designed up front; each round started from a failure mode
 the previous round's benchmark exposed. We contribute
 (i) a family of exponential-family mixture models whose component
 log-densities are linear in a shared basis, with random Fourier (FMM), graph
-Laplacian (LMM) and autoencoder (AMM) bases;
-(ii) a physics-inspired method (MRIC) that clusters per-point relaxation
-signatures;
+Laplacian (LMM) and autoencoder (AMM) bases, plus multi-basis and
+transform-feature variants;
+(ii) a physics-inspired method (MRIC);
 (iii) five targeted one-line fixes of classical methods;
-(iv) three composed pipelines, RAPID, AURA and META-CLUSTERER, each iterated
-through a v1 $\to$ v2 $\to$ v3 cycle;
-(v) a graph-community method, \code{louvain\_knn}, built to close a
-coverage gap;
-(vi) ten learned algorithm selectors (\emph{routers}), including
-fingerprint-$k$NN, per-algorithm regressors, probe-based and stacked variants;
-(vii) four machine-proposed algorithms; and
+(iv) three composed pipelines, each iterated through a v1 $\to$ v2 $\to$ v3
+cycle;
+(v) a graph-community method, \code{louvain\_knn};
+(vi) ten learned algorithm selectors (\emph{routers});
+(vii) four machine-proposed algorithms;
 (viii) \code{rl\_pipeline}, a behaviour-cloned policy that clusters by
-chaining eight primitive operators.
-All results come from a rerun of the benchmark with validity controls (five
-seeds, post-hoc tests, real-data provenance checks, timing of the algorithm
-call alone). LMM is the strongest single algorithm we built: rank 8 of 48
-in-distribution (mean ARI 0.765) and rank 2 of 49 on an out-of-distribution
-split (0.858), statistically tied with spectral clustering but almost 50
-times faster at $n{=}30{,}000$. The best routers beat it by 0.05 ARI
-in-distribution, but retrained without the dataset family under test they
-lose 0.03--0.07 and are statistically tied with it. Targeted fixes
-frequently traded the diagnosed failure for a new one. Hand-coded dispatch between versions helped only when the versions were
-complementary on detectable regimes. The RL agent learned to fire the
-spectral-embedding move from imitation, but not the multi-step sequences that
-complete it, and a published smoke result on circles did not reproduce with a
-retrained checkpoint.
+chaining eight primitive operators; and
+(ix) graph clustering at linear cost: approximate-graph variants of LMM and
+spectral clustering, and \emph{micro-cluster graph} methods (MCG) that build
+the graph on about a thousand $k$-means micro-clusters linked by
+competitive Hebbian edges.
+All results come from a benchmark run with validity controls (five seeds,
+post-hoc tests, real-data provenance checks, timing of the algorithm call
+alone, run isolation). Graph-based methods are the strongest single
+algorithms in-distribution: \code{lmm\_mcg\_dual}, LMM, \code{lmm\_mcg} and
+spectral clustering have mean ARI 0.763--0.769 among 61 algorithms. They
+cluster by connectivity rather than by distance to a centre, and on manifolds
+their eigenvectors are cosine modes along the data. The MCG methods keep
+that accuracy at linear cost. \code{lmm\_mcg\_dual} is
+statistically tied with LMM in-distribution (0.769). On a held-out split the
+four MCG variants have the four highest means (0.890--0.925 against 0.858
+for LMM), though none of the differences survives multiple-comparison
+correction. At $n = 100{,}000$, \code{mcg\_cf} matches LMM's accuracy 54
+times faster. The best routers beat every single algorithm by about 0.05
+ARI in-distribution. Retrained without the dataset family under test, they
+lose 0.03--0.07 and are statistically tied with LMM. On curved shapes they
+choose centroid methods and score 0.31--0.35, against 0.74--0.86 for graph
+methods. Targeted fixes frequently traded the diagnosed failure for a new
+one, and several of our own earlier results did not reproduce.
 \end{abstract}
 
 \section{Introduction}
@@ -80,7 +87,9 @@ iteration: run the benchmark, name the narrowest failure mode visible in the
 per-shape and per-outlier breakdowns, and build the smallest change that
 addresses it. Section~\ref{sec:method} makes this loop explicit.
 Section~\ref{sec:algos} describes the algorithms. Section~\ref{sec:results}
-evaluates them in-distribution and on an out-of-distribution split, and
+evaluates them in-distribution, on an out-of-distribution split, at
+$n = 100{,}000$, and on every dataset generator in the harness. It also
+explains why graph-based methods win on curved data.
 Section~\ref{sec:lessons} states the lessons, several of them negative.
 
 \section{Methodology: empirical iteration}\label{sec:method}
@@ -181,6 +190,32 @@ members differ only in $\phi$:
   families with the log-partition self-normalised over the sample, fitted by
   Newton-step EM. Our search was limited, though, and we make no strong novelty
   claim.
+\end{itemize}
+
+\subsection{Combined bases and transform features (round 17)}\label{sec:transforms}
+Two questions followed from the basis mixtures: does combining bases help,
+and can classical integral transforms replace them?
+\begin{itemize}
+  \item \textbf{TBMM} concatenates the graph-Laplacian, random-Fourier and
+  autoencoder bases into one $\phi$, warm-started from a spectral solution.
+  \code{tbmm\_fl} drops the autoencoder block.
+  \item \textbf{FLHMM} clusters on three per-point transform features:
+  \begin{itemize}
+    \item random Fourier features (an empirical characteristic function);
+    \item a Laplace transform of each point's distance distribution,
+    $\tfrac1n\sum_j e^{-s\,d_{ij}}$ on a log-grid of $s$;
+    \item the envelope and instantaneous phase of the analytic (Hilbert)
+    signal of the density projected on random directions.
+  \end{itemize}
+  The blocks are scaled to equal variance and concatenated, with a mixture
+  head (\code{flhmm}) or a $k$-means head (\code{flhmm\_km}).
+  \item \textbf{FLH-cycle} keeps one mixture per transform view and shares
+  only the soft assignments. Each step runs one view's M-step, then an
+  E-step, cycling Fourier $\to$ Laplace $\to$ Hilbert. This is co-EM
+  \cite{nigam2000analyzing,bickel2004multiview} with transforms as views.
+  \code{flh\_cycle\_product} instead computes each E-step from all views'
+  likelihoods (block-coordinate EM on the product of experts), with a 50\%
+  hand-off.
 \end{itemize}
 
 \subsection{MRIC: magnetic-resonance-inspired clustering}
@@ -346,19 +381,102 @@ re-weighting) and an MLP value head (discounted return, $\gamma{=}0.95$) on an
 tiered selector keeps the best non-embedding rollout with silhouette $\ge
 0.40$, or else the best embedding rollout.
 
+\subsection{Graph clustering without the point graph (rounds 19--23)}\label{sec:mcg}
+LMM and spectral clustering spend almost all their time on the $k$NN graph
+over all $n$ points. Building it exactly costs $O(n^2 d)$: 8.7\,s of LMM's
+11.2\,s at $n = 50{,}000$, $d = 20$. Its eigenvectors then cost
+$O(n \cdot \text{iterations})$, and on manifold-shaped data an
+unpreconditioned LOBPCG needs 184 iterations (16.6\,s at $n = 10^5$). We
+attacked both costs.
+\begin{itemize}
+  \item \textbf{Approximate graph, preconditioned eigensolver}
+  (\code{lmm\_fast}, \code{spectral\_fast}). The graph is built with
+  NN-descent~\cite{dong2011efficient} once $n \ge 10^4$ and $d > 10$. It is
+  12$\times$ faster than exact search at $n = 2\cdot10^5$ and recovers 95--98\%
+  of the true neighbours at $d = 20$. LOBPCG~\cite{knyazev2001toward} is
+  preconditioned with plain-aggregation algebraic multigrid
+  (PyAMG~\cite{bell2022pyamg}), which needs about six iterations on the same
+  data.
+  \item \textbf{MCG: a graph on micro-clusters} (\code{mcg}). Fit mini-batch
+  $k$-means with $m = \min(1000, n/10)$ centres on a subsample. Each point
+  votes for an edge between its nearest and second-nearest centre:
+  competitive Hebbian learning~\cite{martinetz1994topology}, whose edge counts
+  are the CONN similarity of Ta\c{s}demir and Mer\'enyi~\cite{tasdemir2009exploiting}.
+  Edges therefore exist only where data lies \emph{between} two centres.
+  Counts are weighted by $\exp(-\|c_i-c_j\|^2/2\sigma^2)$, and spectral
+  clustering runs on the $m \times m$ graph; each point takes its centre's
+  label. The cost is $O(nmd)$ plus a fixed $O(m^3)$. Spectral clustering on
+  $k$-means centroids is KASP~\cite{yan2009fast}, which links centroids by
+  their positions alone. Spectral clustering on a $k$NN graph of the same
+  centroids scores 0.27 on rings at $n = 2\cdot10^4$, where the point-voted
+  edges score 0.97.
+  \item \textbf{Tiers and CF triples} (\code{mcg\_cf}). Micro-clusters are
+  built coarse-to-fine: a $k$-means with about $2\sqrt m$ centres, then local
+  splits in proportion to each coarse cluster's size, as in BIRCH's CF
+  tree~\cite{zhang1996birch}. Each edge's bandwidth then comes from the two
+  micro-clusters' own spread, read from their clustering-feature triples
+  $(N, \mathrm{LS}, \mathrm{SS})$ as $R^2 = \mathrm{SS}/N - \|\mathrm{LS}/N\|^2$:
+  \[
+    w_{ij} = \mathrm{count}_{ij}\,
+    \exp\!\big(-\|c_i-c_j\|^2 / \gamma(R_i^2+R_j^2)\big),
+  \]
+  a locally scaled affinity in the sense of self-tuning spectral
+  clustering~\cite{zelnikmanor2004self}. The parts fix opposite failures:
+  \begin{itemize}
+    \item tiers alone fix small real data (breast cancer
+    $0.24 \to 0.45$) but break extreme outliers ($0.56 \to 0.27$);
+    \item CF weights alone fix outliers (0.81) but not small data.
+  \end{itemize}
+  Multi-resolution anchor graphs~\cite{liu2010large,huang2020ultra} are the
+  closest prior work.
+  \item \textbf{LMM on the micro-cluster basis} (\code{lmm\_mcg}). The bottom
+  eigenvectors of the micro-cluster graph replace LMM's point-graph basis. Each
+  point takes its nearest micro-cluster's row, and LMM's EM then runs on the
+  points.
+  \item \textbf{A coarse-grained Laplacian for manifolds}
+  (\code{lmm\_mcg\_dual}). The Gaussian edge weights that sharpen cuts across
+  gaps also bend the geometry of smooth, gap-free sheets
+  (\S\ref{sec:why}). With plain edge counts (a boundary-flux estimate) and
+  the mass-weighted eigenproblem $(D - W)v = \lambda\,\mathrm{diag}(N)\,v$,
+  the micro-cluster Laplacian is a finite-volume coarse-graining of the point
+  graph's. It recovers LMM's eigenvectors. Each point's basis is then blended
+  linearly between its two nearest micro-clusters. \code{lmm\_mcg\_dual}
+  gives EM both bases side by side ($2k$ columns).
+\end{itemize}
+We also tried two other second stages on the same micro-cluster graph, and
+both lost:
+\begin{itemize}
+  \item SVD of the soft point-to-micro-cluster bipartite
+  graph~\cite{liu2010large}: 0.59--0.70 in-distribution;
+  \item support vector clustering~\cite{benhur2001support} on the
+  count-weighted micro-clusters, with the kernel width bisected to give $k$
+  components: 0.66--0.69.
+\end{itemize}
+The first blurs boundaries between touching clusters. The second cannot
+separate clusters joined by a bridge.
+
 \section{Results}\label{sec:results}
 
 Unless stated otherwise, numbers come from the controlled benchmark
 rerun~\cite{clustbenchharness}:
 \begin{itemize}
-  \item an in-distribution split of 48 algorithms on 140 tasks (28 task
+  \item an in-distribution split of 61 algorithms on 140 tasks (28 task
   variants from 20 dataset families, seeds 1--5, $n \le 1000$);
   \item a leave-one-dataset-family-out (LOFO) evaluation of the routers on
   the same tasks;
-  \item an out-of-distribution (OOD) split of 49 algorithms on 35 tasks with
+  \item an out-of-distribution (OOD) split of 62 algorithms on 35 tasks with
   unseen $(n,d,k)$, outlier extremities and seeds 100--104;
-  \item a large-$n$ sweep up to $n = 50{,}000$.
+  \item a large-$n$ sweep up to $n = 50{,}000$, a big-data sweep up to
+  $n = 200{,}000$, and graph clustering at $n = 100{,}000$ on eleven
+  families;
+  \item an every-dataset run of 63 algorithms on 180 tasks from all 36
+  dataset generators.
 \end{itemize}
+The MCG settings (number of micro-clusters, edge weighting, $\gamma$, hard
+assignment) were chosen on the OOD split and a 20k-point development suite,
+with the in-distribution tasks held out. The \code{lmm\_mcg\_dual} basis was
+developed on the curved shapes of the every-dataset run, so its numbers there
+are not held out.
 Only \code{fit\_predict} is timed (median of three runs, one BLAS thread).
 Lineage tables (Tables~\ref{tab:fixes}--\ref{tab:lineage}) come from the
 round in which each version was introduced, on the 16-task demonstration grid
@@ -441,75 +559,100 @@ moons (0.85) and circles (0.84).
 \end{table}
 
 \subsection{Final standings}
-Table~\ref{tab:final} places every new algorithm in the controlled rerun, and
+Table~\ref{tab:final} places every new algorithm among all 61 (62 OOD), and
 Figure~\ref{fig:heatmap} breaks the results down by dataset family.
 Configuration-level 95\% bootstrap intervals are about $\pm0.09$ ARI, and a
-Nemenyi critical difference cannot separate the top eleven algorithms
+Nemenyi critical difference cannot separate the top fifteen algorithms
 in-distribution. Read adjacent ranks as ties unless a pairwise test says
-otherwise~\cite{clustbenchharness}. Four results stand out.
+otherwise~\cite{clustbenchharness}. Paired tests below are Wilcoxon
+signed-rank tests with Holm correction~\cite{holm1979simple}. For the MCG
+family the correction covers twelve comparisons: four variants against LMM,
+spectral clustering and router v3.
 \begin{itemize}
-  \item \textbf{LMM is the best single algorithm we built.} It ranks 8th of
-  48 in-distribution, behind only the routers, and 2nd of 49 OOD (0.858,
-  against 0.860 for spectral clustering; the difference is not significant).
-  It solves circles (1.00), and on the 15 contaminated tasks its inlier-only
-  ARI is 0.990. It also scales far better than spectral clustering on the same
-  graph Laplacian: a log--log slope of 1.5 against 2.9, and 6\,s against
-  297\,s at $n{=}30{,}000$. Of all the mechanisms we measured, the
-  graph-Laplacian basis is the most universal.
-  \item \textbf{\code{louvain\_knn} closed the gap it was built for and
-  generalises.} It is the best non-router on the karate graph (0.73), moons
-  (1.00) and Digits (0.55), ranks 3rd OOD (0.846), and keeps moons at 1.00 up
-  to $n{=}50{,}000$. It is weak on imbalanced blobs (0.57) and power-law
-  Student-$t$ mixtures (0.50), where Louvain merges or splits communities by
-  size.
-  \item \textbf{AURA-v2/v3 generalise better than they rank.} They rank 14th
-  and 10th in-distribution but 7th and 8th OOD (0.832 and 0.831), and
-  AURA-v3's Nyström path is near-linear (slope 1.1).
+  \item \textbf{Graph methods lead among single algorithms, and the MCG
+  family ties them at a fraction of the cost.} \code{lmm\_mcg\_dual} (0.769),
+  LMM (0.765), \code{lmm\_mcg} (0.764) and spectral clustering (0.763) rank
+  8th--11th, behind only the routers. No MCG variant differs from LMM or
+  spectral in-distribution (Holm $p \ge 0.47$). OOD, the four MCG variants
+  have the four highest means (\code{lmm\_mcg} 0.925, \code{mcg\_cf} 0.917,
+  \code{lmm\_mcg\_dual} 0.892, \code{mcg} 0.890), ahead of TBMM (0.869),
+  spectral (0.860) and LMM (0.858). None of those gaps survives the
+  correction (smallest Holm $p = 0.12$). By average rank, flat \code{mcg}
+  leads the OOD split.
+  \item \textbf{LMM remains the best full-graph algorithm we built.} It
+  solves circles (1.00), its inlier-only ARI on the 15 contaminated tasks is
+  0.990, and on the same graph Laplacian it scales far better than spectral
+  clustering: a log--log slope of 1.5 against 2.9, and 6\,s against 297\,s at
+  $n{=}30{,}000$.
+  \item \textbf{Combining bases neither helps nor hurts; transforms hurt.}
+  TBMM ties LMM in-distribution (0.760, Holm $p = 0.36$) and is strong OOD
+  (0.869), and \code{tbmm\_fl} matches it 5$\times$ faster: the Laplacian
+  block carries the signal. FLHMM's transform features are significantly
+  worse than LMM ($-0.113$), with one genuine win: real ECG200 (0.356, the
+  best of any single algorithm; LMM 0.196). Literal co-EM cycling hurts
+  ($-0.211$ against its own $k$-means start). Computing E-steps from all
+  views helps ($+0.034$) but stays far below LMM. AMM ranks 44th.
+  \item \textbf{\code{louvain\_knn} closed the gap it was built for.} It is
+  the best non-router on the karate graph (0.73), moons (1.00) and Digits
+  (0.55), and keeps moons at 1.00 up to $n{=}50{,}000$. It is weak on
+  imbalanced blobs (0.57) and power-law Student-$t$ mixtures (0.50).
   \item \textbf{FMM, MRIC and the round-14 proposals are mid-pack or lower.}
-  Density peaks with a bridge won its own mini-grid but ranks 41st of 48
-  overall.
+  Density peaks with a bridge won its own mini-grid but ranks 51st of 61.
 \end{itemize}
 
 \begin{table}[t]
   \centering\small
-  \caption{Controlled rerun. Mean ARI with rank by mean ARI in-distribution
-  (48 algorithms) and OOD (49 algorithms); LOFO is the routers' mean ARI when
-  retrained without the family under test. Median wall time
-  (\code{fit\_predict} only) is in-distribution. Classical baselines for
-  reference.}
+  \caption{Controlled benchmark. Mean ARI with rank by mean ARI
+  in-distribution (61 algorithms) and OOD (62 algorithms); LOFO is the
+  routers' mean ARI when retrained without the family under test. Median wall
+  time (\code{fit\_predict} only) is in-distribution. Groups: basis mixtures,
+  micro-cluster graph methods, other new algorithms, routers, classical
+  baselines.}
   \label{tab:final}
   \begin{tabular}{lrrrrrr}
     \toprule
     algorithm & ARI (in) & rank & LOFO & ARI (OOD) & rank & wall (s) \\
     \midrule
-    \code{lmm} & 0.765 & 8 & -- & 0.858 & 2 & 0.033 \\
-    \code{fmm} & 0.657 & 28 & -- & 0.728 & 28 & 0.152 \\
-    \code{mri} & 0.562 & 40 & -- & 0.617 & 41 & 0.032 \\
-    \code{louvain\_knn} & 0.714 & 13 & -- & 0.846 & 3 & 0.098 \\
-    \code{aura\_v3} & 0.737 & 10 & -- & 0.831 & 8 & 0.024 \\
-    \code{aura\_v2} & 0.714 & 14 & -- & 0.832 & 7 & 0.040 \\
-    \code{rapid} & 0.702 & 16 & -- & 0.727 & 29 & 0.051 \\
-    \code{rapid\_v3} & 0.699 & 21 & -- & 0.726 & 30 & 0.065 \\
-    \code{meta\_clusterer\_v2} & 0.701 & 18 & -- & 0.628 & 39 & 0.084 \\
-    \code{pwcc\_diverse} & 0.701 & 17 & -- & 0.756 & 19 & 0.069 \\
-    \code{mutant\_kmeans\_meta} & 0.719 & 12 & -- & 0.756 & 18 & 0.058 \\
-    \code{trident} & 0.725 & 11 & -- & 0.826 & 10 & 0.148 \\
-    \code{bico\_stream} & 0.677 & 25 & -- & 0.719 & 32 & 0.030 \\
-    \code{isomap\_bgmm} & 0.634 & 34 & -- & 0.766 & 16 & 0.160 \\
-    \code{density\_peaks\_bridge} & 0.546 & 41 & -- & 0.708 & 34 & 0.035 \\
-    \code{rl\_pipeline} & 0.604 & 37 & -- & 0.764 & 17 & 2.434 \\
+    \code{lmm} & 0.765 & 9 & -- & 0.858 & 8 & 0.033 \\
+    \code{fmm} & 0.657 & 34 & -- & 0.728 & 34 & 0.152 \\
+    \code{amm} & 0.625 & 44 & -- & 0.716 & 41 & 0.482 \\
+    \code{tbmm} & 0.760 & 12 & -- & 0.869 & 5 & 0.345 \\
+    \code{tbmm\_fl} & 0.759 & 14 & -- & 0.867 & 6 & 0.065 \\
+    \code{flhmm} & 0.652 & 39 & -- & 0.724 & 37 & 0.064 \\
+    \code{flh\_cycle\_product} & 0.627 & 43 & -- & 0.676 & 45 & 0.100 \\
+    \code{flh\_cycle} & 0.381 & 57 & -- & 0.344 & 59 & 0.102 \\
     \midrule
-    \code{learned\_router} (v1) & 0.788 & 7 & 0.728 & 0.808 & 11 & 0.203 \\
-    \code{learned\_router\_v2} & 0.792 & 6 & 0.747 & 0.789 & 13 & 0.144 \\
-    \code{learned\_router\_v3} & \textbf{0.815} & \textbf{1} & 0.745 & 0.845 & 4 & 0.109 \\
-    \code{learned\_router\_v4} & 0.814 & 4 & \textbf{0.784} & 0.831 & 9 & 0.235 \\
-    \code{learned\_router\_v7} & 0.815 & 3 & 0.745 & 0.845 & 6 & 0.167 \\
-    \code{learned\_router\_v8} & 0.808 & 5 & 0.748 & 0.800 & 12 & 0.103 \\
+    \code{mcg} & 0.745 & 15 & -- & 0.890 & 4 & 0.014 \\
+    \code{mcg\_cf} & 0.760 & 13 & -- & 0.917 & 2 & 0.022 \\
+    \code{lmm\_mcg} & 0.764 & 10 & -- & \textbf{0.925} & \textbf{1} & 0.025 \\
+    \code{lmm\_mcg\_dual} & 0.769 & 8 & -- & 0.892 & 3 & 0.045 \\
     \midrule
-    \code{spectral} & 0.763 & 9 & -- & \textbf{0.860} & \textbf{1} & 0.027 \\
-    \code{gmm} & 0.699 & 20 & -- & 0.774 & 15 & 0.014 \\
-    \code{agglomerative} (Ward) & 0.685 & 23 & -- & 0.754 & 20 & 0.006 \\
-    \code{kmeans} & 0.655 & 30 & -- & 0.731 & 23 & 0.006 \\
+    \code{mri} & 0.562 & 50 & -- & 0.617 & 52 & 0.032 \\
+    \code{louvain\_knn} & 0.714 & 19 & -- & 0.846 & 9 & 0.098 \\
+    \code{aura\_v3} & 0.737 & 16 & -- & 0.831 & 14 & 0.024 \\
+    \code{aura\_v2} & 0.714 & 20 & -- & 0.832 & 13 & 0.040 \\
+    \code{rapid} & 0.702 & 22 & -- & 0.727 & 35 & 0.051 \\
+    \code{rapid\_v3} & 0.699 & 27 & -- & 0.726 & 36 & 0.065 \\
+    \code{meta\_clusterer\_v2} & 0.701 & 24 & -- & 0.628 & 51 & 0.084 \\
+    \code{pwcc\_diverse} & 0.701 & 23 & -- & 0.756 & 25 & 0.069 \\
+    \code{mutant\_kmeans\_meta} & 0.719 & 18 & -- & 0.756 & 24 & 0.058 \\
+    \code{trident} & 0.725 & 17 & -- & 0.826 & 16 & 0.148 \\
+    \code{bico\_stream} & 0.677 & 31 & -- & 0.719 & 39 & 0.030 \\
+    \code{isomap\_bgmm} & 0.634 & 41 & -- & 0.766 & 22 & 0.160 \\
+    \code{density\_peaks\_bridge} & 0.546 & 51 & -- & 0.708 & 42 & 0.035 \\
+    \code{rl\_pipeline} & 0.604 & 46 & -- & 0.764 & 23 & 2.434 \\
+    \midrule
+    \code{learned\_router} (v1) & 0.788 & 7 & 0.728 & 0.808 & 17 & 0.203 \\
+    \code{learned\_router\_v2} & 0.792 & 6 & 0.747 & 0.789 & 19 & 0.144 \\
+    \code{learned\_router\_v3} & \textbf{0.815} & \textbf{1} & 0.745 & 0.845 & 12 & 0.109 \\
+    \code{learned\_router\_v4} & 0.814 & 4 & \textbf{0.784} & 0.831 & 15 & 0.235 \\
+    \code{learned\_router\_v7} & 0.815 & 3 & 0.745 & 0.845 & 11 & 0.167 \\
+    \code{learned\_router\_v8} & 0.808 & 5 & 0.748 & 0.800 & 18 & 0.103 \\
+    \midrule
+    \code{spectral} & 0.763 & 11 & -- & 0.860 & 7 & 0.027 \\
+    \code{gmm} & 0.699 & 26 & -- & 0.774 & 21 & 0.014 \\
+    \code{agglomerative} (Ward) & 0.685 & 29 & -- & 0.754 & 26 & 0.006 \\
+    \code{kmeans} & 0.655 & 36 & -- & 0.731 & 29 & 0.006 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -519,10 +662,128 @@ otherwise~\cite{clustbenchharness}. Four results stand out.
   \includegraphics[width=\linewidth]{heatmap.pdf}
   \caption{Mean ARI by dataset family (in-distribution) for classical
   baselines and the new algorithms. \code{louvain\_knn} is the only
-  non-router to solve moons and the karate graph together; LMM, spectral
-  clustering and AURA-v3 solve circles; GMM is strongest on Iris and Wine; the
-real UCR time series (ECG200, Trace) are hard for every algorithm.}
+  non-router to solve moons and the karate graph together; the MCG methods
+  reach 0.98--0.99 on moons; LMM, spectral clustering, AURA-v3 and the MCG
+  methods solve circles; GMM is strongest on Iris and Wine; the real UCR
+  time series (ECG200, Trace) are hard for every algorithm.}
   \label{fig:heatmap}
+\end{figure}
+
+\subsection{Why graph methods win on curved data}\label{sec:why}
+$k$-means is good on blobs because it assigns points by straight-line
+distance. LMM and spectral clustering effectively assign points by distance
+\emph{along the data}. The $k$NN graph only links nearby points, and the
+graph Laplacian's bottom eigenvectors give coordinates in which straight-line
+distance approximates diffusion distance on the
+graph~\cite{belkin2003laplacian,coifman2006diffusion}. Clustering in those
+coordinates groups points by connectivity.
+
+The S-curve and Swiss roll make this concrete. Their true clusters are
+equal-mass slices of the curve parameter $t$, with no gaps between slices. On
+both, LMM's first three non-trivial eigenvectors are the cosine modes
+$\cos(m\pi s)$ of position $s$ along the curve:
+\begin{itemize}
+  \item $|r| = 1.00, 1.00, 0.99$ on the S-curve;
+  \item $|r| = 0.99, 0.97, 0.94$ on the Swiss roll;
+  \item correlation with the sheet's height below 0.05 on both.
+\end{itemize}
+The embedding unrolls the sheet (Figure~\ref{fig:manifold}, left). Graph
+distance tracks distance along the curve with rank correlation 0.97--0.99.
+Straight-line distance tracks it with 0.88 on the gently bent S-curve but
+only 0.25 on the Swiss roll, whose layers are close in 3-D. So $k$-means
+scores 0.91 on the S-curve but 0.21 on the Swiss roll, while LMM scores 0.80
+and 0.73. Clustering on the true $t$ itself scores 0.84 (the truth slices by
+mass, $k$-means on $t$ by width), so LMM is near the ceiling.
+
+The same analysis explains a weakness of \code{lmm\_mcg}. Its Gaussian
+edge weights distort these modes on the Swiss roll ($|r| = 0.89, 0.62, 0.22$;
+Figure~\ref{fig:manifold}, middle). The coarse-grained count Laplacian of
+\S\ref{sec:mcg} recovers them ($|r| = 1.00, 0.97, 0.92$; right) at the
+micro-cluster cost. That basis gives 0.82 and 0.73 on the S-curve and Swiss
+roll, level with LMM, but it cuts gaps less sharply: 0.863 OOD against
+0.925 for the CF basis. The dual basis keeps most of both.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{manifold_eigvecs.pdf}
+  \caption{Swiss roll ($n{=}2000$): the first three non-trivial eigenvectors
+  of three bases against position $s$ along the roll (dots), with the cosine
+  modes $\cos(m\pi s)$ (black lines). Left: LMM's graph on all points. Middle:
+  the CF-weighted micro-cluster graph of \code{lmm\_mcg}. Right: the
+  coarse-grained count Laplacian of \code{lmm\_mcg\_dual}.}
+  \label{fig:manifold}
+\end{figure}
+
+\subsection{Graph accuracy at linear cost}\label{sec:fast}
+Figure~\ref{fig:largen} places every graph method at $n = 100{,}000$, on
+eleven families at $d = 20$ with two seeds.
+\begin{itemize}
+  \item LMM scores 0.837 in 40\,s; exact spectral clustering is capped at
+  $2\cdot10^4$.
+  \item The approximate-graph variants keep the accuracy at a fifth of the
+  time: \code{lmm\_fast} 0.844 in 8.5\,s and \code{spectral\_fast} 0.832 in
+  8.9\,s. Without the AMG preconditioner they had scored 0.836 and 0.776,
+  because plain LOBPCG did not converge on rings.
+  \item The MCG family is fastest and as accurate: \code{mcg\_cf} 0.859 in
+  0.74\,s (54$\times$ faster than LMM), \code{mcg} 0.853 in 1.5\,s,
+  \code{lmm\_mcg} 0.858 in 2.0\,s and \code{lmm\_mcg\_dual} 0.858 in
+  3.3\,s.
+  \item Centroid methods are faster still but score about 0.56 on these
+  families.
+\end{itemize}
+On the big-data axes \code{mcg\_cf}'s wall time grows with exponents 0.32,
+0.23 and 0.13 in $n$, $d$ and $k$. It finishes $n = 2\cdot10^5$ in 1.1\,s and
+the $10^5 \times 100 \times 50$ corner in 1.3\,s, both at ARI 1.00; LMM needs
+102\,s for the corner. The EM-based variants inherit LMM's Newton step,
+which allocates a $(k, M, n)$ array for a basis of size $M$: \code{lmm\_mcg}
+takes 21\,s at $k = 50$, and \code{lmm\_mcg\_dual} ($M = 2k$) runs out of
+memory there, as LMM does at $k = 200$.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.55\linewidth]{largen.pdf}
+  \caption{Graph clustering at $n = 100{,}000$ ($d = 20$, eleven families, two
+  seeds): mean ARI against median wall time. Green: micro-cluster graph
+  methods; blue: other algorithms.}
+  \label{fig:largen}
+\end{figure}
+
+\subsection{Every algorithm on every dataset}\label{sec:every}
+The every-dataset run~\cite{clustbenchharness} covers all 36 generators at
+$n = 2000$, both in their native low dimension and padded to $d = 10$, plus
+every real dataset at close to native size. Figure~\ref{fig:gallery} shows
+the 2-D shapes.
+\begin{itemize}
+  \item \textbf{On curved shapes, every top method is a graph method.}
+  Averaged over moons, circles, rings, spirals, the S-curve and the Swiss
+  roll, the leaders are \code{mcg} (0.863), \code{lmm\_mcg\_dual} (0.833),
+  \code{lmm\_mcg} (0.812), \code{mcg\_cf} (0.803), spectral clustering
+  (0.776) and LMM (0.738). Centroid methods score 0.21--0.26 and routers
+  0.31--0.35.
+  \item \textbf{Flat MCG is best in two dimensions.} On 2-D moons, 5 rings
+  and 5 spirals it scores 0.99, 0.90 and 0.76. The tiered variants score
+  about 0.6 on all three, and spectral clustering scores 0.25 on the
+  spirals. At $d = 10$ the tiered variants catch up. A plausible but untested
+  cause is that, in 2-D, neighbouring arms are closer than a micro-cluster's
+  CF spread.
+  \item \textbf{Mixtures favour the full-graph EM models.} TBMM, LMM and
+  spectral clustering lead at 0.78--0.79 and MCG trails (0.67--0.76). On real
+  data the MCG variants are weakest (0.32--0.37). With $n = 400$ and $k = 40$
+  (Olivetti faces), the $\max(n/10, 10k)$ rule leaves one point per
+  micro-cluster, and \code{lmm\_mcg} scores 0.02.
+\end{itemize}
+Over all 180 tasks \code{lmm\_mcg\_dual} has the highest mean (0.684),
+ahead of \code{lmm\_mcg} (0.674), \code{mcg\_cf} and \code{lmm\_fast}
+(0.667), spectral clustering (0.665) and LMM (0.659). The best router ranks
+16th (0.580).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{shapes_gallery.pdf}
+  \caption{Every-dataset run, seed 1: six 2-D shapes coloured by the ground
+  truth and by seven algorithms, with ARI above each panel (the Swiss roll is
+  shown in its unrolled $x$--$z$ view).}
+  \label{fig:gallery}
 \end{figure}
 
 \subsection{Routers: in-distribution gains that do not transfer}
@@ -561,8 +822,8 @@ under test removes the leakage of sibling seeds.
 
 \paragraph{Unseen configurations.} On the OOD split, v3, v5 and v7 (0.845)
 are level with spectral clustering (0.860), LMM (0.858) and
-\code{louvain\_knn} (0.846); none of these differences survives Holm
-correction. Typical remaining failures are inverse-PCA at $d{=}150$ (v3 0.72
+\code{louvain\_knn} (0.846), and behind the four MCG variants (0.890--0.925);
+none of these differences survives Holm correction. Typical remaining failures are inverse-PCA at $d{=}150$ (v3 0.72
 against 0.85 for Ward) and outlier extremity 10 (v3 0.74 against 0.92 for
 \code{rl\_pipeline}). v8's richer fingerprint and OOD-triggered ensemble
 again did not help (0.800).
@@ -594,7 +855,7 @@ has seen.
 
 \subsection{Machine-proposed algorithms}
 The card mutator predicted 0.926 ARI for \code{mutant\_kmeans\_meta}; it
-measured 0.747 at introduction and 0.719 in the controlled rerun (rank 12).
+measured 0.747 at introduction and 0.719 in the controlled benchmark (rank 18).
 It beats its parent \code{kmeans\_trimmed} (0.654) by 0.065, so the hybrid is
 a real improvement, but the predicted magnitude was not. Bias matching can
 order architectures but cannot calibrate them.
@@ -603,7 +864,7 @@ Of the round-14 proposals, the two adversarial datasets did what they were
 designed to do: routers trailed non-routers by 0.036 and 0.068 ARI on them.
 Of the three new algorithms, none reached the top 20.
 
-Trident (rank 11, 0.725) shows the limit of silhouette gating. On moons it
+Trident (rank 17, 0.725) shows the limit of silhouette gating. On moons it
 scored 0.262 even though its own \code{louvain\_knn} probe scored 0.997,
 because a compact wrong split can have a higher silhouette than a correct
 non-convex one.
@@ -625,10 +886,10 @@ counts. A checkpoint retrained on them (PyTorch 2.14) reproduces blobs (1.00)
 and moons (0.30), but scores \emph{0.16} on the circles smoke test, not 1.00.
 That headline result therefore depended on one lucky training run.
 
-\paragraph{Controlled rerun.} The agent ranks 37th of 48 in-distribution (mean
+\paragraph{Controlled rerun.} The agent ranks 46th of 61 in-distribution (mean
 ARI 0.604) and is the slowest method (median 2.4\,s per task), with a bimodal
 profile: 0.989 on the SBM graph and 0.907 on anisotropic blobs, but $-0.001$
-on circles and 0.27 on moons at $n{=}500$. It does better OOD (rank 17,
+on circles and 0.27 on moons at $n{=}500$. It does better OOD (rank 23,
 0.764), where it is the best algorithm on outlier extremity 10 (0.92).
 \begin{itemize}
   \item At $n{=}500$ the policy still fires \code{eigen\_embed}, but every
@@ -657,8 +918,11 @@ on circles and 0.27 on moons at $n{=}500$. It does better OOD (rank 17,
   beat every single algorithm in-distribution, but with the test family held
   out they are statistically tied with LMM and spectral clustering. Only a
   family-level split shows this; a seed-level or configuration-level hold-out
-  does not. Outside the benchmark's families, LMM, spectral clustering,
-  \code{louvain\_knn} and AURA-v2/v3 are as good a default and much cheaper.
+  does not. On real datasets missing from their training table they tie the
+  best single methods (0.30), and on curved shapes they pick centroid methods
+  (0.31--0.35). Outside the benchmark's families, graph-based methods (the
+  MCG family, LMM, spectral clustering, \code{louvain\_knn}) are as good a
+  default and much cheaper.
   \item \textbf{Grow the registry, not the router.} The biggest router gains
   came from adding algorithms and data, not from router redesigns.
   \item \textbf{Internal-validity gates are shape-biased.} Silhouette-based
@@ -672,10 +936,26 @@ on circles and 0.27 on moons at $n{=}500$. It does better OOD (rank 17,
   training files each removed rows from the benchmark without stopping it.
   Each missing row changed the means it was dropped from until it was
   root-caused.
+  \item \textbf{The graph, not the point count, is what graph methods need.}
+  A thousand micro-clusters linked by the points that lie between them carry
+  the connectivity signal that makes LMM and spectral clustering accurate,
+  at linear cost. Profile before optimising: the first speed-up came from
+  the neighbour search, not the model.
+  \item \textbf{Edge weights trade cuts for geometry.} Gaussian weights that
+  separate close rings and outliers distort the eigenvectors of smooth,
+  gap-free manifolds, and plain boundary counts do the opposite. Giving EM
+  both bases was the best compromise we found, and an eigengap switch
+  between them was not.
+  \item \textbf{State the size of the comparison family.} We first reported
+  an OOD win of \code{lmm\_mcg} over LMM as significant after Holm correction
+  over three comparisons. The candidates were four variants against three
+  references, and over those twelve tests no OOD win survives. Correcting
+  over the comparisons actually made is part of the result.
 \end{enumerate}
 
-\paragraph{Limitations.} Most tasks are small ($n \le 1000$; the scaling
-sweep reaches $n = 50{,}000$ on two families only). Twenty families give wide
+\paragraph{Limitations.} Most tasks are small ($n \le 1000$). The big-data
+sweep reaches $n = 200{,}000$ on one generator with one seed, and the
+large-$n$ graph comparison uses eleven families at $d = 20$. Twenty families give wide
 intervals, so many adjacent ranks are ties. Lineage tables come from earlier,
 smaller grids run before the validity controls. Algorithms run with fixed
 hyperparameters. Many ideas here have
@@ -688,7 +968,12 @@ prior art:
   features are;
   \item stacked generalisation~\cite{wolpert1992stacked};
   \item Laplacian mixture modelling~\cite{korenblum2018laplacian};
-  \item exponential-family mixtures~\cite{banerjee2005clustering}.
+  \item exponential-family mixtures~\cite{banerjee2005clustering};
+  \item spectral clustering on centroids and anchor
+  graphs~\cite{yan2009fast,liu2010large,huang2020ultra}, competitive Hebbian
+  topology graphs~\cite{martinetz1994topology,tasdemir2009exploiting},
+  locally scaled affinities~\cite{zelnikmanor2004self} and BIRCH's CF
+  triples~\cite{zhang1996birch}, which MCG combines.
 \end{itemize}
 Recent clustering-recommendation systems such as ML2DAC, CLAMS and
 ClustRecNet target the same problem as our routers and should be compared
@@ -697,15 +982,23 @@ MRI-relaxation clustering method and no prior agent that composes clustering
 algorithms from primitive operators learned by imitation, but neither search
 was exhaustive. Our contribution is a systematic, re-runnable evaluation of
 these ideas against a broad registry, with validity controls, plus the
-FMM/LMM/AMM variants and the trajectory-trained agent.
+FMM/LMM/AMM variants, the trajectory-trained agent and the MCG combination.
 
 \section{Conclusion and future work}
-Starting from benchmark failure modes, we built 25 algorithms and ten
+Starting from benchmark failure modes, we built 39 algorithms and ten
 learned selectors and evaluated all of them against one another, including on
-data none had seen. The most durable results are a single algorithm (LMM, an
-EM-trained mixture over a graph-Laplacian basis, accurate and near-linear in
-practice) and a negative result: learned routers win only on dataset families
-they have seen. Three directions follow:
+data none had seen. The most durable results are these:
+\begin{itemize}
+  \item graph-based clustering by connectivity, in the form of LMM, an
+  EM-trained mixture over a graph-Laplacian basis;
+  \item its linear-cost counterpart MCG, which keeps that accuracy on a graph
+  of micro-clusters and is 54 times faster at $n = 100{,}000$;
+  \item an explanation of why both work on manifolds: their eigenvectors are
+  Fourier modes along the data;
+  \item a negative result: learned routers win only on dataset families they
+  have seen.
+\end{itemize}
+Four directions follow:
 \begin{itemize}
   \item fine-tune the behaviour-cloned agent with
   PPO~\cite{schulman2017proximal}, rewarding terminal partition quality, using
@@ -713,7 +1006,11 @@ they have seen. Three directions follow:
   \item replace specific weak components, such as CLARANS's swap proposal and
   Chameleon's merge rule, with models trained on trajectory data;
   \item give selection gates a shape-aware criterion, e.g.\ penalise
-  silhouette when the number of $k$NN-graph components disagrees with $k$.
+  silhouette when the number of $k$NN-graph components disagrees with $k$;
+  \item make MCG's resolution adaptive, so that small $n$ with large $k$
+  (Olivetti faces) and tightly packed 2-D structures get enough
+  micro-clusters, and replace LMM's $(k, M, n)$ Newton step so that the
+  EM-based variants scale in $k$.
 \end{itemize}
 
 \paragraph{Acknowledgement of AI assistance.} The benchmark harness's
