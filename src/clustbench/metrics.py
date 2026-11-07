@@ -3,6 +3,37 @@ import numpy as np
 from scipy.spatial.distance import cdist, pdist
 from sklearn.metrics import silhouette_score, davies_bouldin_score, adjusted_rand_score, normalized_mutual_info_score
 
+# Single source of truth for which direction is better for every metric the
+# harness records. Ranking code (benchmark, stats, cli, dashboard) must take
+# the direction from here, never from a literal: ranking a higher-is-better
+# metric ascending silently turns the worst (or failed) algorithm into the
+# winner. tests/test_metric_direction.py checks every consumer against it.
+HIGHER_IS_BETTER = {
+    "ari": True,
+    "nmi": True,
+    "ari_inliers": True,
+    "nmi_inliers": True,
+    "silhouette": True,
+    "dunn": True,
+    "separation": True,
+    "davies_bouldin": False,
+    # The compactness *metric* is stored as metric_compactness because
+    # "compactness" is also a generator knob (see cli.run.flatten).
+    "metric_compactness": False,
+    "wall_time_s": False,
+    "rss_delta_mb": False,
+    "cpu_user_s": False,
+    "cpu_system_s": False,
+}
+
+
+def higher_is_better(metric: str) -> bool:
+    """Direction of ``metric``; raises for metrics with no declared direction."""
+    try:
+        return HIGHER_IS_BETTER[metric]
+    except KeyError:
+        raise KeyError(f"no declared direction for metric {metric!r}; add it to HIGHER_IS_BETTER") from None
+
 
 def compactness(X: np.ndarray, labels: np.ndarray) -> float:
     comps = []
@@ -34,7 +65,10 @@ def separation(X: np.ndarray, labels: np.ndarray) -> float:
     return float(tri.mean())
 
 
-def dunn_index(X: np.ndarray, labels: np.ndarray) -> float:
+def dunn_index(X: np.ndarray, labels: np.ndarray, random_state: int = 0) -> float:
+    # Sub-sampling uses a fixed seed so the same labels always give the same
+    # value (it used the global np.random state before).
+    rng = np.random.default_rng(random_state)
     valid = [l for l in set(labels) if l != -1]
     if len(valid) < 2:
         return float("nan")
@@ -44,7 +78,7 @@ def dunn_index(X: np.ndarray, labels: np.ndarray) -> float:
         if len(C) < 2:
             continue
         m = min(len(C), 2000)
-        CC = C[np.random.choice(len(C), size=m, replace=False)]
+        CC = C[rng.choice(len(C), size=m, replace=False)]
         # pdist/cdist work in O(m^2) memory; the broadcast difference tensor
         # this replaced was O(m^2 d) and reached 16 GB at m=2000, d=500.
         diam = max(diam, float(pdist(CC).max()) if len(CC) > 1 else 0.0)
@@ -54,8 +88,8 @@ def dunn_index(X: np.ndarray, labels: np.ndarray) -> float:
     for i in range(len(clusters)):
         for j in range(i + 1, len(clusters)):
             A, B = clusters[i], clusters[j]
-            a = A[np.random.choice(len(A), size=min(len(A), 2000), replace=False)]
-            b = B[np.random.choice(len(B), size=min(len(B), 2000), replace=False)]
+            a = A[rng.choice(len(A), size=min(len(A), 2000), replace=False)]
+            b = B[rng.choice(len(B), size=min(len(B), 2000), replace=False)]
             mind = min(mind, float(cdist(a, b).min()))
     return float(mind / diam)
 

@@ -28,6 +28,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import friedmanchisquare, rankdata, wilcoxon
 
+from .metrics import higher_is_better
+
 # Columns that identify a dataset configuration (everything but the seed).
 CONFIG_KEYS: List[str] = [
     "dataset_id",
@@ -66,7 +68,7 @@ def _numeric(df: pd.DataFrame, metric: str) -> pd.DataFrame:
 def task_matrix(
     df: pd.DataFrame,
     metric: str,
-    higher: bool = True,
+    higher: Optional[bool] = None,
     algos: Optional[Iterable[str]] = None,
     complete_only: bool = True,
 ) -> pd.DataFrame:
@@ -75,6 +77,8 @@ def task_matrix(
     Duplicate (task, algo) rows are averaged. When ``complete_only`` is set,
     tasks missing any algorithm are dropped so every column is comparable.
     """
+    if higher is None:
+        higher = higher_is_better(metric)
     keys = _keys(df, TASK_KEYS)
     d = _numeric(df, metric)
     if algos is not None:
@@ -223,7 +227,7 @@ def seed_variability(df: pd.DataFrame, metric: str) -> Dict[str, Dict[str, float
 def summarize(
     df: pd.DataFrame,
     metric: str,
-    higher: bool = True,
+    higher: Optional[bool] = None,
     top_k: int = 10,
     n_boot: int = 2000,
 ) -> Dict[str, object]:
@@ -233,6 +237,8 @@ def summarize(
     (all pairs) plus each of the rest against the best, which keeps the
     number of comparisons, and so the Holm penalty, manageable.
     """
+    if higher is None:
+        higher = higher_is_better(metric)
     M = task_matrix(df, metric, higher)
     if M.shape[0] < 2:
         return {"error": "no complete tasks"}

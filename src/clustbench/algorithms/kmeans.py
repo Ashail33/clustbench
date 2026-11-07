@@ -11,26 +11,12 @@ from typing import Any, Optional
 import numpy as np
 from sklearn.cluster import KMeans as SkKMeans
 
+from ._kmeans_core import assign, kmeans_pp_init, partial_sums
 from .base import Algorithm, AlgoResult, Step, register
 
 
-def _kmeans_plus_plus_init(X: np.ndarray, k: int, rng: np.random.Generator) -> np.ndarray:
-    n = X.shape[0]
-    first = int(rng.integers(n))
-    centers = [X[first]]
-    for _ in range(1, k):
-        d2 = np.min(
-            np.sum((X[:, None, :] - np.stack(centers, axis=0)[None, :, :]) ** 2, axis=2),
-            axis=1,
-        )
-        total = d2.sum()
-        if total <= 0:
-            idx = int(rng.integers(n))
-        else:
-            probs = d2 / total
-            idx = int(rng.choice(n, p=probs))
-        centers.append(X[idx])
-    return np.stack(centers, axis=0)
+# O(n k d) seeding; kept under the old name for callers that import it.
+_kmeans_plus_plus_init = kmeans_pp_init
 
 
 def _kmeans_em(
@@ -40,21 +26,22 @@ def _kmeans_em(
     tol: float,
     rng: np.random.Generator,
 ):
-    centroids = _kmeans_plus_plus_init(X, k, rng)
+    X = np.asarray(X, dtype=np.float64)
+    mu = X.mean(axis=0)
+    X = X - mu  # centred for numerically stable distances (see _kmeans_core.sq_dists)
+    x_sq = np.einsum("ij,ij->i", X, X)
+    centroids = kmeans_pp_init(X, k, rng)
     trajectory: list[Step] = []
     prev_labels = None
     prev_inertia: Optional[float] = None
 
     for step_idx in range(max_iter):
-        D = np.sum((X[:, None, :] - centroids[None, :, :]) ** 2, axis=2)
-        labels = D.argmin(axis=1)
-        inertia = float(D[np.arange(X.shape[0]), labels].sum())
+        labels, inertia = assign(X, centroids, x_sq)
 
+        sums, counts = partial_sums(X, labels, k)
         new_centroids = centroids.copy()
-        for j in range(k):
-            members = X[labels == j]
-            if len(members) > 0:
-                new_centroids[j] = members.mean(axis=0)
+        nz = counts > 0
+        new_centroids[nz] = sums[nz] / counts[nz, None]
 
         changed = int((labels != prev_labels).sum()) if prev_labels is not None else X.shape[0]
         delta = None if prev_inertia is None else inertia - prev_inertia
@@ -65,7 +52,7 @@ def _kmeans_em(
                 delta_cost=delta,
                 accepted=True,
                 action={"type": "em", "n_reassigned": changed},
-                state={"centroids": new_centroids.tolist()},
+                state={"centroids": (new_centroids + mu).tolist()},
             )
         )
 
@@ -78,10 +65,8 @@ def _kmeans_em(
         prev_labels = labels
         prev_inertia = inertia
 
-    D = np.sum((X[:, None, :] - centroids[None, :, :]) ** 2, axis=2)
-    labels = D.argmin(axis=1)
-    inertia = float(D[np.arange(X.shape[0]), labels].sum())
-    return labels, centroids, inertia, trajectory
+    labels, inertia = assign(X, centroids, x_sq)
+    return labels, centroids + mu, inertia, trajectory
 
 
 @register

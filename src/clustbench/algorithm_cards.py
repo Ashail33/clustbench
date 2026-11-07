@@ -64,6 +64,9 @@ ALL_BIASES = {
 }
 
 
+FIDELITY_LEVELS = ("reference", "approximate", "inspired", "original", "unspecified")
+
+
 @dataclass
 class AlgorithmCard:
     name: str
@@ -79,6 +82,20 @@ class AlgorithmCard:
     handles_k_directly: bool = True
     hyperparameters: Dict[str, Any] = field(default_factory=dict)
     notes: str = ""
+    # How closely the registered implementation follows the published
+    # algorithm. Results for anything other than "reference" describe the
+    # implementation, not the method, and should be labelled as such.
+    #   reference     — the published algorithm (or a library implementation of it)
+    #   approximate   — same pipeline shape, a named step simplified or replaced
+    #   inspired      — borrows the idea; not comparable to the paper's numbers
+    #   original      — new algorithm introduced in this repository
+    #   unspecified   — not yet audited
+    fidelity: str = "unspecified"
+    fidelity_notes: str = ""
+
+    def __post_init__(self) -> None:
+        if self.fidelity not in FIDELITY_LEVELS:
+            raise ValueError(f"{self.name}: unknown fidelity {self.fidelity!r}")
 
     def predict_wall_time(self, n: int, d: int, k: Optional[int],
                           calibration: float = 1e-8) -> float:
@@ -410,6 +427,54 @@ BIAS_DATA_MATCH = {
     "meta":                    ("conv_cv",              "any",   0.10),
 }
 
+
+
+# ---------------------------------------------------------------------------
+# Implementation fidelity (see AlgorithmCard.fidelity). Only audited entries
+# are listed; everything else stays "unspecified".
+# ---------------------------------------------------------------------------
+
+_FIDELITY = {
+    # Library implementations or straightforward ports of the published method.
+    "kmeans": ("reference", "Lloyd + k-means++; sklearn path when trajectories are off."),
+    "minibatch_kmeans": ("reference", "sklearn MiniBatchKMeans (Sculley 2010)."),
+    "birch_algo": ("reference", "sklearn Birch."),
+    "agglomerative": ("reference", "sklearn AgglomerativeClustering (Ward)."),
+    "dbscan": ("reference", "sklearn DBSCAN."),
+    "optics": ("reference", "sklearn OPTICS."),
+    "meanshift": ("reference", "sklearn MeanShift."),
+    "gmm": ("reference", "sklearn GaussianMixture (EM)."),
+    "spectral": ("reference", "sklearn SpectralClustering (Ng-Jordan-Weiss)."),
+    "clarans": ("reference", "Ng & Han randomized medoid search."),
+    # Same pipeline shape as the paper, with a named step replaced.
+    "parallel_kmeans": ("approximate",
+        "Zhao et al. map/reduce iteration on a single-machine process pool; "
+        "partitions match kmeans from the same seeding, so only wall time is "
+        "informative, and only with n_workers > 1."),
+    "s5c": ("approximate",
+        "Uniform random sample instead of the paper's selective sampling "
+        "(most-violating subgradient), OMP sparse coding on the sample only, "
+        "1-NN out-of-sample labels. Its quality and scaling describe this "
+        "approximation, not Matsushima & Brbic's S5C. Designed for "
+        "union-of-subspaces data."),
+    "pwcc": ("approximate",
+        "Hungarian alignment + purity-weighted vote instead of maximising the "
+        "weighted utility over partitions; O(n) apart from the base "
+        "algorithms, so its cost is that of its slowest base (BIRCH in the "
+        "default configs), not a consensus matrix."),
+    # Introduced in this repository (companion algorithms paper).
+    **{name: ("original", "") for name in (
+        "kmeans_trimmed", "clarans_pp", "dbscan_auto", "meanshift_robust",
+        "lmm", "fmm", "amm", "mri", "consensus", "pwcc_diverse",
+        "aura", "aura_v2", "aura_v3", "meta_clusterer", "meta_clusterer_v2",
+        "meta_clusterer_v3", "rapid", "rapid_v2", "rapid_v3",
+        "learned_router", "learned_router_v2",
+    )},
+}
+for _name, (_fid, _notes) in _FIDELITY.items():
+    if _name in ALGORITHM_CARDS:
+        ALGORITHM_CARDS[_name].fidelity = _fid
+        ALGORITHM_CARDS[_name].fidelity_notes = _notes
 
 def predict_ari_upper_bound(card: AlgorithmCard, fingerprint: Dict[str, float]) -> float:
     """Predict an *upper bound* on ARI given a card and a data fingerprint.
