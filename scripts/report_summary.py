@@ -11,6 +11,7 @@ This will produce PNG bar charts for each metric by algorithm.
 from __future__ import annotations
 
 import argparse
+from clustbench.metrics import higher_is_better
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -27,8 +28,10 @@ def main() -> None:
     metrics = [c for c in ["ari", "nmi", "silhouette", "davies_bouldin", "wall_time_s", "rss_delta_mb"] if c in df.columns]
     for m in metrics:
         plt.figure()
-        df.groupby("algo")[m].mean().sort_values(ascending=False).plot(kind="bar")
-        plt.title(f"Mean {m} by algorithm")
+        # Best first, whichever direction the metric runs.
+        best_first = df.groupby("algo")[m].mean().sort_values(ascending=not higher_is_better(m))
+        best_first.plot(kind="bar")
+        plt.title(f"Mean {m} by algorithm ({'higher' if higher_is_better(m) else 'lower'} is better)")
         plt.tight_layout()
         fname = f"{args.outdir}/{m}_by_algo.png"
         plt.savefig(fname)

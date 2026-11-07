@@ -1,12 +1,24 @@
-"""Selective-sampling-based scalable sparse subspace clustering (S5C).
+"""Selective-sampling-based scalable sparse subspace clustering (S5C) — approximation.
 
-Faithful-in-shape implementation of Matsushima & Brbic, the algorithm
+An *approximation* of Matsushima & Brbic (NeurIPS 2019), the algorithm
 named in `Maharaj (2024)` for the sampling/partitioning category of
-the taxonomy.
+the taxonomy. Its algorithm card is marked ``fidelity="approximate"``;
+results describe this implementation, not the published method.
 
-The original paper combines three ideas:
+Differences from the paper:
 
-1. **Selective sampling** — instead of solving a sparse representation
+* sampling is uniform at random; the paper selects points incrementally by
+  the most-violating subgradient of the SSC objective;
+* sparse codes are computed for the sample only (OMP), and non-sampled
+  points take the label of their nearest sampled point, whereas the paper
+  represents every point against the selected dictionary;
+* the paper's target regime is data on a union of low-dimensional
+  subspaces; the Gaussian-blob families most of the benchmark uses are
+  outside it.
+
+The pipeline it keeps:
+
+1. **Sampling** — instead of solving a sparse representation
    for every data point (which is O(n^2)), select a subset of size m
    and use it as a dictionary.
 2. **Sparse subspace clustering (SSC) on the sample** — for each
@@ -69,8 +81,8 @@ class S5c(Algorithm):
 
         trajectory: list[Step] = []
 
-        # Phase 1: selective sampling (uniform random; the paper offers
-        # variants, but uniform is the documented baseline).
+        # Phase 1: uniform random sampling (the paper's selective sampling by
+        # most-violating subgradient is not implemented; see module docstring).
         sample_idx = rng.choice(n, size=m, replace=False)
         Xs = X[sample_idx].astype(np.float32)
         trajectory.append(

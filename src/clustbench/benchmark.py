@@ -10,7 +10,7 @@ import pandas as pd
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 from .datasets import DATASETS, DataSpec
-from .metrics import bundle_scores
+from .metrics import bundle_scores, higher_is_better
 from .schemas import Record, StepRecord
 from .algorithms import base as base_algos
 from .algorithms.base import Step
@@ -378,7 +378,7 @@ def run_task(
     return records
 
 
-def average_ranks(df: pd.DataFrame, metric: str, higher=True) -> pd.DataFrame:
+def average_ranks(df: pd.DataFrame, metric: str, higher: bool | None = None) -> pd.DataFrame:
     keys = [c for c in [
         "dataset_id",
         "n_samples",
@@ -391,6 +391,8 @@ def average_ranks(df: pd.DataFrame, metric: str, higher=True) -> pd.DataFrame:
         "outlier_extremity",
         "seed",
     ] if c in df.columns]
+    if higher is None:
+        higher = higher_is_better(metric)
     tasks = df[keys].drop_duplicates()
     ranks: List[Dict[str, Any]] = []
     for _, t in tasks.iterrows():
@@ -408,7 +410,7 @@ def average_ranks(df: pd.DataFrame, metric: str, higher=True) -> pd.DataFrame:
     )
 
 
-def friedman(df: pd.DataFrame, metric: str, higher=True):
+def friedman(df: pd.DataFrame, metric: str, higher: bool | None = None):
     keys = [c for c in [
         "dataset_id",
         "n_samples",
@@ -421,6 +423,8 @@ def friedman(df: pd.DataFrame, metric: str, higher=True):
         "outlier_extremity",
         "seed",
     ] if c in df.columns]
+    if higher is None:
+        higher = higher_is_better(metric)
     algos = sorted(df["algo"].unique())
     tasks = df[keys].drop_duplicates().reset_index(drop=True)
     M: List[List[float]] = []

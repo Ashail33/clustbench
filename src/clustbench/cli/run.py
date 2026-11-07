@@ -13,6 +13,7 @@ import pandas as pd
 
 from ..benchmark import run_task, AlgoCfg, average_ranks, friedman
 from .. import stats as cb_stats
+from ..metrics import higher_is_better
 
 
 def environment_info(threads: int | None) -> dict:
@@ -212,12 +213,8 @@ def write_results(df: pd.DataFrame, outdir: pathlib.Path) -> None:
 def write_summary(df: pd.DataFrame, outdir: pathlib.Path) -> dict:
     """Average ranks, Friedman and post-hoc statistics -> ``summary.json``."""
     metrics_list = [
-        ("ari", True),
-        ("nmi", True),
-        ("silhouette", True),
-        ("davies_bouldin", False),
-        ("wall_time_s", False),
-        ("rss_delta_mb", False),
+        (m, higher_is_better(m))
+        for m in ("ari", "nmi", "silhouette", "davies_bouldin", "wall_time_s", "rss_delta_mb")
     ]
     summary = {}
     for metric, higher in metrics_list:
@@ -236,7 +233,7 @@ def write_summary(df: pd.DataFrame, outdir: pathlib.Path) -> dict:
         if metric not in df.columns or df[metric].notna().sum() == 0:
             continue
         try:
-            post = cb_stats.summarize(df, metric, higher=True)
+            post = cb_stats.summarize(df, metric, higher=higher_is_better(metric))
             summary.setdefault(metric, {})["posthoc"] = {
                 k: v for k, v in post.items() if k not in ("average_ranks", "friedman")
             }

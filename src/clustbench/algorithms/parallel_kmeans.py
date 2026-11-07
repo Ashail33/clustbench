@@ -24,40 +24,19 @@ from typing import Any, Optional
 
 import numpy as np
 
+from ._kmeans_core import assign, kmeans_pp_init, partial_sums
 from .base import Algorithm, AlgoResult, Step, register
 
 
 def _map_chunk(args):
     chunk, centroids = args
-    D = ((chunk[:, None, :] - centroids[None, :, :]) ** 2).sum(axis=2)
-    labels = D.argmin(axis=1)
-    inertia = float(D[np.arange(chunk.shape[0]), labels].sum())
-    k = centroids.shape[0]
-    sums = np.zeros_like(centroids)
-    counts = np.zeros(k, dtype=np.int64)
-    for j in range(k):
-        members = chunk[labels == j]
-        if len(members):
-            sums[j] = members.sum(axis=0)
-            counts[j] = len(members)
+    labels, inertia = assign(chunk, centroids)
+    sums, counts = partial_sums(chunk, labels, centroids.shape[0])
     return labels, sums, counts, inertia
 
 
-def _kpp_init(X: np.ndarray, k: int, rng: np.random.Generator) -> np.ndarray:
-    n = X.shape[0]
-    centers = [X[int(rng.integers(n))]]
-    for _ in range(1, k):
-        d2 = np.min(
-            np.sum((X[:, None, :] - np.stack(centers, axis=0)[None, :, :]) ** 2, axis=2),
-            axis=1,
-        )
-        total = d2.sum()
-        if total <= 0:
-            idx = int(rng.integers(n))
-        else:
-            idx = int(rng.choice(n, p=d2 / total))
-        centers.append(X[idx])
-    return np.stack(centers, axis=0)
+# O(n k d) seeding shared with ``kmeans``; kept under the old name for callers.
+_kpp_init = kmeans_pp_init
 
 
 @register
@@ -90,8 +69,9 @@ class Parallel_kmeans(Algorithm):
         self.record_trajectory = record_trajectory
 
     def _run_once(self, X: np.ndarray, k: int, rng: np.random.Generator):
+        X = np.asarray(X, dtype=np.float64)
         n = X.shape[0]
-        centroids = _kpp_init(X, k, rng).astype(np.float32)
+        centroids = kmeans_pp_init(X, k, rng)
         chunks = np.array_split(np.arange(n), max(1, self.n_workers))
         chunk_data = [X[idx] for idx in chunks]
         trajectory: list[Step] = []
@@ -151,6 +131,9 @@ class Parallel_kmeans(Algorithm):
             if executor is not None:
                 executor.shutdown(wait=True)
 
+        # Final assignment against the converged centroids, as in ``kmeans``;
+        # the map-phase labels are one update behind.
+        labels_full, inertia = assign(X, centroids)
         return labels_full, centroids, float(inertia), trajectory
 
     def fit_predict(self, X: np.ndarray, k: Optional[int] = None) -> AlgoResult:

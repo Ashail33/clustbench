@@ -40,22 +40,12 @@ from typing import Any, Optional
 
 import numpy as np
 
+from ._kmeans_core import kmeans_pp_init
 from .base import Algorithm, AlgoResult, Step, register
 
 
-def _kpp_init(X: np.ndarray, k: int, rng: np.random.Generator) -> np.ndarray:
-    n = X.shape[0]
-    first = int(rng.integers(n))
-    centers = [X[first]]
-    for _ in range(1, k):
-        d2 = np.min(
-            np.sum((X[:, None, :] - np.stack(centers, axis=0)[None, :, :]) ** 2, axis=2),
-            axis=1,
-        )
-        total = d2.sum()
-        idx = int(rng.integers(n)) if total <= 0 else int(rng.choice(n, p=d2 / total))
-        centers.append(X[idx])
-    return np.stack(centers, axis=0)
+# O(n k d) seeding shared with ``kmeans`` (was an O(n k^2 d) copy).
+_kpp_init = kmeans_pp_init
 
 
 def _kmeans_em(X: np.ndarray, k: int, max_iter: int, tol: float, rng: np.random.Generator):
