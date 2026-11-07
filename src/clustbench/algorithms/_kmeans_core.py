@@ -24,7 +24,14 @@ import numpy as np
 
 
 def sq_dists(X: np.ndarray, C: np.ndarray, x_sq: np.ndarray | None = None) -> np.ndarray:
-    """Squared Euclidean distances between rows of ``X`` and ``C``, (n, k)."""
+    """Squared Euclidean distances between rows of ``X`` and ``C``, (n, k).
+
+    The Gram expansion cancels catastrophically when the data sit far from
+    the origin relative to their spread (e.g. features offset by 1e9), so
+    callers must pass *centred* data; ``kmeans_pp_init``, ``kmeans`` and
+    ``parallel_kmeans`` centre once up front (distances are translation
+    invariant, so centroids are shifted back on return).
+    """
     if x_sq is None:
         x_sq = np.einsum("ij,ij->i", X, X)
     c_sq = np.einsum("ij,ij->i", C, C)
@@ -36,6 +43,8 @@ def sq_dists(X: np.ndarray, C: np.ndarray, x_sq: np.ndarray | None = None) -> np
 def kmeans_pp_init(X: np.ndarray, k: int, rng: np.random.Generator) -> np.ndarray:
     """k-means++ seeding in O(n k d) time and O(n) extra memory."""
     n = X.shape[0]
+    mu = X.mean(axis=0)
+    X = X - mu  # centre: see sq_dists
     centers = np.empty((k, X.shape[1]), dtype=np.float64)
     first = int(rng.integers(n))
     centers[0] = X[first]
@@ -49,7 +58,7 @@ def kmeans_pp_init(X: np.ndarray, k: int, rng: np.random.Generator) -> np.ndarra
             idx = int(rng.choice(n, p=d2 / total))
         centers[j] = X[idx]
         np.minimum(d2, sq_dists(X, centers[j : j + 1], x_sq)[:, 0], out=d2)
-    return centers
+    return centers + mu
 
 
 def assign(X: np.ndarray, C: np.ndarray, x_sq: np.ndarray | None = None):

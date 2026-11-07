@@ -74,3 +74,16 @@ def test_kpp_seeding_is_linear_in_k():
 
     ratio = t(128) / t(32)  # 4x k
     assert ratio < 8.0, ratio  # linear ~4x; quadratic would be ~16x
+
+
+@pytest.mark.parametrize("offset", [0.0, 1e9])
+def test_large_offset_does_not_break_distances(offset):
+    """Gram-expansion distances cancel when data sit far from the origin
+    (e.g. timestamp features ~1e9); the k-means paths centre first."""
+    X, y = make_blobs(n_samples=2000, n_features=5, centers=4, cluster_std=0.5, random_state=0)
+    X = X + offset
+    for algo in (Kmeans(n_init=2, random_state=0), Parallel_kmeans(n_init=2, n_workers=1, random_state=0)):
+        res = algo.fit_predict(X, 4)
+        assert adjusted_rand_score(y, res.labels) > 0.99
+    C = kmeans_pp_init(X, 4, np.random.default_rng(0))
+    assert np.all(np.abs(C - offset).max(axis=1) < 50)  # centres are real data points, shifted back

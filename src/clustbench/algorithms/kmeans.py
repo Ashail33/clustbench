@@ -27,6 +27,8 @@ def _kmeans_em(
     rng: np.random.Generator,
 ):
     X = np.asarray(X, dtype=np.float64)
+    mu = X.mean(axis=0)
+    X = X - mu  # centred for numerically stable distances (see _kmeans_core.sq_dists)
     x_sq = np.einsum("ij,ij->i", X, X)
     centroids = kmeans_pp_init(X, k, rng)
     trajectory: list[Step] = []
@@ -50,7 +52,7 @@ def _kmeans_em(
                 delta_cost=delta,
                 accepted=True,
                 action={"type": "em", "n_reassigned": changed},
-                state={"centroids": new_centroids.tolist()},
+                state={"centroids": (new_centroids + mu).tolist()},
             )
         )
 
@@ -64,7 +66,7 @@ def _kmeans_em(
         prev_inertia = inertia
 
     labels, inertia = assign(X, centroids, x_sq)
-    return labels, centroids, inertia, trajectory
+    return labels, centroids + mu, inertia, trajectory
 
 
 @register

@@ -70,6 +70,8 @@ class Parallel_kmeans(Algorithm):
 
     def _run_once(self, X: np.ndarray, k: int, rng: np.random.Generator):
         X = np.asarray(X, dtype=np.float64)
+        mu = X.mean(axis=0)
+        X = X - mu  # centred for numerically stable distances (see _kmeans_core.sq_dists)
         n = X.shape[0]
         centroids = kmeans_pp_init(X, k, rng)
         chunks = np.array_split(np.arange(n), max(1, self.n_workers))
@@ -116,7 +118,7 @@ class Parallel_kmeans(Algorithm):
                                 "n_workers": self.n_workers,
                                 "counts_per_cluster": total_count.tolist(),
                             },
-                            state={"centroids": new_centroids.tolist()},
+                            state={"centroids": (new_centroids + mu).tolist()},
                         )
                     )
 
@@ -134,7 +136,7 @@ class Parallel_kmeans(Algorithm):
         # Final assignment against the converged centroids, as in ``kmeans``;
         # the map-phase labels are one update behind.
         labels_full, inertia = assign(X, centroids)
-        return labels_full, centroids, float(inertia), trajectory
+        return labels_full, centroids + mu, float(inertia), trajectory
 
     def fit_predict(self, X: np.ndarray, k: Optional[int] = None) -> AlgoResult:
         assert k is not None, "k required"
