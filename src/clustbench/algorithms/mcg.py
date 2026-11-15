@@ -99,6 +99,7 @@ class Mcg(Algorithm):
         tiers: int = 1,
         gamma: float = 1.0,
         min_points: float = 3.0,
+        coarsen: str = "minibatch",
         random_state: int = 42,
         **kwargs: Any,
     ) -> None:
@@ -107,6 +108,9 @@ class Mcg(Algorithm):
             raise ValueError("edge_weight must be 'gauss', 'count' or 'cf'")
         if tiers not in (1, 2):
             raise ValueError("tiers must be 1 or 2")
+        if coarsen not in ("minibatch", "omeans"):
+            raise ValueError("coarsen must be 'minibatch' or 'omeans'")
+        self.coarsen = coarsen
         self.n_micro = n_micro
         self.fit_n = int(fit_n)
         self.edge_weight = edge_weight
@@ -138,6 +142,10 @@ class Mcg(Algorithm):
         return int(max(k + 1, min(m, n - 1)))
 
     def _centres_flat(self, S: np.ndarray, m: int) -> np.ndarray:
+        if self.coarsen == "omeans":                    # o-means: moving-average updates + two-level assignment
+            from .o_means import omeans
+
+            return omeans(S, m, epochs=3.0, random_state=self.random_state)["centroids"]
         from sklearn.cluster import MiniBatchKMeans
 
         return MiniBatchKMeans(n_clusters=m, n_init=1, random_state=self.random_state,

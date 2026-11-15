@@ -50,3 +50,4 @@ from . import tbmm  # noqa: F401
 from . import flhmm  # noqa: F401
 from . import flh_cycle  # noqa: F401
 from . import mcg  # noqa: F401
+from . import o_means  # noqa: F401
