@@ -50,7 +50,9 @@ The 500k-point run has 61 points per centroid, the ratio of the post's datasets.
 **Not reproduced:** the post's "Lloyd's 25-iteration error in 0.15-0.45 passes". After one epoch (1 pass for e-means,
 0.27-0.52 for o-means) both are still 4.7-7.8% above Lloyd.
 
-## 2. The toy chart (`scripts/omeans_toy_demo.py`)
+## 2. The toy chart (`scripts/omeans_toy_demo.py`, figure: `scripts/omeans_toy_chart.py`)
+
+![k-means vs e-means vs o-means, reproduced](toy_chart.png)
 
 This reproduces the LinkedIn chart: 12,000 2-D points, k = 64, mean of 3 runs.
 

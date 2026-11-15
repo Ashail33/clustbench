@@ -100,8 +100,12 @@ class _CellIndex:
 
 def omeans(X: np.ndarray, k: int, epochs: float = 3.0, batch_size: Optional[int] = None, alpha_max: Optional[float] = None,
            two_level_min_k: int = 256, cell_size: int = 128, nprobe: Optional[int] = None, revive_every: int = 5,
-           random_state: int = 0, two_level: bool = True, revive: str = "count", dead_frac: float = 1e-2) -> dict:
-    """Fit o-means; returns centroids, exact labels, the k-means objective and distance-computation counts."""
+           random_state: int = 0, two_level: bool = True, revive: str = "count", dead_frac: float = 1e-2, trace: Optional[list] = None, trace_every: int = 1) -> dict:
+    """Fit o-means; returns centroids, exact labels, the k-means objective and distance-computation counts.
+
+    With ``trace`` (a list), every ``trace_every`` batches ``(passes so far, objective of the current centroids)`` is
+    appended, where passes = distance computations / (n k); the objective pass is not counted.
+    """
     rng = np.random.default_rng(random_state)
     X = np.ascontiguousarray(X, dtype=np.float64)
     n, d = X.shape
@@ -141,6 +145,8 @@ def omeans(X: np.ndarray, k: int, epochs: float = 3.0, batch_size: Optional[int]
         S = (1 - a) * S + a * sums
         N = (1 - a) * N + a * cnt
         C = S / np.maximum(N, 1e-12)[:, None]
+        if trace is not None and (t % trace_every == 0 or t == total - 1):
+            trace.append((ncomp / (n * k), float(((X - C[exact_assign(X, C)]) ** 2).sum(1).mean())))
         if t >= total - nb_epoch:                                         # last epoch: collect plain means
             last_sum += sums; last_cnt += cnt
         if (t + 1) % revive_every == 0:
