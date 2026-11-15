@@ -1,0 +1,409 @@
+# o-means check (round 25): o-means as a clusterer, and as the micro-cluster (coarsening) step of the MCG family,
+# against k-means, MiniBatchKMeans and the unchanged MCG algorithms, on every shapes-benchmark dataset.
+#
+#   clustbench --config configs/benchmark.omeans.yaml --out runs/omeans
+datasets:
+- id: moons
+  n_samples:
+  - 2000
+  n_features:
+  - 2
+  - 10
+  k_targets:
+  - 2
+  compactness:
+  - 1.0
+- id: circles
+  n_samples:
+  - 2000
+  n_features:
+  - 2
+  - 10
+  k_targets:
+  - 2
+  compactness:
+  - 1.0
+- id: rings
+  n_samples:
+  - 2000
+  n_features:
+  - 2
+  - 10
+  k_targets:
+  - 3
+  - 5
+  compactness:
+  - 1.0
+- id: spiral
+  n_samples:
+  - 2000
+  n_features:
+  - 2
+  - 10
+  k_targets:
+  - 3
+  - 5
+  compactness:
+  - 1.0
+- id: s_curve
+  n_samples:
+  - 2000
+  n_features:
+  - 3
+  - 10
+  k_targets:
+  - 4
+  compactness:
+  - 1.0
+- id: swiss_roll
+  n_samples:
+  - 2000
+  n_features:
+  - 3
+  - 10
+  k_targets:
+  - 4
+  compactness:
+  - 1.0
+- id: mixed_shapes
+  n_samples:
+  - 2000
+  n_features:
+  - 2
+  - 10
+  k_targets:
+  - 5
+  compactness:
+  - 1.0
+- id: mixed
+  n_samples:
+  - 2000
+  n_features:
+  - 2
+  - 10
+  k_targets:
+  - 4
+  compactness:
+  - 1.0
+- id: anisotropic
+  n_samples:
+  - 2000
+  n_features:
+  - 2
+  - 10
+  k_targets:
+  - 4
+  compactness:
+  - 1.0
+- id: varying_density
+  n_samples:
+  - 2000
+  n_features:
+  - 2
+  - 10
+  k_targets:
+  - 4
+  compactness:
+  - 1.0
+- id: VariableDensityBridges
+  n_samples:
+  - 2000
+  n_features:
+  - 2
+  - 10
+  k_targets:
+  - 4
+  compactness:
+  - 1.0
+- id: hierarchical_nested
+  n_samples:
+  - 2000
+  n_features:
+  - 2
+  - 10
+  k_targets:
+  - 4
+  compactness:
+  - 1.0
+- id: heavy_tailed_mixture
+  n_samples:
+  - 2000
+  n_features:
+  - 2
+  - 10
+  k_targets:
+  - 4
+  compactness:
+  - 1.0
+- id: imbalanced
+  n_samples:
+  - 2000
+  n_features:
+  - 2
+  - 10
+  k_targets:
+  - 4
+  compactness:
+  - 1.0
+- id: extreme_outliers
+  n_samples:
+  - 2000
+  n_features:
+  - 2
+  - 10
+  k_targets:
+  - 4
+  compactness:
+  - 1.0
+- id: PowerLawStudentT
+  n_samples:
+  - 2000
+  n_features:
+  - 2
+  - 10
+  k_targets:
+  - 4
+  compactness:
+  - 1.0
+- id: imbalanced_blobs
+  n_samples:
+  - 2000
+  n_features:
+  - 2
+  - 10
+  k_targets:
+  - 4
+  compactness:
+  - 1.0
+- id: blobs
+  n_samples:
+  - 2000
+  n_features:
+  - 2
+  - 10
+  k_targets:
+  - 4
+  compactness:
+  - 1.0
+- id: mdcgen
+  n_samples:
+  - 2000
+  n_features:
+  - 2
+  - 10
+  k_targets:
+  - 4
+  compactness:
+  - 1.0
+- id: inverse_pca
+  n_samples:
+  - 2000
+  n_features:
+  - 2
+  - 10
+  k_targets:
+  - 4
+  compactness:
+  - 1.0
+- id: graph_sbm
+  n_samples:
+  - 200
+  n_features:
+  - 16
+  k_targets:
+  - 4
+  compactness:
+  - 1.0
+- id: ts_synth
+  n_samples:
+  - 200
+  n_features:
+  - 16
+  k_targets:
+  - 3
+  compactness:
+  - 1.0
+- id: iris
+  n_samples:
+  - 150
+  n_features:
+  - 4
+  k_targets:
+  - 3
+  compactness:
+  - 1.0
+- id: wine
+  n_samples:
+  - 178
+  n_features:
+  - 13
+  k_targets:
+  - 3
+  compactness:
+  - 1.0
+- id: breast_cancer
+  n_samples:
+  - 569
+  n_features:
+  - 30
+  k_targets:
+  - 2
+  compactness:
+  - 1.0
+- id: digits
+  n_samples:
+  - 1797
+  n_features:
+  - 64
+  k_targets:
+  - 10
+  compactness:
+  - 1.0
+- id: ecoli
+  n_samples:
+  - 336
+  n_features:
+  - 7
+  k_targets:
+  - 5
+  compactness:
+  - 1.0
+- id: glass
+  n_samples:
+  - 214
+  n_features:
+  - 9
+  k_targets:
+  - 6
+  compactness:
+  - 1.0
+- id: yeast
+  n_samples:
+  - 1484
+  n_features:
+  - 8
+  k_targets:
+  - 10
+  compactness:
+  - 1.0
+- id: vehicle
+  n_samples:
+  - 846
+  n_features:
+  - 18
+  k_targets:
+  - 4
+  compactness:
+  - 1.0
+- id: segment
+  n_samples:
+  - 2310
+  n_features:
+  - 19
+  k_targets:
+  - 7
+  compactness:
+  - 1.0
+- id: olivetti_faces
+  n_samples:
+  - 400
+  n_features:
+  - 50
+  k_targets:
+  - 40
+  compactness:
+  - 1.0
+- id: text20news
+  n_samples:
+  - 2000
+  n_features:
+  - 50
+  k_targets:
+  - 20
+  compactness:
+  - 1.0
+- id: ts_ecg200
+  n_samples:
+  - 200
+  n_features:
+  - 16
+  k_targets:
+  - 2
+  compactness:
+  - 1.0
+- id: ts_trace
+  n_samples:
+  - 200
+  n_features:
+  - 16
+  k_targets:
+  - 4
+  compactness:
+  - 1.0
+- id: graph_karate
+  n_samples:
+  - 34
+  n_features:
+  - 16
+  k_targets:
+  - 2
+  compactness:
+  - 1.0
+algorithms:
+- name: minibatch_kmeans
+  kind: python
+  entry: minibatch_kmeans
+  params:
+    batch_size: 100
+    max_iter: 100
+- name: kmeans
+  kind: python
+  entry: kmeans
+  params:
+    max_iter: 100
+    n_init: 3
+- name: mcg
+  kind: python
+  entry: mcg
+  params: {}
+- name: mcg_cf
+  kind: python
+  entry: mcg_cf
+  params: {}
+- name: lmm_mcg
+  kind: python
+  entry: lmm_mcg
+  params: {}
+- name: o_means
+  kind: python
+  entry: o_means
+  params: {}
+- name: mcg_omeans
+  kind: python
+  entry: mcg
+  params:
+    coarsen: omeans
+- name: mcg_cf_omeans
+  kind: python
+  entry: mcg_cf
+  params:
+    coarsen: omeans
+- name: lmm_mcg_omeans
+  kind: python
+  entry: lmm_mcg
+  params:
+    mcg_params:
+      coarsen: omeans
+seeds:
+- 1
+- 2
+- 3
+strict_provenance: true
+timing:
+  repeats: 1
+  threads: 1
+  warmup: true
+  timeout_s: 120
+resources:
+  isolate: true
+  memory_limit_gb: 3
