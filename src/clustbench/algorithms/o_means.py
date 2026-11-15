@@ -5,9 +5,15 @@ code is a CUDA contrib package; this version follows the described algorithm so 
 
 * **e-means update.** Each centroid keeps a running sum ``S_j`` and count ``N_j``; after a batch with sums ``s_j``
   and counts ``n_j``, ``S_j <- (1 - a) S_j + a s_j`` and ``N_j <- (1 - a) N_j + a n_j``, centroid ``S_j / N_j``. The
-  step size ``a`` follows a cosine schedule from ``alpha_max`` down to ~0 over the run.
-* **Revival.** Every ``revive_every`` batches, centroids that have stopped receiving points are replaced by splitting
-  the busiest ones (half of the donor's sums move to the child, which is nudged along the donor's spread).
+  step size ``a`` follows a cosine schedule from ``alpha_max`` down to ~0 over the run. Every centroid decays every
+  batch, hit or not, so the step size has to shrink with the batch: the default is
+  ``alpha_max = min(0.5, 0.5 b / k)`` for batch size ``b``. What matters is the number of updates per epoch: the
+  default batch ``n / 200`` (clipped to 256-4,096) was best or near-best in all three checks in docs/data_omeans.
+* **Revival.** Every ``revive_every`` batches, centroids whose count has fallen below ``dead_frac`` (1%) of the
+  mean are replaced by splitting the busiest ones (half of the donor's sums move to the child, which is nudged along
+  the donor's spread). Splitting busy centroids keeps refining dense regions, so reviving generously helps: at
+  k = 4,096 a 1% threshold beats 0.1% (+0.63% vs +1.90% error after 3 epochs) and beats reviving only centroids that
+  received no points for a long window (+3.10%; ``revive="hits"``).
 * **Two-level assignment.** With ``k`` above ``two_level_min_k``, centroids are grouped into cells of ~128 around
   ``nlist`` cell centres; a point is compared with the cell centres, then only with centroids in its ``nprobe``
   nearest cells. The cell index is refreshed every ``revive_every`` batches in the first epoch (centroids re-bucketed
@@ -16,8 +22,8 @@ code is a CUDA contrib package; this version follows the described algorithm so 
 * **Closing mean.** For ``epochs >= 2`` each centroid becomes the plain mean of the points assigned to it in the last
   epoch. Returned labels come from an exact assignment to the final centroids.
 
-The batch-size and step-size power laws of e-means are not published in the post, so ``batch_size`` and
-``alpha_max`` are explicit parameters with defaults that work across the harness's data.
+The batch-size and step-size power laws of e-means are not published in the post, so ``batch_size``,
+``alpha_max`` and ``dead_frac`` are explicit parameters; the defaults come from the sweeps in docs/data_omeans.
 """
 
 from __future__ import annotations
@@ -92,16 +98,19 @@ class _CellIndex:
         return lab, ncomp
 
 
-def omeans(X: np.ndarray, k: int, epochs: float = 3.0, batch_size: Optional[int] = None, alpha_max: float = 0.5,
+def omeans(X: np.ndarray, k: int, epochs: float = 3.0, batch_size: Optional[int] = None, alpha_max: Optional[float] = None,
            two_level_min_k: int = 256, cell_size: int = 128, nprobe: Optional[int] = None, revive_every: int = 5,
-           random_state: int = 0, two_level: bool = True) -> dict:
+           random_state: int = 0, two_level: bool = True, revive: str = "count", dead_frac: float = 1e-2) -> dict:
     """Fit o-means; returns centroids, exact labels, the k-means objective and distance-computation counts."""
     rng = np.random.default_rng(random_state)
     X = np.ascontiguousarray(X, dtype=np.float64)
     n, d = X.shape
     k = int(min(k, n))
-    b = int(batch_size or min(n, max(4096, 2 * k)))
+    b = int(batch_size or min(n, max(256, min(4096, n // 200))))     # ~200 updates per epoch
     nb_epoch = max(1, int(np.ceil(n / b)))
+    alpha_max = float(alpha_max if alpha_max is not None else min(0.5, 0.5 * b / k))
+    window = max(2 * revive_every, int(np.ceil(4 * k / b)))            # batches without a hit before 'dead'
+    last_hit = np.zeros(k, dtype=np.int64)
     total = max(1, int(round(epochs * nb_epoch)))
     C = X[rng.choice(n, k, replace=False)].copy()
     S, N = C.copy(), np.ones(k)
@@ -127,6 +136,7 @@ def omeans(X: np.ndarray, k: int, epochs: float = 3.0, batch_size: Optional[int]
         ncomp += nc
         a = alpha_max * 0.5 * (1 + np.cos(np.pi * t / total)) + 1e-4      # cosine schedule
         cnt = np.bincount(lab, minlength=k).astype(np.float64)
+        last_hit[cnt > 0] = t
         sums = np.zeros((k, d)); np.add.at(sums, lab, xb)
         S = (1 - a) * S + a * sums
         N = (1 - a) * N + a * cnt
@@ -134,7 +144,7 @@ def omeans(X: np.ndarray, k: int, epochs: float = 3.0, batch_size: Optional[int]
         if t >= total - nb_epoch:                                         # last epoch: collect plain means
             last_sum += sums; last_cnt += cnt
         if (t + 1) % revive_every == 0:
-            dead = np.where(N < 1e-3 * N.mean())[0]
+            dead = np.where(t - last_hit > window)[0] if revive == "hits" else np.where(N < dead_frac * N.mean())[0]
             if len(dead):
                 donors = np.argsort(-N)[:len(dead)]
                 spread = np.sqrt(np.maximum(((xb - C[lab]) ** 2).mean(0), 1e-12))
@@ -143,6 +153,7 @@ def omeans(X: np.ndarray, k: int, epochs: float = 3.0, batch_size: Optional[int]
                     C[dn] = S[dn] / N[dn]
                     C[j] = C[dn] + 0.01 * spread * rng.standard_normal(d); S[j] = C[j] * N[j]
                     children.setdefault(int(dn), []).append(int(j))
+                    last_hit[j] = last_hit[dn] = t
             if use_cells and t < nb_epoch:
                 idx.rebucket(C); children = {}
         if use_cells and t >= nb_epoch and (t - nb_epoch) % max(1, nb_epoch // 2) == 0:
@@ -160,7 +171,7 @@ def omeans(X: np.ndarray, k: int, epochs: float = 3.0, batch_size: Optional[int]
 class O_means(Algorithm):
     """o-means as a clustering algorithm (k = number of clusters)."""
 
-    def __init__(self, epochs: float = 3.0, batch_size: Optional[int] = None, alpha_max: float = 0.5,
+    def __init__(self, epochs: float = 3.0, batch_size: Optional[int] = None, alpha_max: Optional[float] = None,
                  n_init: int = 3, random_state: int = 0, **kwargs):
         self.name = "o_means"
         self.epochs, self.batch_size, self.alpha_max = epochs, batch_size, alpha_max

@@ -6,7 +6,9 @@ epochs it ends 0.7-1.7% below 25-iteration Lloyd error. Wall-clock speed-ups are
 
 Data: an anisotropic Gaussian mixture with many more modes than k, so the quantisation error is not trivially zero.
 
-    python scripts/omeans_quantization.py [--n 100000] [--d 64] [--k 1024 4096]
+    python scripts/omeans_quantization.py [--n 100000] [--d 64] [--k 1024 4096] [--batch 256 1024 4096] [--epochs 1 3]
+
+Without --batch, each run uses o-means' default batch size; with it, every listed batch size is run.
 """
 from __future__ import annotations
 
@@ -39,6 +41,8 @@ def main():
     ap.add_argument("--d", type=int, default=64)
     ap.add_argument("--k", type=int, nargs="+", default=[1024, 4096])
     ap.add_argument("--threads", type=int, default=4)
+    ap.add_argument("--batch", type=int, nargs="*", default=[None])
+    ap.add_argument("--epochs", type=float, nargs="+", default=[1, 3, 6])
     a = ap.parse_args()
     X = make_data(a.n, a.d, modes=4 * max(a.k))
     rows = []
@@ -51,12 +55,12 @@ def main():
             t = time.time()
             mb = MiniBatchKMeans(k, batch_size=max(4096, 2 * k), max_iter=3, n_init=1, random_state=0).fit(X)
             rows.append((k, "MiniBatchKMeans, 3 epochs", objective(X, mb.cluster_centers_), np.nan, time.time() - t))
-            for ep in (1, 3, 6):
-                for two in (False, True):
-                    t = time.time()
-                    r = omeans(X, k, epochs=ep, two_level=two, random_state=0)
-                    name = f"{'o-means' if two else 'e-means (exact assign)'}, {ep} epoch{'s' if ep > 1 else ''}"
-                    rows.append((k, name, r["objective"], r["exact_pass_equivalent"], time.time() - t))
+            for b, ep, two in [(b, ep, two) for b in a.batch for ep in a.epochs for two in (False, True)]:
+                t = time.time()
+                r = omeans(X, k, epochs=ep, batch_size=b, two_level=two, random_state=0)
+                bs = f", batch {b}" if b else ""
+                name = f"{'o-means' if two else 'e-means (exact assign)'}{bs}, {ep:g} epoch{'s' if ep != 1 else ''}"
+                rows.append((k, name, r["objective"], r["exact_pass_equivalent"], time.time() - t))
             print(f"k={k} done", flush=True)
     print(f"\nn={a.n}, d={a.d}; error relative to 25-iteration Lloyd (lower is better); 'passes' = distance "
           f"computations / (n k)\n")
